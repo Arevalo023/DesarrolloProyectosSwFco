@@ -1,11 +1,12 @@
+require('dotenv').config();
 const sql = require('mssql');
 
 const dbSettings = {
-  user: 'sa',
-  password: 'Un1r1d3_S4_P4ssw0rd!',
-  server: 'localhost',
-  database: 'uniride',
-  port: 1433,
+  user: process.env.DB_USER || 'sa',
+  password: process.env.DB_PASSWORD,
+  server: process.env.DB_SERVER || 'localhost',
+  database: process.env.DB_NAME || 'uniride',
+  port: parseInt(process.env.DB_PORT, 10) || 1433,
   options: {
     encrypt: false,
     trustServerCertificate: true,
@@ -16,7 +17,7 @@ const dbSettings = {
 const poolPromise = new sql.ConnectionPool(dbSettings)
   .connect()
   .then(pool => {
-    console.log('✅ Conexión a la base de datos SQL Server (uniride) establecida con éxito.');
+    console.log(`✅ Conexión a la base de datos SQL Server (${dbSettings.database}) establecida con éxito.`);
     return pool;
   })
   .catch(err => {
