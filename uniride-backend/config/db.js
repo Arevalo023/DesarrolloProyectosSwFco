@@ -1,8 +1,8 @@
 const sql = require('mssql');
 
 const dbSettings = {
-  user: 'admin_db',
-  password: '123456',
+  user: 'sa',
+  password: 'Un1r1d3_S4_P4ssw0rd!',
   server: 'localhost',
   database: 'uniride',
   port: 1433,
