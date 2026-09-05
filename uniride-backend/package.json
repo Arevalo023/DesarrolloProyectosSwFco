@@ -15,6 +15,7 @@
     "express": "~4.16.1",
     "jsonwebtoken": "^9.0.3",
     "morgan": "~1.9.1",
+    "mssql": "^12.7.0",
     "sequelize": "^6.37.8",
     "tedious": "^19.2.2"
   },
