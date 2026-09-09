@@ -46,6 +46,8 @@ export default function Login({ onRegister }) {
       // Aquí normalmente guardarías el token (localStorage/cookie)
       // y redirigirías a la página de inicio.
       console.log("Login exitoso:", data);
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("usuario", JSON.stringify(data.user));
     } catch (err) {
       setError(err.message);
     } finally {
