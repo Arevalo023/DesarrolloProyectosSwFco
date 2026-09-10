@@ -35,8 +35,6 @@ export default function Login({ onRegister, onLogin }) {
 
     setLoading(true);
     try {
-      // NOTA: este endpoint todavía no existe en el backend, equipo de backend
-      // Agregenlo con este mismo contrato (ver mensaje sugerido arriba).
       const res = await fetch(`${API_URL}/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,12 +46,9 @@ export default function Login({ onRegister, onLogin }) {
         throw new Error(data.message || "Credenciales incorrectas");
       }
 
-      // Aquí normalmente guardarías el token (localStorage/cookie)
-      // y redirigirías a la página de inicio.
-      console.log("Login exitoso:", data);
       localStorage.setItem("token", data.token);
       localStorage.setItem("usuario", JSON.stringify(data.user));
-      onLogin();
+      onLogin(data);
     } catch (err) {
       setError(err.message);
     } finally {

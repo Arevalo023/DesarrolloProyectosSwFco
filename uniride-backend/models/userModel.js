@@ -96,6 +96,47 @@ const userModel = {
       `);
 
     return result.recordset[0];
+  },
+
+  /**
+   * Actualiza los datos editables del usuario autenticado.
+   * @param {number} id
+   * @param {{nombre: string, apellido: string, telefono: string|null}} userData
+   * @returns {Promise<object|null>}
+   */
+  async updateProfile(id, { nombre, apellido, telefono = null, campus_id }) {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('id', sql.Int, id)
+      .input('nombre', sql.VarChar(100), nombre)
+      .input('apellido', sql.VarChar(100), apellido)
+      .input('telefono', sql.VarChar(20), telefono)
+      .input('campus_id', sql.Int, campus_id)
+      .query(`
+        UPDATE Usuarios
+        SET nombre = @nombre,
+            apellido = @apellido,
+        telefono = @telefono,
+        campus_id = @campus_id
+        WHERE id = @id
+      `);
+
+    return this.findById(id);
+  },
+
+  async findCampuses() {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT
+        c.id,
+        c.nombre AS campus,
+        u.nombre AS universidad
+      FROM Campus c
+      INNER JOIN Universidades u ON c.universidad_id = u.id
+      ORDER BY u.nombre, c.nombre
+    `);
+
+    return result.recordset;
   }
 };
 

@@ -4,9 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import Footer from "@/components/Footer";
+import Logo from "@/components/Logo";
 
 import {
-  Car,
   User,
   Mail,
   GraduationCap,
@@ -43,13 +44,11 @@ export default function Profile({
       return {
         name: "",
         email: "",
-        matricula: "",
         telefono: "",
         universidad: "",
-        carrera: "",
         campus: "",
-        semestre: "",
-        rol: "Estudiante universitario",
+        campus_id: "",
+        rol: "Pasajero",
       };
     }
 
@@ -57,24 +56,6 @@ export default function Profile({
     // ----------------------------------------------------------
     // NOMBRE
     // ----------------------------------------------------------
-
-    let nombreCompleto = "";
-
-    if (usuario.name) {
-
-      nombreCompleto = usuario.name;
-
-    } else {
-
-      nombreCompleto = [
-        usuario.nombre,
-        usuario.apellido,
-      ]
-        .filter(Boolean)
-        .join(" ");
-
-    }
-
 
     // ----------------------------------------------------------
     // UNIVERSIDAD
@@ -124,7 +105,7 @@ export default function Profile({
     // ROL
     // ----------------------------------------------------------
 
-    let rol = "Estudiante universitario";
+    let rol = "Pasajero";
 
     if (typeof usuario.rol === "string") {
 
@@ -144,8 +125,20 @@ export default function Profile({
     return {
 
       // Nombre
+      nombre:
+        usuario.nombre ||
+        (usuario.name || "").split(/\s+/)[0] ||
+        "",
+
+      // Apellido
+      apellido:
+        usuario.apellido ||
+        (usuario.name || "").split(/\s+/).slice(1).join(" ") ||
+        "",
+
       name:
-        nombreCompleto ||
+        [usuario.nombre, usuario.apellido].filter(Boolean).join(" ") ||
+        usuario.name ||
         "",
 
       // Correo
@@ -177,11 +170,7 @@ export default function Profile({
 
       // Campus
       campus,
-
-      // Semestre
-      semestre:
-        usuario.semestre ||
-        "",
+      campus_id: usuario.campus_id || "",
 
       // Rol
       rol,
@@ -204,24 +193,44 @@ export default function Profile({
   const [editando, setEditando] = useState(false);
 
   const [mensaje, setMensaje] = useState("");
+  const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [campuses, setCampuses] = useState([]);
 
-
-  // ============================================================
-  // SI CAMBIA EL USUARIO QUE VIENE DE APP.JSX
-  //
-  // Actualizamos automáticamente el perfil.
-  // ============================================================
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
-    const usuarioNormalizado =
-      normalizarUsuario(user);
+    const cargarPerfil = async () => {
+      setCargando(true);
+      setError("");
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
+        const [profileResponse, campusesResponse] = await Promise.all([
+          fetch("http://localhost:3000/users/me", { headers }),
+          fetch("http://localhost:3000/users/campuses", { headers }),
+        ]);
+        const data = await profileResponse.json();
+        const campusesData = await campusesResponse.json();
+        if (!profileResponse.ok) throw new Error(data.message || "No se pudo cargar el perfil.");
+        if (!campusesResponse.ok) throw new Error(campusesData.message || "No se pudieron cargar los campus.");
 
-    setDatos(usuarioNormalizado);
+        const usuarioActualizado = data.user;
+        const perfil = normalizarUsuario(usuarioActualizado);
+        setCampuses(campusesData.campuses);
+        setDatos(perfil);
+        setDatosGuardados(perfil);
+        localStorage.setItem("usuario", JSON.stringify(usuarioActualizado));
+      } catch (requestError) {
+        setError(requestError.message);
+      } finally {
+        setCargando(false);
+      }
+    };
 
-    setDatosGuardados(usuarioNormalizado);
-
-  }, [user]);
+    cargarPerfil();
+  }, []);
 
 
   // ============================================================
@@ -277,6 +286,7 @@ export default function Profile({
   const activarEdicion = () => {
 
     setMensaje("");
+    setError("");
 
     setEditando(true);
   };
@@ -306,53 +316,38 @@ export default function Profile({
   // ============================================================
 
   const guardarCambios = async () => {
+    setCargando(true);
+    setError("");
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:3000/users/me", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          nombre: datos.nombre,
+          apellido: datos.apellido,
+          telefono: datos.telefono || null,
+          campus_id: datos.campus_id,
+        }),
+      });
+      const respuesta = await response.json();
+      if (!response.ok) throw new Error(respuesta.message || "No se pudo actualizar el perfil.");
 
-    setDatosGuardados(datos);
-
-    setEditando(false);
-
-
-    // ----------------------------------------------------------
-    // AVISAR A APP.JSX QUE EL USUARIO CAMBIÓ
-    // ----------------------------------------------------------
-
-    if (onUserUpdated) {
-      onUserUpdated(datos);
+      const perfil = normalizarUsuario(respuesta.user);
+      setDatos(perfil);
+      setDatosGuardados(perfil);
+      setEditando(false);
+      onUserUpdated?.(respuesta.user);
+      setMensaje("Perfil actualizado correctamente.");
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setCargando(false);
     }
-
-
-    // ----------------------------------------------------------
-    // FUTURA CONEXIÓN CON EL BACKEND
-    //
-    // Ejemplo:
-    //
-    // const token = localStorage.getItem("token");
-    //
-    // const response = await fetch(
-    //   "http://localhost:3000/users/me",
-    //   {
-    //     method: "PUT",
-    //     headers: {
-    //       "Content-Type": "application/json",
-    //       Authorization: `Bearer ${token}`,
-    //     },
-    //     body: JSON.stringify(datos),
-    //   }
-    // );
-    //
-    // const respuesta = await response.json();
-    //
-    // ----------------------------------------------------------
-
-
-    setMensaje(
-      "Perfil actualizado correctamente."
-    );
-
-
-    setTimeout(() => {
-      setMensaje("");
-    }, 3000);
   };
 
 
@@ -389,18 +384,7 @@ export default function Profile({
       }}
     >
 
-      {/* ========================================================
-          BARRA SUPERIOR
-      ======================================================== */}
-
-      <header
-        className="
-          bg-white
-          border-b
-          border-slate-200
-        "
-      >
-
+      <header className="bg-white border-b border-slate-200">
         <div
           className="
             max-w-6xl
@@ -417,36 +401,7 @@ export default function Profile({
 
           {/* LOGO */}
 
-          <div className="flex items-center gap-2">
-
-            <Car
-              size={34}
-              strokeWidth={2.2}
-              style={{
-                color: "#059669",
-              }}
-            />
-
-            <h1
-              className="text-2xl font-bold"
-              style={{
-                margin: 0,
-                color: "#000000",
-              }}
-            >
-              Uni{" "}
-
-              <span
-                style={{
-                  color: "#059669",
-                }}
-              >
-                Ride
-              </span>
-
-            </h1>
-
-          </div>
+          <Logo iconSize={34} textSize="text-2xl" />
 
 
           {/* PARTE DERECHA */}
@@ -580,7 +535,7 @@ export default function Profile({
                   }}
                 >
 
-                  {obtenerIniciales(datos.name)}
+                  {obtenerIniciales(`${datos.nombre} ${datos.apellido}`)}
 
                 </div>
 
@@ -602,7 +557,7 @@ export default function Profile({
                       color: "#0f172a",
                     }}
                   >
-                    {datos.name || "Usuario"}
+                    {`${datos.nombre} ${datos.apellido}`.trim() || "Usuario"}
                   </h2>
 
 
@@ -705,7 +660,7 @@ export default function Profile({
                 <div className="space-y-2">
 
                   <Label
-                    htmlFor="name"
+                    htmlFor="nombre"
                     className="
                       text-xs
                       font-bold
@@ -715,7 +670,7 @@ export default function Profile({
                       color: "#475569",
                     }}
                   >
-                    NOMBRE COMPLETO
+                    NOMBRE
                   </Label>
 
 
@@ -737,9 +692,9 @@ export default function Profile({
 
 
                     <Input
-                      id="name"
-                      name="name"
-                      value={datos.name}
+                      id="nombre"
+                      name="nombre"
+                      value={datos.nombre}
                       onChange={handleChange}
                       readOnly={!editando}
                       placeholder="Nombre del usuario"
@@ -825,13 +780,13 @@ export default function Profile({
 
 
                 {/* =================================================
-                    MATRÍCULA
+                  APELLIDO
                 ================================================= */}
 
                 <div className="space-y-2">
 
                   <Label
-                    htmlFor="matricula"
+                    htmlFor="apellido"
                     className="
                       text-xs
                       font-bold
@@ -841,7 +796,7 @@ export default function Profile({
                       color: "#475569",
                     }}
                   >
-                    MATRÍCULA
+                    APELLIDO
                   </Label>
 
 
@@ -863,12 +818,12 @@ export default function Profile({
 
 
                     <Input
-                      id="matricula"
-                      name="matricula"
-                      value={datos.matricula}
+                      id="apellido"
+                      name="apellido"
+                      value={datos.apellido}
                       onChange={handleChange}
                       readOnly={!editando}
-                      placeholder="Matrícula"
+                      placeholder="Apellido"
                       className={estiloInput}
                       style={{
                         color: "#1e293b",
@@ -1036,8 +991,7 @@ export default function Profile({
                       id="universidad"
                       name="universidad"
                       value={datos.universidad}
-                      onChange={handleChange}
-                      readOnly={!editando}
+                      readOnly
                       placeholder="Universidad"
                       className={estiloInput}
                       style={{
@@ -1051,13 +1005,13 @@ export default function Profile({
 
 
                 {/* =================================================
-                    CARRERA
+                    ROL
                 ================================================= */}
 
                 <div className="space-y-2">
 
                   <Label
-                    htmlFor="carrera"
+                    htmlFor="rol"
                     className="
                       text-xs
                       font-bold
@@ -1067,7 +1021,7 @@ export default function Profile({
                       color: "#475569",
                     }}
                   >
-                    CARRERA
+                    ROL
                   </Label>
 
 
@@ -1089,12 +1043,11 @@ export default function Profile({
 
 
                     <Input
-                      id="carrera"
-                      name="carrera"
-                      value={datos.carrera}
-                      onChange={handleChange}
-                      readOnly={!editando}
-                      placeholder="Carrera"
+                      id="rol"
+                      name="rol"
+                      value={datos.rol}
+                      readOnly
+                      placeholder="Rol"
                       className={estiloInput}
                       style={{
                         color: "#1e293b",
@@ -1144,78 +1097,39 @@ export default function Profile({
                     />
 
 
-                    <Input
+                    <select
                       id="campus"
-                      name="campus"
-                      value={datos.campus}
-                      onChange={handleChange}
-                      readOnly={!editando}
-                      placeholder="Campus"
-                      className={estiloInput}
+                      name="campus_id"
+                      value={datos.campus_id}
+                      onChange={(event) => {
+                        const selectedCampus = campuses.find(
+                          (campusOption) => String(campusOption.id) === event.target.value
+                        );
+                        setDatos((datosAnteriores) => ({
+                          ...datosAnteriores,
+                          campus_id: event.target.value,
+                          campus: selectedCampus?.campus || "",
+                          universidad: selectedCampus?.universidad || "",
+                        }));
+                      }}
+                      disabled={!editando}
+                      className={`${estiloInput} w-full appearance-none`}
                       style={{
                         color: "#1e293b",
                       }}
-                    />
+                    >
+                      <option value="">Selecciona un campus</option>
+                      {campuses.map((campusOption) => (
+                        <option key={campusOption.id} value={campusOption.id}>
+                          {campusOption.campus} - {campusOption.universidad}
+                        </option>
+                      ))}
+                    </select>
 
                   </div>
 
                 </div>
 
-
-                {/* =================================================
-                    SEMESTRE
-                ================================================= */}
-
-                <div className="space-y-2">
-
-                  <Label
-                    htmlFor="semestre"
-                    className="
-                      text-xs
-                      font-bold
-                      tracking-wide
-                    "
-                    style={{
-                      color: "#475569",
-                    }}
-                  >
-                    SEMESTRE
-                  </Label>
-
-
-                  <div className="relative">
-
-                    <GraduationCap
-                      size={17}
-                      className="
-                        absolute
-                        left-3.5
-                        top-1/2
-                        -translate-y-1/2
-                        z-10
-                      "
-                      style={{
-                        color: "#64748b",
-                      }}
-                    />
-
-
-                    <Input
-                      id="semestre"
-                      name="semestre"
-                      value={datos.semestre}
-                      onChange={handleChange}
-                      readOnly={!editando}
-                      placeholder="Semestre"
-                      className={estiloInput}
-                      style={{
-                        color: "#1e293b",
-                      }}
-                    />
-
-                  </div>
-
-                </div>
 
               </div>
 
@@ -1263,6 +1177,14 @@ export default function Profile({
 
               </div>
 
+            )}
+
+            {error && (
+              <div className="px-6 sm:px-11 pb-3">
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                  {error}
+                </div>
+              </div>
             )}
 
 
@@ -1347,6 +1269,7 @@ export default function Profile({
                   <Button
                     type="button"
                     onClick={guardarCambios}
+                    disabled={cargando}
                     className="
                       h-11
                       gap-2
@@ -1362,7 +1285,7 @@ export default function Profile({
 
                     <Save size={17} />
 
-                    Guardar cambios
+                    {cargando ? "Guardando..." : "Guardar cambios"}
 
                   </Button>
 
@@ -1377,24 +1300,9 @@ export default function Profile({
         </Card>
 
 
-        {/* ======================================================
-            PIE DE PÁGINA
-        ====================================================== */}
-
-        <p
-          className="
-            text-center
-            text-xs
-            mt-5
-          "
-          style={{
-            color: "#64748b",
-          }}
-        >
-          Uni Ride · Tu comunidad universitaria en movimiento
-        </p>
-
       </main>
+
+      <Footer />
 
     </div>
   );
