@@ -14,8 +14,18 @@ const authService = {
    * @param {number} [params.campus_id] - ID del campus (por defecto 1: Campus Arteaga)
    * @returns {Promise<object>}
    */
-  async register({ name, email, password, telefono = null, rol_id = 1, campus_id = 1 }) {
-    const normalizedEmail = email.trim().toLowerCase();
+  async register({
+    nombre,
+    apellido,
+    name,
+    email,
+    correo,
+    password,
+    telefono = null,
+    rol_id = 1,
+    campus_id = 1
+  }) {
+    const normalizedEmail = (correo || email || '').trim().toLowerCase();
 
     // 1. Verificar si el correo ya existe
     const existingUser = await userModel.findByEmail(normalizedEmail);
@@ -25,11 +35,18 @@ const authService = {
       throw error;
     }
 
-    // 2. Separar nombre completo en nombre y apellido
-    const trimmedName = name.trim();
-    const nameParts = trimmedName.split(/\s+/);
-    let nombre = nameParts[0];
-    let apellido = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ' ';
+    // 2. Separar nombre completo si llega en un solo campo
+    const resolvedNombre = (nombre || name || '').trim();
+    const resolvedApellido = (apellido || '').trim();
+
+    let finalNombre = resolvedNombre;
+    let finalApellido = resolvedApellido;
+
+    if (!resolvedApellido && resolvedNombre) {
+      const nameParts = resolvedNombre.split(/\s+/);
+      finalNombre = nameParts[0];
+      finalApellido = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ' ';
+    }
 
     // 3. Hashear la contraseña con bcrypt
     const saltRounds = 10;
@@ -40,8 +57,8 @@ const authService = {
     const newUser = await userModel.create({
       rol_id,
       campus_id,
-      nombre,
-      apellido,
+      nombre: finalNombre,
+      apellido: finalApellido,
       correo: normalizedEmail,
       password_hash,
       telefono: cleanTelefono

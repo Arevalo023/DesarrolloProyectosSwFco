@@ -15,12 +15,17 @@ export default function Login({ onRegister }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const isValidInstitutionalEmail = (value) => {
+    const normalized = value.trim().toLowerCase();
+    return /@.+\.edu\.mx$/.test(normalized);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!email.endsWith("@universidad.edu")) {
-      setError("Usa tu correo institucional (@universidad.edu)");
+    if (!isValidInstitutionalEmail(email)) {
+      setError("Usa tu correo institucional con dominio .edu.mx");
       return;
     }
     if (password.length < 8) {
@@ -83,7 +88,7 @@ export default function Login({ onRegister }) {
               <Input
                 id="email"
                 type="email"
-                placeholder="estudiante@universidad.edu"
+                placeholder="estudiante@uadec.edu.mx"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

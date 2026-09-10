@@ -7,10 +7,24 @@ const authController = {
    */
   async register(req, res) {
     try {
-      const { name, email, password, telefono, rol_id, campus_id } = req.body;
-      const user = await authService.register({
-        name,
+      const {
+        nombre,
+        apellido,
+        correo,
         email,
+        password,
+        telefono,
+        rol_id,
+        campus_id,
+        name,
+      } = req.body;
+
+      const user = await authService.register({
+        nombre,
+        apellido,
+        correo: correo || email,
+        email: email || correo,
+        name: name || nombre,
         password,
         telefono,
         rol_id,
