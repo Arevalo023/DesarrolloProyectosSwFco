@@ -38,4 +38,21 @@ router.get(
   authController.me
 );
 
+router.get(
+  '/campuses',
+  authMiddleware.verifyToken,
+  authController.campuses
+);
+
+/**
+ * @route   PATCH /users/me
+ * @desc    Actualizar los datos editables del perfil autenticado
+ * @access  Privado (requiere Bearer Token)
+ */
+router.patch(
+  '/me',
+  authMiddleware.verifyToken,
+  authController.updateMe
+);
+
 module.exports = router;

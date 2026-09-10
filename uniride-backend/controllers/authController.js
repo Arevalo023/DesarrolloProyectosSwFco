@@ -83,6 +83,43 @@ const authController = {
         message: error.message || 'Error al obtener los datos del usuario.'
       });
     }
+  },
+
+  /**
+   * Actualiza los datos editables del usuario autenticado.
+   * PATCH /users/me
+   */
+  async updateMe(req, res) {
+    try {
+      const { nombre, apellido, telefono, campus_id } = req.body;
+      const user = await authService.updateProfile(req.user.id, {
+        nombre,
+        apellido,
+        telefono,
+        campus_id
+      });
+
+      return res.status(200).json({
+        message: 'Perfil actualizado correctamente.',
+        user
+      });
+    } catch (error) {
+      const statusCode = error.statusCode || 500;
+      return res.status(statusCode).json({
+        message: error.message || 'Error al actualizar los datos del usuario.'
+      });
+    }
+  },
+
+  async campuses(req, res) {
+    try {
+      const campuses = await authService.getCampuses();
+      return res.status(200).json({ campuses });
+    } catch (error) {
+      return res.status(500).json({
+        message: error.message || 'Error al obtener los campus.'
+      });
+    }
   }
 };
 

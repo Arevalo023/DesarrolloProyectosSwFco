@@ -151,11 +151,61 @@ const authService = {
       apellido: user.apellido,
       correo: user.correo,
       telefono: user.telefono,
+      campus_id: user.campus_id,
       rol: user.rol_nombre,
       campus: user.campus_nombre,
       universidad: user.universidad_nombre,
       fecha_registro: user.fecha_registro
     };
+  },
+
+  /**
+   * Actualiza los campos editables del perfil autenticado.
+   * @param {number} userId
+   * @param {{nombre: string, apellido: string, telefono?: string|null}} data
+   * @returns {Promise<object>}
+   */
+  async updateProfile(userId, { nombre, apellido, telefono = null, campus_id }) {
+    const cleanNombre = String(nombre || '').trim();
+    const cleanApellido = String(apellido || '').trim();
+    const cleanTelefono = telefono ? String(telefono).trim() : null;
+    const cleanCampusId = Number(campus_id);
+
+    if (cleanNombre.length < 2 || cleanApellido.length < 2 || !Number.isInteger(cleanCampusId)) {
+      const error = new Error('El nombre, el apellido y el campus son obligatorios.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const user = await userModel.updateProfile(userId, {
+      nombre: cleanNombre,
+      apellido: cleanApellido,
+      telefono: cleanTelefono,
+      campus_id: cleanCampusId
+    });
+
+    if (!user) {
+      const error = new Error('Usuario no encontrado');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return {
+      id: user.id,
+      nombre: user.nombre,
+      apellido: user.apellido,
+      correo: user.correo,
+      telefono: user.telefono,
+      campus_id: user.campus_id,
+      rol: user.rol_nombre,
+      campus: user.campus_nombre,
+      universidad: user.universidad_nombre,
+      fecha_registro: user.fecha_registro
+    };
+  },
+
+  async getCampuses() {
+    return userModel.findCampuses();
   }
 };
 
