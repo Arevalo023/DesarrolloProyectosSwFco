@@ -8,7 +8,7 @@ import { Car, ArrowRight } from "lucide-react";
 
 const API_URL = "http://localhost:3000";
 
-export default function Login({ onRegister }) {
+export default function Login({ onRegister, onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -53,6 +53,7 @@ export default function Login({ onRegister }) {
       console.log("Login exitoso:", data);
       localStorage.setItem("token", data.token);
       localStorage.setItem("usuario", JSON.stringify(data.user));
+      onLogin();
     } catch (err) {
       setError(err.message);
     } finally {
