@@ -13,17 +13,11 @@ const campusOptions = [
   { value: 3, label: "Campus Central" },
 ];
 
-const roleOptions = [
-  { value: 1, label: "Pasajero" },
-  { value: 2, label: "Conductor" },
-];
-
 export default function Register({ onBackToLogin }) {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [correo, setCorreo] = useState("");
   const [telefono, setTelefono] = useState("");
-  const [rol_id, setRolId] = useState(1);
   const [campus_id, setCampusId] = useState(1);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -79,7 +73,6 @@ export default function Register({ onBackToLogin }) {
           correo,
           password,
           telefono: telefono || null,
-          rol_id,
           campus_id,
         }),
       });
@@ -98,7 +91,15 @@ export default function Register({ onBackToLogin }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div
+      className="relative min-h-screen flex items-center justify-center overflow-hidden bg-slate-900 p-4"
+      style={{
+        backgroundImage:
+          "linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(6, 78, 59, 0.42)), url('/uniride-carpooling.jpg')",
+        backgroundPosition: "center",
+        backgroundSize: "cover",
+      }}
+    >
       <Card className="w-full max-w-md shadow-lg">
         <CardContent className="pt-8 pb-6 px-6">
           <div className="flex items-center justify-center gap-2 mb-1">
@@ -172,25 +173,7 @@ export default function Register({ onBackToLogin }) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="rol_id" className="text-xs font-semibold text-slate-500 tracking-wide">
-                  ROL
-                </Label>
-                <select
-                  id="rol_id"
-                  value={rol_id}
-                  onChange={(event) => setRolId(Number(event.target.value))}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {roleOptions.map((role) => (
-                    <option key={role.value} value={role.value}>
-                      {role.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+            <div>
               <div className="space-y-1.5">
                 <Label htmlFor="campus_id" className="text-xs font-semibold text-slate-500 tracking-wide">
                   CAMPUS

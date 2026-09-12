@@ -57,13 +57,21 @@ export default function Login({ onRegister, onLogin }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div
+      className="relative min-h-screen flex items-center justify-center overflow-hidden bg-slate-900 p-4"
+      style={{
+        backgroundImage:
+          "linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(6, 78, 59, 0.42)), url('/uniride-carpooling.jpg')",
+        backgroundPosition: "center",
+        backgroundSize: "cover",
+      }}
+    >
       <Card className="w-full max-w-sm shadow-lg">
         <CardContent className="pt-8 pb-6 px-6">
           <div className="flex items-center justify-center gap-2 mb-1">
             <Car className="text-emerald-600" size={48} />
-            <h1 className="text-xl font-bold !text-black" style={{ margin: 0 }}>
-              Uni <span className="text-emerald-600">Ride</span>
+            <h1 className="text-xl font-bold text-black!" style={{ margin: 0 }}>
+              Uni<span className="text-emerald-600">Ride</span>
             </h1>
           </div>
           <p
@@ -127,7 +135,7 @@ export default function Login({ onRegister, onLogin }) {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium mb-5"
             >
               {loading ? (
                 "Ingresando..."
