@@ -27,7 +27,6 @@ app.get('/health', (req, res) => {
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/vehiculos', vehiclesRouter);
-
+app.use('/api/vehicles', vehiclesRouter);
 
 module.exports = app;

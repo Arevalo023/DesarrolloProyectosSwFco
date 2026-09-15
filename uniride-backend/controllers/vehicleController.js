@@ -2,12 +2,12 @@ const vehicleService = require("../services/vehicleService");
 
 const vehicleController = {
 
-  // Crear un vehiculo
+  // crear un nuevo vehículo
   async create(req, res) {
     try {
       const { marca, modelo, anio, color, placa, asientos_disponibles } =
         req.body;
-      const vehicle = await vehicleService.create(req.user.id, {
+      const vehicle = await vehicleService.create(req.user.id, req.user.rol, {
         marca,
         modelo,
         anio,
@@ -25,7 +25,8 @@ const vehicleController = {
         .json({ message: error.message || "Error al registrar el vehículo." });
     }
   },
-  // Listar los vehiculos del usuario
+
+  // obtener los vehículos del usuario autenticado
   async listMine(req, res) {
     try {
       const vehicles = await vehicleService.listMine(req.user.id);
@@ -36,7 +37,7 @@ const vehicleController = {
         .json({ message: error.message || "Error al obtener los vehículos." });
     }
   },
-  // Obtener un vehiculo por su id
+  // obtener un vehículo por su ID
   async getById(req, res) {
     try {
       const vehicle = await vehicleService.getById(req.params.id);
@@ -48,7 +49,7 @@ const vehicleController = {
         .json({ message: error.message || "Error al obtener el vehículo." });
     }
   },
-  // Actualizar un vehiculo
+  // actualizar un vehículo propio
   async update(req, res) {
     try {
       const vehicle = await vehicleService.update(
@@ -66,7 +67,32 @@ const vehicleController = {
         .json({ message: error.message || "Error al actualizar el vehículo." });
     }
   },
-  // Eliminar un vehiculo
+  // cambiar el estado activo/inactivo de un vehículo propio
+  async changeStatus(req, res) {
+    try {
+      const { activo } = req.body;
+      const vehicle = await vehicleService.changeStatus(
+        req.params.id,
+        req.user.id,
+        activo,
+      );
+      return res
+        .status(200)
+        .json({
+          message: "Estado del vehículo actualizado correctamente.",
+          vehicle,
+        });
+    } catch (error) {
+      const statusCode = error.statusCode || 500;
+      return res
+        .status(statusCode)
+        .json({
+          message:
+            error.message || "Error al actualizar el estado del vehículo.",
+        });
+    }
+  },
+  // eliminar un vehículo propio
   async remove(req, res) {
     try {
       await vehicleService.remove(req.params.id, req.user.id);

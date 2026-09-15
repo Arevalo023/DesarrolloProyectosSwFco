@@ -3,7 +3,7 @@ const validateMiddleware = {
    * Valida los datos recibidos para el registro de usuario.
    */
   validateRegister(req, res, next) {
-    const { nombre, apellido, correo, email, password, telefono, rol_id, campus_id } = req.body;
+    const { nombre, apellido, correo, email, password, telefono, rol_id, campus_id, name } = req.body;
     const nameValue = nombre ?? name;
     const emailValue = correo ?? email;
 
@@ -116,6 +116,20 @@ const validateMiddleware = {
     if (!asientos_disponibles || !Number.isInteger(Number(asientos_disponibles))) {
       return res.status(400).json({
         message: 'Los asientos disponibles son obligatorios y deben ser un número entero.'
+      });
+    }
+
+    next();
+  },
+  /*
+}  * Valida los datos recibidos para cambiar el estado de un vehículo.
+   */
+    validateVehicleStatus(req, res, next) {
+    const { activo } = req.body;
+
+    if (typeof activo !== 'boolean') {
+      return res.status(400).json({
+        message: 'El campo activo es obligatorio y debe ser true o false.'
       });
     }
 

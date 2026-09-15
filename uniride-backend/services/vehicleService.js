@@ -2,11 +2,20 @@ const vehicleModel = require("../models/vehicleModel");
 
 const vehicleService = {
 
-    //Crear un vehiculo
+  // crear un nuevo vehículo
   async create(
     usuario_id,
+    rol,
     { marca, modelo, anio, color, placa, asientos_disponibles },
   ) {
+    if (rol !== "Conductor") {
+      const error = new Error(
+        "Solo los usuarios con rol de conductor pueden registrar vehículos",
+      );
+      error.statusCode = 403;
+      throw error;
+    }
+
     const existing = await vehicleModel.findByPlaca(placa);
     if (existing) {
       const error = new Error("La placa ya está registrada");
@@ -23,16 +32,12 @@ const vehicleService = {
       placa,
       asientos_disponibles,
     });
-  },//fin de create
-
-
-  //Listar los vehiculos del usuario
+  },
+  // obtener los vehículos del usuario autenticado
   async listMine(usuario_id) {
     return vehicleModel.findByUserId(usuario_id);
-  },//fin de listMine
-
-
-  //Obtener un vehiculo por su id
+  },
+  // obtener un vehículo por su ID
   async getById(id) {
     const vehicle = await vehicleModel.findById(id);
     if (!vehicle) {
@@ -41,13 +46,10 @@ const vehicleService = {
       throw error;
     }
     return vehicle;
-  },//fin de getById
-
-  //Actualizar un vehiculo
+  },
+  // actualizar un vehículo propio
   async update(id, usuario_id, data) {
     const vehicle = await vehicleModel.findById(id);
-
-    // Validaciones de existencia y permisos
     if (!vehicle) {
       const error = new Error("Vehículo no encontrado");
       error.statusCode = 404;
@@ -67,7 +69,7 @@ const vehicleService = {
         throw error;
       }
     }
-
+    // Actualizar solo los campos proporcionados
     return vehicleModel.update(id, {
       marca: data.marca ?? vehicle.marca,
       modelo: data.modelo ?? vehicle.modelo,
@@ -77,9 +79,25 @@ const vehicleService = {
       asientos_disponibles:
         data.asientos_disponibles ?? vehicle.asientos_disponibles,
     });
-  },//fin de update
+  },
 
-  //Eliminar un vehiculo
+  // cambiar el estado activo/inactivo de un vehículo propio
+  async changeStatus(id, usuario_id, activo) {
+    const vehicle = await vehicleModel.findById(id);
+    if (!vehicle) {
+      const error = new Error("Vehículo no encontrado");
+      error.statusCode = 404;
+      throw error;
+    }
+    if (vehicle.usuario_id !== usuario_id) {
+      const error = new Error("No tienes permiso para modificar este vehículo");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    return vehicleModel.updateStatus(id, activo);
+  },
+  // eliminar un vehículo propio
   async remove(id, usuario_id) {
     const vehicle = await vehicleModel.findById(id);
     if (!vehicle) {
@@ -94,7 +112,7 @@ const vehicleService = {
     }
 
     await vehicleModel.remove(id);
-  },//fin de remove
+  },
 };
 
 module.exports = vehicleService;

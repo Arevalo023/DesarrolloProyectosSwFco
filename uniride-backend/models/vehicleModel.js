@@ -1,7 +1,6 @@
 const { sql, poolPromise } = require("../config/db");
 
 const vehicleModel = {
-  // Buscar un vehículo por su placa
   async findByPlaca(placa) {
     const pool = await poolPromise;
     const result = await pool
@@ -78,6 +77,16 @@ const vehicleModel = {
             asientos_disponibles = @asientos_disponibles
         WHERE id = @id
       `);
+    return this.findById(id);
+  },
+
+  async updateStatus(id, activo) {
+    const pool = await poolPromise;
+    await pool
+      .request()
+      .input("id", sql.Int, id)
+      .input("activo", sql.Bit, activo)
+      .query("UPDATE Vehiculos SET activo = @activo WHERE id = @id");
     return this.findById(id);
   },
 

@@ -59,7 +59,8 @@ CREATE TABLE Vehiculos (
     anio INT NOT NULL,
     color VARCHAR(30) NOT NULL,
     placa VARCHAR(20) NOT NULL UNIQUE,
-    asientos_disponibles INT NOT NULL
+    asientos_disponibles INT NOT NULL,
+    activo BIT NOT NULL DEFAULT 1
 );
 GO
 
