@@ -75,6 +75,51 @@ const validateMiddleware = {
     }
 
     next();
+  },
+
+  /**
+   * Valida los datos recibidos para crear o actualizar un vehículo.
+   */
+  validateVehicle(req, res, next) {
+    const { marca, modelo, anio, color, placa, asientos_disponibles } = req.body;
+
+    if (!marca || typeof marca !== 'string' || marca.trim().length < 2) {
+      return res.status(400).json({
+        message: 'La marca es obligatoria y debe tener al menos 2 caracteres.'
+      });
+    }
+
+    if (!modelo || typeof modelo !== 'string' || modelo.trim().length < 1) {
+      return res.status(400).json({
+        message: 'El modelo es obligatorio.'
+      });
+    }
+
+    if (!anio || !Number.isInteger(Number(anio))) {
+      return res.status(400).json({
+        message: 'El año es obligatorio y debe ser un número entero.'
+      });
+    }
+
+    if (!color || typeof color !== 'string' || color.trim().length < 2) {
+      return res.status(400).json({
+        message: 'El color es obligatorio.'
+      });
+    }
+
+    if (!placa || typeof placa !== 'string' || placa.trim().length < 1) {
+      return res.status(400).json({
+        message: 'La placa es obligatoria.'
+      });
+    }
+
+    if (!asientos_disponibles || !Number.isInteger(Number(asientos_disponibles))) {
+      return res.status(400).json({
+        message: 'Los asientos disponibles son obligatorios y deben ser un número entero.'
+      });
+    }
+
+    next();
   }
 };
 

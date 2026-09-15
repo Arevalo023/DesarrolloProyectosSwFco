@@ -8,6 +8,8 @@ const cors = require('cors');
 
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
+const vehiclesRouter = require('./routes/vehicleRoutes');
+
 
 const app = express();
 
@@ -25,5 +27,7 @@ app.get('/health', (req, res) => {
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/vehiculos', vehiclesRouter);
+
 
 module.exports = app;
