@@ -20,6 +20,9 @@ const authMiddleware = {
         token,
         process.env.JWT_SECRET || 'uniride_default_secret_key'
       );
+      if (!Array.isArray(decoded.roles)) {
+        decoded.roles = decoded.rol ? [decoded.rol] : ['Pasajero'];
+      }
       req.user = decoded;
       next();
     } catch (err) {
