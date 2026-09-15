@@ -53,12 +53,15 @@ const authService = {
     const password_hash = await bcrypt.hash(password, saltRounds);
 
     // 4. Guardar en base de datos
-    const cleanTelefono = telefono ? String(telefono).trim() : null;
+    const cleanTelefono = telefono ? String(telefono).replace(/\D/g, '') : null;
+    const cleanNombre = finalNombre.trim().replace(/\s+/g, ' ');
+    const cleanApellido = finalApellido.trim().replace(/\s+/g, ' ');
+
     const newUser = await userModel.create({
       rol_id,
       campus_id,
-      nombre: finalNombre,
-      apellido: finalApellido,
+      nombre: cleanNombre,
+      apellido: cleanApellido,
       correo: normalizedEmail,
       password_hash,
       telefono: cleanTelefono
@@ -187,9 +190,9 @@ const authService = {
    * @returns {Promise<object>}
    */
   async updateProfile(userId, { nombre, apellido, telefono = null, campus_id }) {
-    const cleanNombre = String(nombre || '').trim();
-    const cleanApellido = String(apellido || '').trim();
-    const cleanTelefono = telefono ? String(telefono).trim() : null;
+    const cleanNombre = String(nombre || '').trim().replace(/\s+/g, ' ');
+    const cleanApellido = String(apellido || '').trim().replace(/\s+/g, ' ');
+    const cleanTelefono = telefono ? String(telefono).replace(/\D/g, '') : null;
     const cleanCampusId = Number(campus_id);
 
     if (cleanNombre.length < 2 || cleanApellido.length < 2 || !Number.isInteger(cleanCampusId)) {

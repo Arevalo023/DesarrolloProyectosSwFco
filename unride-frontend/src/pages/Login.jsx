@@ -17,7 +17,7 @@ export default function Login({ onRegister, onLogin }) {
 
   const isValidInstitutionalEmail = (value) => {
     const normalized = value.trim().toLowerCase();
-    return /@.+\.edu\.mx$/.test(normalized);
+    return /@.+\.(edu\.mx|edu|mx)$/i.test(normalized);
   };
 
   const handleSubmit = async (e) => {
@@ -25,7 +25,7 @@ export default function Login({ onRegister, onLogin }) {
     setError("");
 
     if (!isValidInstitutionalEmail(email)) {
-      setError("Usa tu correo institucional con dominio .edu.mx");
+      setError("Usa tu correo institucional válido (.edu.mx, .edu o .mx)");
       return;
     }
     if (password.length < 8) {

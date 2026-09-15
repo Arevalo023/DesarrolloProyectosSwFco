@@ -33,24 +33,25 @@ const validateMiddleware = {
       });
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailValue.trim())) {
+    const educationalEmailRegex = /^[^\s@]+@[^\s@]+\.(edu\.mx|edu|mx)$/i;
+    if (!educationalEmailRegex.test(emailValue)) {
       return res.status(400).json({
-        message: 'El formato del correo electrónico no es válido.'
+        message: 'El correo debe ser institucional con dominio educativo (.edu.mx, .edu o .mx).'
       });
     }
 
-    if (!password || typeof password !== 'string' || password.length < 8) {
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    if (!password || typeof password !== 'string' || !passwordRegex.test(password)) {
       return res.status(400).json({
-        message: 'La contraseña debe tener al menos 8 caracteres.'
+        message: 'La contraseña debe tener al menos 8 caracteres, incluir al menos una mayúscula, un número y un carácter especial.'
       });
     }
 
     if (telefono !== undefined && telefono !== null && String(telefono).trim() !== '') {
-      const phoneRegex = /^[0-9+ -]{7,20}$/;
-      if (!phoneRegex.test(String(telefono).trim())) {
+      const digits = String(telefono).replace(/\D/g, '');
+      if (digits.length < 10 || digits.length > 15) {
         return res.status(400).json({
-          message: 'El teléfono debe ser un formato válido (entre 7 y 20 dígitos numéricos).'
+          message: 'El teléfono debe contener entre 10 y 15 dígitos numéricos (ej: 8441234567 o 844-123-4567).'
         });
       }
     }
@@ -65,6 +66,42 @@ const validateMiddleware = {
       return res.status(400).json({
         message: 'El campus es inválido.'
       });
+    }
+
+    next();
+  },
+
+  /**
+   * Valida los datos recibidos para la actualización del perfil de usuario.
+   */
+  validateUpdateProfile(req, res, next) {
+    const { nombre, apellido, telefono, campus_id } = req.body;
+
+    if (!nombre || typeof nombre !== 'string' || nombre.trim().length < 2) {
+      return res.status(400).json({
+        message: 'El nombre es requerido (mínimo 2 caracteres).'
+      });
+    }
+
+    if (!apellido || typeof apellido !== 'string' || apellido.trim().length < 2) {
+      return res.status(400).json({
+        message: 'El apellido es requerido (mínimo 2 caracteres).'
+      });
+    }
+
+    if (campus_id === undefined || campus_id === null || Number.isNaN(Number(campus_id))) {
+      return res.status(400).json({
+        message: 'El campus es obligatorio.'
+      });
+    }
+
+    if (telefono !== undefined && telefono !== null && String(telefono).trim() !== '') {
+      const digits = String(telefono).replace(/\D/g, '');
+      if (digits.length < 10 || digits.length > 15) {
+        return res.status(400).json({
+          message: 'El teléfono debe contener entre 10 y 15 dígitos numéricos (ej: 8441234567 o 844-123-4567).'
+        });
+      }
     }
 
     next();
