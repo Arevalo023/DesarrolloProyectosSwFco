@@ -1,41 +1,53 @@
-const { sql, poolPromise } = require('../config/db');
+const { sql, poolPromise } = require("../config/db");
 
 const vehicleModel = {
+  // Buscar un vehículo por su placa
   async findByPlaca(placa) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('placa', sql.VarChar(20), placa)
-      .query('SELECT * FROM Vehiculos WHERE placa = @placa');
+    const result = await pool
+      .request()
+      .input("placa", sql.VarChar(20), placa)
+      .query("SELECT * FROM Vehiculos WHERE placa = @placa");
     return result.recordset[0] || null;
   },
 
   async findById(id) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('id', sql.Int, id)
-      .query('SELECT * FROM Vehiculos WHERE id = @id');
+    const result = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query("SELECT * FROM Vehiculos WHERE id = @id");
     return result.recordset[0] || null;
   },
 
   async findByUserId(usuario_id) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('usuario_id', sql.Int, usuario_id)
-      .query('SELECT * FROM Vehiculos WHERE usuario_id = @usuario_id');
+    const result = await pool
+      .request()
+      .input("usuario_id", sql.Int, usuario_id)
+      .query("SELECT * FROM Vehiculos WHERE usuario_id = @usuario_id");
     return result.recordset;
   },
 
-  async create({ usuario_id, marca, modelo, anio, color, placa, asientos_disponibles }) {
+  async create({
+    usuario_id,
+    marca,
+    modelo,
+    anio,
+    color,
+    placa,
+    asientos_disponibles,
+  }) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('usuario_id', sql.Int, usuario_id)
-      .input('marca', sql.VarChar(50), marca)
-      .input('modelo', sql.VarChar(50), modelo)
-      .input('anio', sql.Int, anio)
-      .input('color', sql.VarChar(30), color)
-      .input('placa', sql.VarChar(20), placa)
-      .input('asientos_disponibles', sql.Int, asientos_disponibles)
-      .query(`
+    const result = await pool
+      .request()
+      .input("usuario_id", sql.Int, usuario_id)
+      .input("marca", sql.VarChar(50), marca)
+      .input("modelo", sql.VarChar(50), modelo)
+      .input("anio", sql.Int, anio)
+      .input("color", sql.VarChar(30), color)
+      .input("placa", sql.VarChar(20), placa)
+      .input("asientos_disponibles", sql.Int, asientos_disponibles).query(`
         INSERT INTO Vehiculos (usuario_id, marca, modelo, anio, color, placa, asientos_disponibles)
         OUTPUT INSERTED.*
         VALUES (@usuario_id, @marca, @modelo, @anio, @color, @placa, @asientos_disponibles);
@@ -43,17 +55,20 @@ const vehicleModel = {
     return result.recordset[0];
   },
 
-  async update(id, { marca, modelo, anio, color, placa, asientos_disponibles }) {
+  async update(
+    id,
+    { marca, modelo, anio, color, placa, asientos_disponibles },
+  ) {
     const pool = await poolPromise;
-    await pool.request()
-      .input('id', sql.Int, id)
-      .input('marca', sql.VarChar(50), marca)
-      .input('modelo', sql.VarChar(50), modelo)
-      .input('anio', sql.Int, anio)
-      .input('color', sql.VarChar(30), color)
-      .input('placa', sql.VarChar(20), placa)
-      .input('asientos_disponibles', sql.Int, asientos_disponibles)
-      .query(`
+    await pool
+      .request()
+      .input("id", sql.Int, id)
+      .input("marca", sql.VarChar(50), marca)
+      .input("modelo", sql.VarChar(50), modelo)
+      .input("anio", sql.Int, anio)
+      .input("color", sql.VarChar(30), color)
+      .input("placa", sql.VarChar(20), placa)
+      .input("asientos_disponibles", sql.Int, asientos_disponibles).query(`
         UPDATE Vehiculos
         SET marca = @marca,
             modelo = @modelo,
@@ -68,10 +83,11 @@ const vehicleModel = {
 
   async remove(id) {
     const pool = await poolPromise;
-    await pool.request()
-      .input('id', sql.Int, id)
-      .query('DELETE FROM Vehiculos WHERE id = @id');
-  }
+    await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query("DELETE FROM Vehiculos WHERE id = @id");
+  },
 };
 
 module.exports = vehicleModel;
