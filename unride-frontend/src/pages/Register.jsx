@@ -24,8 +24,11 @@ export default function Register({ onBackToLogin }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const isValidEducationalEmail = (value) => /@.+\.edu\.mx$/i.test(value.trim());
-  const isValidPhone = (value) => /^\d{3}-\d{3}-\d{4}$/.test(value.trim());
+  const isValidEducationalEmail = (value) => /^[^\s@]+@[^\s@]+\.(edu\.mx|edu|mx)$/i.test(value.trim());
+  const isValidPhone = (value) => {
+    const digits = value.replace(/\D/g, "");
+    return digits.length === 10;
+  };
   const isValidPassword = (value) => /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(value);
 
   const handleSubmit = async (event) => {
@@ -43,12 +46,12 @@ export default function Register({ onBackToLogin }) {
     }
 
     if (!isValidEducationalEmail(correo)) {
-      setError("Usa un correo con dominio educativo .edu.mx");
+      setError("Usa un correo institucional válido (.edu.mx, .edu o .mx)");
       return;
     }
 
     if (telefono && !isValidPhone(telefono)) {
-      setError("El teléfono debe tener el formato xxx-xxx-xxxx");
+      setError("El teléfono debe contener 10 dígitos (ej: 8441234567 o 844-123-4567)");
       return;
     }
 
@@ -167,7 +170,7 @@ export default function Register({ onBackToLogin }) {
               <Input
                 id="telefono"
                 type="tel"
-                placeholder="844-123-4567"
+                placeholder="8441234567 o 844-123-4567"
                 value={telefono}
                 onChange={(event) => setTelefono(event.target.value)}
               />

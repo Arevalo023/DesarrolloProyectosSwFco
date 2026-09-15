@@ -52,6 +52,7 @@ router.get(
 router.patch(
   '/me',
   authMiddleware.verifyToken,
+  validateMiddleware.validateUpdateProfile,
   authController.updateMe
 );
 
