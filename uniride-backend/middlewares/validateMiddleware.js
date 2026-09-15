@@ -3,17 +3,25 @@ const validateMiddleware = {
    * Valida los datos recibidos para el registro de usuario.
    */
   validateRegister(req, res, next) {
-    const { nombre, apellido, correo, email, password, telefono, rol_id, campus_id } = req.body;
-    const nameValue = nombre ?? name;
-    const emailValue = correo ?? email;
+    const { nombre, apellido, correo, email, password, telefono, rol_id, campus_id, name } = req.body;
+    const nameValue = (nombre || name || '').trim();
+    const emailValue = (correo || email || '').trim();
+    let apellidoValue = (apellido || '').trim();
 
-    if (!nameValue || typeof nameValue !== 'string' || nameValue.trim().length < 2) {
+    // Si no enviaron apellido por separado pero name/nombre contiene espacios (ej. "Juan Perez"),
+    // se deduce el apellido para no romper peticiones con formato de nombre completo.
+    if (!apellidoValue && nameValue.includes(' ')) {
+      const parts = nameValue.split(/\s+/);
+      apellidoValue = parts.slice(1).join(' ');
+    }
+
+    if (!nameValue || nameValue.length < 2) {
       return res.status(400).json({
         message: 'El nombre es requerido (mínimo 2 caracteres).'
       });
     }
 
-    if (!apellido || typeof apellido !== 'string' || apellido.trim().length < 2) {
+    if (!apellidoValue || apellidoValue.length < 2) {
       return res.status(400).json({
         message: 'El apellido es requerido (mínimo 2 caracteres).'
       });
