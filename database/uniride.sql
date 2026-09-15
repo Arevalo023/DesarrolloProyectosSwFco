@@ -50,6 +50,18 @@ ALTER TABLE Usuarios ADD CONSTRAINT FK_Usuario_Rol FOREIGN KEY (rol_id) REFERENC
 ALTER TABLE Usuarios ADD CONSTRAINT FK_Usuario_Campus FOREIGN KEY (campus_id) REFERENCES Campus(id);
 GO
 
+-- 4.1. Relación Muchos a Muchos: Usuarios <-> Roles
+CREATE TABLE UsuariosRoles (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    rol_id INT NOT NULL,
+    fecha_asignacion DATETIME DEFAULT GETDATE(),
+    CONSTRAINT FK_UsuariosRoles_Usuario FOREIGN KEY (usuario_id) REFERENCES Usuarios(id) ON DELETE CASCADE,
+    CONSTRAINT FK_UsuariosRoles_Rol FOREIGN KEY (rol_id) REFERENCES Roles(id) ON DELETE CASCADE,
+    CONSTRAINT UQ_Usuario_Rol UNIQUE (usuario_id, rol_id)
+);
+GO
+
 -- 5. Vehículos
 CREATE TABLE Vehiculos (
     id INT IDENTITY(1,1) PRIMARY KEY,

@@ -53,16 +53,23 @@ const authService = {
     const password_hash = await bcrypt.hash(password, saltRounds);
 
     // 4. Guardar en base de datos
-    const cleanTelefono = telefono ? String(telefono).trim() : null;
+    const cleanTelefono = telefono ? String(telefono).replace(/\D/g, '') : null;
+    const cleanNombre = finalNombre.trim().replace(/\s+/g, ' ');
+    const cleanApellido = finalApellido.trim().replace(/\s+/g, ' ');
+
     const newUser = await userModel.create({
       rol_id,
       campus_id,
-      nombre: finalNombre,
-      apellido: finalApellido,
+      nombre: cleanNombre,
+      apellido: cleanApellido,
       correo: normalizedEmail,
       password_hash,
       telefono: cleanTelefono
     });
+
+    const userWithRoles = await userModel.findById(newUser.id);
+    const roles = userWithRoles?.roles || ['Pasajero'];
+    const primaryRole = roles[0] || 'Pasajero';
 
     return {
       id: newUser.id,
@@ -70,6 +77,8 @@ const authService = {
       apellido: newUser.apellido,
       correo: newUser.correo,
       telefono: newUser.telefono,
+      roles,
+      rol: primaryRole,
       rol_id: newUser.rol_id,
       campus_id: newUser.campus_id,
       fecha_registro: newUser.fecha_registro
@@ -102,12 +111,19 @@ const authService = {
       throw error;
     }
 
-    // 3. Generar token JWT
+    // 3. Obtener lista de roles M:N
+    const roles = Array.isArray(user.roles) && user.roles.length > 0
+      ? user.roles
+      : [user.rol_nombre || 'Pasajero'];
+    const primaryRole = roles[0] || user.rol_nombre || 'Pasajero';
+
+    // 4. Generar token JWT con soporte de roles M:N
     const payload = {
       id: user.id,
       correo: user.correo,
+      roles, // Array de nombres de roles: ['Pasajero'] o ['Pasajero', 'Conductor']
+      rol: primaryRole, // Retrocompatibilidad
       rol_id: user.rol_id,
-      rol: user.rol_nombre,
       campus_id: user.campus_id
     };
 
@@ -125,7 +141,8 @@ const authService = {
         apellido: user.apellido,
         correo: user.correo,
         telefono: user.telefono,
-        rol: user.rol_nombre,
+        roles,
+        rol: primaryRole,
         campus: user.campus_nombre,
         universidad: user.universidad_nombre
       }
@@ -145,6 +162,11 @@ const authService = {
       throw error;
     }
 
+    const roles = Array.isArray(user.roles) && user.roles.length > 0
+      ? user.roles
+      : [user.rol_nombre || 'Pasajero'];
+    const primaryRole = roles[0] || user.rol_nombre || 'Pasajero';
+
     return {
       id: user.id,
       nombre: user.nombre,
@@ -152,7 +174,9 @@ const authService = {
       correo: user.correo,
       telefono: user.telefono,
       campus_id: user.campus_id,
-      rol: user.rol_nombre,
+      roles,
+      roles_detalle: user.roles_detalle || [{ id: user.rol_id || 1, nombre: primaryRole }],
+      rol: primaryRole,
       campus: user.campus_nombre,
       universidad: user.universidad_nombre,
       fecha_registro: user.fecha_registro
@@ -162,13 +186,13 @@ const authService = {
   /**
    * Actualiza los campos editables del perfil autenticado.
    * @param {number} userId
-   * @param {{nombre: string, apellido: string, telefono?: string|null}} data
+   * @param {{nombre: string, apellido: string, telefono?: string|null, campus_id: number}} data
    * @returns {Promise<object>}
    */
   async updateProfile(userId, { nombre, apellido, telefono = null, campus_id }) {
-    const cleanNombre = String(nombre || '').trim();
-    const cleanApellido = String(apellido || '').trim();
-    const cleanTelefono = telefono ? String(telefono).trim() : null;
+    const cleanNombre = String(nombre || '').trim().replace(/\s+/g, ' ');
+    const cleanApellido = String(apellido || '').trim().replace(/\s+/g, ' ');
+    const cleanTelefono = telefono ? String(telefono).replace(/\D/g, '') : null;
     const cleanCampusId = Number(campus_id);
 
     if (cleanNombre.length < 2 || cleanApellido.length < 2 || !Number.isInteger(cleanCampusId)) {
@@ -190,6 +214,11 @@ const authService = {
       throw error;
     }
 
+    const roles = Array.isArray(user.roles) && user.roles.length > 0
+      ? user.roles
+      : [user.rol_nombre || 'Pasajero'];
+    const primaryRole = roles[0] || user.rol_nombre || 'Pasajero';
+
     return {
       id: user.id,
       nombre: user.nombre,
@@ -197,7 +226,9 @@ const authService = {
       correo: user.correo,
       telefono: user.telefono,
       campus_id: user.campus_id,
-      rol: user.rol_nombre,
+      roles,
+      roles_detalle: user.roles_detalle || [{ id: user.rol_id || 1, nombre: primaryRole }],
+      rol: primaryRole,
       campus: user.campus_nombre,
       universidad: user.universidad_nombre,
       fecha_registro: user.fecha_registro

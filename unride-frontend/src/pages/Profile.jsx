@@ -319,6 +319,13 @@ export default function Profile({
     setCargando(true);
     setError("");
     try {
+      if (datos.telefono && String(datos.telefono).trim() !== "") {
+        const digits = String(datos.telefono).replace(/\D/g, "");
+        if (digits.length < 10 || digits.length > 15) {
+          throw new Error("El teléfono debe contener entre 10 y 15 dígitos numéricos.");
+        }
+      }
+
       const token = localStorage.getItem("token");
       const response = await fetch("http://localhost:3000/users/me", {
         method: "PATCH",

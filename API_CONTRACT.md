@@ -32,6 +32,19 @@ Authorization: Bearer <tu_jwt_token_aqui>
 ```
 - **Duración del token:** 24 horas (`JWT_EXPIRES_IN=24h`).
 - **Expiración:** Si el token expira, el backend responderá con código `401 Unauthorized` y el mensaje `"La sesión ha expirado. Por favor inicia sesión nuevamente."`.
+- **Estructura del Payload JWT (Soporte M:N):**
+  ```json
+  {
+    "id": 1,
+    "correo": "juan.perez@uadec.edu.mx",
+    "roles": ["Pasajero", "Conductor"],
+    "rol": "Pasajero",
+    "campus_id": 1,
+    "iat": 1773610000,
+    "exp": 1773696400
+  }
+  ```
+  *(Nota: `roles` contiene el array completo de roles asignados al usuario. `rol` se conserva con el rol primario por retrocompatibilidad).*
 
 ---
 
@@ -98,6 +111,10 @@ Crea una nueva cuenta de usuario en el sistema.
     "apellido": "Perez",
     "correo": "juan.perez@uadec.edu.mx",
     "telefono": "8441234567",
+    "roles": [
+      "Pasajero"
+    ],
+    "rol": "Pasajero",
     "rol_id": 1,
     "campus_id": 1,
     "fecha_registro": "2026-09-07T21:40:00.000Z"
@@ -164,6 +181,9 @@ Autentica al usuario y devuelve el token de sesión JWT junto con sus datos de p
     "apellido": "Perez",
     "correo": "juan.perez@uadec.edu.mx",
     "telefono": "8441234567",
+    "roles": [
+      "Pasajero"
+    ],
     "rol": "Pasajero",
     "campus": "Campus Arteaga",
     "universidad": "Universidad Autónoma de Coahuila"
@@ -216,6 +236,9 @@ Obtiene la información actualizada del usuario autenticado a partir del token J
     "apellido": "Perez",
     "correo": "juan.perez@uadec.edu.mx",
     "telefono": "8441234567",
+    "roles": [
+      "Pasajero"
+    ],
     "rol": "Pasajero",
     "campus": "Campus Arteaga",
     "universidad": "Universidad Autónoma de Coahuila",
