@@ -5,10 +5,15 @@ const vehicleService = {
   // crear un nuevo vehículo
   async create(
     usuario_id,
-    rol,
+    roles,
     { marca, modelo, anio, color, placa, asientos_disponibles },
   ) {
-    if (rol !== "Conductor") {
+    const userRoles = Array.isArray(roles) ? roles : (roles ? [roles] : []);
+    const isConductor = userRoles.some(
+      (r) => String(r).trim().toLowerCase() === "conductor"
+    );
+
+    if (!isConductor) {
       const error = new Error(
         "Solo los usuarios con rol de conductor pueden registrar vehículos",
       );

@@ -46,6 +46,18 @@ Authorization: Bearer <tu_jwt_token_aqui>
   ```
   *(Nota: `roles` contiene el array completo de roles asignados al usuario. `rol` se conserva con el rol primario por retrocompatibilidad).*
 
+### 2.1. Control de Acceso Basado en Roles (RBAC - `roleMiddleware`)
+Para endpoints con restricción de roles (por ejemplo, registrar o publicar viajes que requieren rol `Conductor`, o módulos administrativos):
+- Si el usuario no tiene la sesión iniciada o el token es inválido: `401 Unauthorized`.
+- Si el usuario está autenticado pero no cuenta con ninguno de los roles requeridos para la ruta:
+  - **Código:** `403 Forbidden`
+  - **Cuerpo de Respuesta:**
+    ```json
+    {
+      "message": "Acceso denegado: No cuentas con los permisos necesarios para realizar esta acción."
+    }
+    ```
+
 ---
 
 ## 📡 3. Especificación de Endpoints

@@ -7,7 +7,8 @@ const vehicleController = {
     try {
       const { marca, modelo, anio, color, placa, asientos_disponibles } =
         req.body;
-      const vehicle = await vehicleService.create(req.user.id, req.user.rol, {
+      const roles = req.user.roles || (req.user.rol ? [req.user.rol] : []);
+      const vehicle = await vehicleService.create(req.user.id, roles, {
         marca,
         modelo,
         anio,
