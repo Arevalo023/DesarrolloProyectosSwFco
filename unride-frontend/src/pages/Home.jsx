@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
 
@@ -16,7 +17,23 @@ import {
 
 import heroImage from "@/assets/hero.png";
 
-function Home({ onLogout, onProfile }) {
+const API_URL = "http://localhost:3000";
+
+function Home({ onLogout, onProfile, user }) {
+  const [filters, setFilters] = useState({ origen: "", destino: "", fecha: "" });
+  const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [bookingId, setBookingId] = useState(null);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const userRoles = (Array.isArray(user?.roles)
+    ? user.roles
+    : user?.rol
+      ? [user.rol]
+      : [])
+    .map((role) => String(role).toLowerCase());
+  const canPublish = userRoles.includes("conductor");
 
   // ============================================================
   // BAJAR A LA SECCIÓN DE BÚSQUEDA
@@ -27,6 +44,58 @@ function Home({ onLogout, onProfile }) {
       ?.scrollIntoView({
         behavior: "smooth",
       });
+  };
+
+  const actualizarFiltro = (event) => {
+    const { name, value } = event.target;
+    setFilters((current) => ({ ...current, [name]: value }));
+  };
+
+  const buscarViajes = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const query = new URLSearchParams(
+        Object.entries(filters).filter(([, value]) => value)
+      );
+      const response = await fetch(`${API_URL}/api/trips?${query}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No se pudieron cargar los viajes.");
+      setTrips(data.trips || []);
+    } catch (requestError) {
+      setError(requestError.message);
+      setTrips([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reservarViaje = async (tripId) => {
+    setBookingId(tripId);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`${API_URL}/api/trips/${tripId}/book`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No se pudo reservar el viaje.");
+      setTrips((current) => current
+        .map((trip) => trip.id === tripId
+          ? { ...trip, cupo_disponible: trip.cupo_disponible - 1 }
+          : trip)
+        .filter((trip) => trip.cupo_disponible > 0));
+      setMessage(data.message);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBookingId(null);
+    }
   };
 
   return (
@@ -314,7 +383,7 @@ function Home({ onLogout, onProfile }) {
 
             <CardContent className="p-6">
 
-              <div className="grid gap-5 md:grid-cols-4">
+              <form onSubmit={buscarViajes} className="grid gap-5 md:grid-cols-4">
 
                 {/* ORIGEN */}
 
@@ -341,8 +410,11 @@ function Home({ onLogout, onProfile }) {
 
                   <Input
                     id="origen"
+                    name="origen"
                     type="text"
                     placeholder="¿Desde dónde sales?"
+                    value={filters.origen}
+                    onChange={actualizarFiltro}
                   />
 
                 </div>
@@ -373,8 +445,11 @@ function Home({ onLogout, onProfile }) {
 
                   <Input
                     id="destino"
+                    name="destino"
                     type="text"
                     placeholder="¿A dónde quieres llegar?"
+                    value={filters.destino}
+                    onChange={actualizarFiltro}
                   />
 
                 </div>
@@ -405,7 +480,10 @@ function Home({ onLogout, onProfile }) {
 
                   <Input
                     id="fecha"
+                    name="fecha"
                     type="date"
+                    value={filters.fecha}
+                    onChange={actualizarFiltro}
                   />
 
                 </div>
@@ -416,6 +494,7 @@ function Home({ onLogout, onProfile }) {
                 <div className="flex items-end">
 
                   <Button
+                    type="submit"
                     className="
                       w-full
                       bg-emerald-600
@@ -425,16 +504,44 @@ function Home({ onLogout, onProfile }) {
                   >
                     <Search size={18} />
 
-                    Buscar viaje
+                    {loading ? "Buscando..." : "Buscar viaje"}
                   </Button>
 
                 </div>
 
-              </div>
+              </form>
+
+              {error && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+              {message && <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}
 
             </CardContent>
 
           </Card>
+
+          {trips.length > 0 && (
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
+              {trips.map((trip) => (
+                <Card key={trip.id}>
+                  <CardContent className="flex flex-col gap-3 p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="font-semibold text-slate-900">{trip.origen} → {trip.destino}</h3>
+                        <p className="text-sm text-slate-500">{new Date(trip.fecha_salida).toLocaleString()}</p>
+                      </div>
+                      <span className="font-semibold text-emerald-700">${trip.costo_por_pasajero}</span>
+                    </div>
+                    <p className="text-sm text-slate-600">Conduce {trip.conductor} · {trip.marca} {trip.modelo}</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm text-slate-500">{trip.cupo_disponible} asientos disponibles</span>
+                      <Button type="button" onClick={() => reservarViaje(trip.id)} disabled={bookingId === trip.id} className="bg-emerald-600 text-white hover:bg-emerald-700">
+                        {bookingId === trip.id ? "Reservando..." : "Tomar viaje"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
         </div>
 
@@ -541,7 +648,7 @@ function Home({ onLogout, onProfile }) {
 
             {/* PUBLICAR VIAJE */}
 
-            <Card className="transition-shadow hover:shadow-lg">
+            {canPublish && <Card className="transition-shadow hover:shadow-lg">
 
               <CardContent className="p-6">
 
@@ -590,7 +697,7 @@ function Home({ onLogout, onProfile }) {
 
               </CardContent>
 
-            </Card>
+            </Card>}
 
 
             {/* MIS VIAJES */}

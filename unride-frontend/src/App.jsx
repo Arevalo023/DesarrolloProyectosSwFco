@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
 
@@ -149,7 +150,12 @@ function App() {
     if (showProfile) {
 
       return (
-        <Profile
+        <ProtectedRoute
+          onUnauthorized={() => {
+            cerrarSesion();
+          }}
+        >
+          <Profile
 
           // Usuario que inició sesión
           user={usuario}
@@ -172,7 +178,8 @@ function App() {
             );
           }}
 
-        />
+          />
+        </ProtectedRoute>
       );
     }
 

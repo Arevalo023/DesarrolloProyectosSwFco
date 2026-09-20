@@ -9,7 +9,7 @@ services:
       - SA_PASSWORD=Hola1234
       - MSSQL_PID=Developer
     ports:
-      - "1433:1433"
+      - "11433:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
     restart: unless-stopped
