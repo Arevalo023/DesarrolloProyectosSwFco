@@ -19,12 +19,13 @@ import {
   X,
   CheckCircle2,
   ArrowLeft,
+  Car,
 } from "lucide-react";
 
 export default function Profile({
   user,
   onBackHome,
-  onUserUpdated,
+  onUserUpdated
 }) {
 
   // ============================================================
@@ -901,7 +902,6 @@ export default function Profile({
               </div>
 
             </div>
-
 
             {/* ==================================================
                 INFORMACIÓN UNIVERSITARIA

@@ -19,52 +19,87 @@ import heroImage from "@/assets/hero.png";
 
 const API_URL = "http://localhost:3000";
 
-function Home({ onLogout, onProfile, user }) {
-  const [filters, setFilters] = useState({ origen: "", destino: "", fecha: "" });
+function Home({ onLogout, onProfile, onVehiculos, user }) {
+  const [menuPerfil, setMenuPerfil] = useState(false);
+
+  const [filters, setFilters] = useState({
+    origen: "",
+    destino: "",
+    fecha: "",
+  });
+
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const userRoles = (Array.isArray(user?.roles)
-    ? user.roles
-    : user?.rol
-      ? [user.rol]
-      : [])
-    .map((role) => String(role).toLowerCase());
+  const userRoles = (
+    Array.isArray(user?.roles)
+      ? user.roles
+      : user?.rol
+        ? [user.rol]
+        : []
+  ).map((role) => String(role).toLowerCase());
+
   const canPublish = userRoles.includes("conductor");
 
   // ============================================================
   // BAJAR A LA SECCIÓN DE BÚSQUEDA
   // ============================================================
+
   const handleBuscar = () => {
-    document
-      .getElementById("buscar")
-      ?.scrollIntoView({
-        behavior: "smooth",
-      });
+    document.getElementById("buscar")?.scrollIntoView({
+      behavior: "smooth",
+    });
   };
+
+  // ============================================================
+  // ACTUALIZAR FILTROS
+  // ============================================================
 
   const actualizarFiltro = (event) => {
     const { name, value } = event.target;
-    setFilters((current) => ({ ...current, [name]: value }));
+
+    setFilters((current) => ({
+      ...current,
+      [name]: value,
+    }));
   };
+
+  // ============================================================
+  // BUSCAR VIAJES
+  // ============================================================
 
   const buscarViajes = async (event) => {
     event.preventDefault();
+
     setLoading(true);
     setError("");
     setMessage("");
+
     try {
       const query = new URLSearchParams(
         Object.entries(filters).filter(([, value]) => value)
       );
-      const response = await fetch(`${API_URL}/api/trips?${query}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+
+      const response = await fetch(
+        `${API_URL}/api/trips?${query}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "No se pudieron cargar los viajes.");
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "No se pudieron cargar los viajes."
+        );
+      }
+
       setTrips(data.trips || []);
     } catch (requestError) {
       setError(requestError.message);
@@ -74,22 +109,47 @@ function Home({ onLogout, onProfile, user }) {
     }
   };
 
+  // ============================================================
+  // RESERVAR VIAJE
+  // ============================================================
+
   const reservarViaje = async (tripId) => {
     setBookingId(tripId);
     setError("");
     setMessage("");
+
     try {
-      const response = await fetch(`${API_URL}/api/trips/${tripId}/book`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+      const response = await fetch(
+        `${API_URL}/api/trips/${tripId}/book`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "No se pudo reservar el viaje.");
-      setTrips((current) => current
-        .map((trip) => trip.id === tripId
-          ? { ...trip, cupo_disponible: trip.cupo_disponible - 1 }
-          : trip)
-        .filter((trip) => trip.cupo_disponible > 0));
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "No se pudo reservar el viaje."
+        );
+      }
+
+      setTrips((current) =>
+        current
+          .map((trip) =>
+            trip.id === tripId
+              ? {
+                  ...trip,
+                  cupo_disponible: trip.cupo_disponible - 1,
+                }
+              : trip
+          )
+          .filter((trip) => trip.cupo_disponible > 0)
+      );
+
       setMessage(data.message);
     } catch (requestError) {
       setError(requestError.message);
@@ -175,26 +235,160 @@ function Home({ onLogout, onProfile, user }) {
 
           <div className="flex items-center gap-2">
 
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onProfile}
-              className="
-                flex
-                items-center
-                gap-2
-                text-slate-700
-                hover:bg-emerald-50
-                hover:text-emerald-700
-              "
-            >
-              <UserRound size={18} />
+            {/* ==================================================
+                BOTÓN DEL PERFIL + MENÚ
+            ================================================== */}
 
-              <span className="hidden sm:inline">
-                Mi perfil
-              </span>
-            </Button>
+            <div className="relative">
 
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() =>
+                  setMenuPerfil(!menuPerfil)
+                }
+                className="
+                  flex
+                  h-10
+                  w-10
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-emerald-100
+                  p-0
+                  text-emerald-700
+                  hover:bg-emerald-200
+                  hover:text-emerald-800
+                "
+                title="Mi cuenta"
+              >
+                <UserRound size={20} />
+              </Button>
+
+
+              {/* =================================================
+                  MENÚ DEL PERFIL
+              ================================================= */}
+
+              {menuPerfil && (
+                <div
+                  className="
+                    absolute
+                    right-0
+                    top-12
+                    z-50
+                    w-56
+                    rounded-xl
+                    border
+                    bg-white
+                    p-2
+                    shadow-lg
+                  "
+                >
+
+                  {/* VER MI PERFIL */}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuPerfil(false);
+                      onProfile();
+                    }}
+                    className="
+                      flex
+                      w-full
+                      items-center
+                      gap-3
+                      rounded-lg
+                      px-4
+                      py-3
+                      text-left
+                      text-sm
+                      text-slate-700
+                      hover:bg-emerald-50
+                      hover:text-emerald-700
+                    "
+                  >
+                    <UserRound size={18} />
+
+                    <span>
+                      Ver mi perfil
+                    </span>
+                  </button>
+
+
+                  {/* VER MIS VEHÍCULOS */}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuPerfil(false);
+                      onVehiculos();
+                    }}
+                    className="
+                      flex
+                      w-full
+                      items-center
+                      gap-3
+                      rounded-lg
+                      px-4
+                      py-3
+                      text-left
+                      text-sm
+                      text-slate-700
+                      hover:bg-emerald-50
+                      hover:text-emerald-700
+                    "
+                  >
+                    <Car size={18} />
+
+                    <span>
+                      Ver mis vehículos
+                    </span>
+                  </button>
+
+
+                  {/* SEPARADOR */}
+
+                  <div className="my-1 border-t" />
+
+
+                  {/* CERRAR SESIÓN */}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuPerfil(false);
+                      onLogout();
+                    }}
+                    className="
+                      flex
+                      w-full
+                      items-center
+                      gap-3
+                      rounded-lg
+                      px-4
+                      py-3
+                      text-left
+                      text-sm
+                      text-red-600
+                      hover:bg-red-50
+                    "
+                  >
+                    <LogOut size={18} />
+
+                    <span>
+                      Cerrar sesión
+                    </span>
+                  </button>
+
+                </div>
+              )}
+
+            </div>
+
+
+            {/* BOTÓN CERRAR SESIÓN */}
 
             <Button
               type="button"
@@ -383,7 +577,10 @@ function Home({ onLogout, onProfile, user }) {
 
             <CardContent className="p-6">
 
-              <form onSubmit={buscarViajes} className="grid gap-5 md:grid-cols-4">
+              <form
+                onSubmit={buscarViajes}
+                className="grid gap-5 md:grid-cols-4"
+              >
 
                 {/* ORIGEN */}
 
@@ -504,42 +701,148 @@ function Home({ onLogout, onProfile, user }) {
                   >
                     <Search size={18} />
 
-                    {loading ? "Buscando..." : "Buscar viaje"}
+                    {loading
+                      ? "Buscando..."
+                      : "Buscar viaje"}
                   </Button>
 
                 </div>
 
               </form>
 
-              {error && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-              {message && <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}
+
+              {error && (
+                <p
+                  className="
+                    mt-4
+                    rounded-md
+                    bg-red-50
+                    px-3
+                    py-2
+                    text-sm
+                    text-red-700
+                  "
+                >
+                  {error}
+                </p>
+              )}
+
+
+              {message && (
+                <p
+                  className="
+                    mt-4
+                    rounded-md
+                    bg-emerald-50
+                    px-3
+                    py-2
+                    text-sm
+                    text-emerald-700
+                  "
+                >
+                  {message}
+                </p>
+              )}
 
             </CardContent>
 
           </Card>
 
+
+          {/* RESULTADOS */}
+
           {trips.length > 0 && (
             <div className="mt-8 grid gap-4 md:grid-cols-2">
+
               {trips.map((trip) => (
+
                 <Card key={trip.id}>
-                  <CardContent className="flex flex-col gap-3 p-5">
-                    <div className="flex items-start justify-between gap-4">
+
+                  <CardContent
+                    className="
+                      flex
+                      flex-col
+                      gap-3
+                      p-5
+                    "
+                  >
+
+                    <div
+                      className="
+                        flex
+                        items-start
+                        justify-between
+                        gap-4
+                      "
+                    >
+
                       <div>
-                        <h3 className="font-semibold text-slate-900">{trip.origen} → {trip.destino}</h3>
-                        <p className="text-sm text-slate-500">{new Date(trip.fecha_salida).toLocaleString()}</p>
+
+                        <h3 className="font-semibold text-slate-900">
+                          {trip.origen} → {trip.destino}
+                        </h3>
+
+                        <p className="text-sm text-slate-500">
+                          {new Date(
+                            trip.fecha_salida
+                          ).toLocaleString()}
+                        </p>
+
                       </div>
-                      <span className="font-semibold text-emerald-700">${trip.costo_por_pasajero}</span>
+
+                      <span className="font-semibold text-emerald-700">
+                        ${trip.costo_por_pasajero}
+                      </span>
+
                     </div>
-                    <p className="text-sm text-slate-600">Conduce {trip.conductor} · {trip.marca} {trip.modelo}</p>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm text-slate-500">{trip.cupo_disponible} asientos disponibles</span>
-                      <Button type="button" onClick={() => reservarViaje(trip.id)} disabled={bookingId === trip.id} className="bg-emerald-600 text-white hover:bg-emerald-700">
-                        {bookingId === trip.id ? "Reservando..." : "Tomar viaje"}
+
+
+                    <p className="text-sm text-slate-600">
+                      Conduce {trip.conductor} · {trip.marca}{" "}
+                      {trip.modelo}
+                    </p>
+
+
+                    <div
+                      className="
+                        flex
+                        items-center
+                        justify-between
+                        gap-3
+                      "
+                    >
+
+                      <span className="text-sm text-slate-500">
+                        {trip.cupo_disponible} asientos disponibles
+                      </span>
+
+                      <Button
+                        type="button"
+                        onClick={() =>
+                          reservarViaje(trip.id)
+                        }
+                        disabled={
+                          bookingId === trip.id
+                        }
+                        className="
+                          bg-emerald-600
+                          text-white
+                          hover:bg-emerald-700
+                        "
+                      >
+                        {bookingId === trip.id
+                          ? "Reservando..."
+                          : "Tomar viaje"}
                       </Button>
+
                     </div>
+
                   </CardContent>
+
                 </Card>
+
               ))}
+
             </div>
           )}
 
@@ -648,56 +951,58 @@ function Home({ onLogout, onProfile, user }) {
 
             {/* PUBLICAR VIAJE */}
 
-            {canPublish && <Card className="transition-shadow hover:shadow-lg">
+            {canPublish && (
+              <Card className="transition-shadow hover:shadow-lg">
 
-              <CardContent className="p-6">
+                <CardContent className="p-6">
 
-                <div
-                  className="
-                    mb-5
-                    flex
-                    h-12
-                    w-12
-                    items-center
-                    justify-center
-                    rounded-lg
-                    bg-emerald-50
-                    text-emerald-600
-                  "
-                >
-                  <Car size={23} />
-                </div>
+                  <div
+                    className="
+                      mb-5
+                      flex
+                      h-12
+                      w-12
+                      items-center
+                      justify-center
+                      rounded-lg
+                      bg-emerald-50
+                      text-emerald-600
+                    "
+                  >
+                    <Car size={23} />
+                  </div>
 
-                <h3
-                  className="text-lg font-semibold"
-                  style={{
-                    color: "#0f172a",
-                  }}
-                >
-                  Publicar un viaje
-                </h3>
+                  <h3
+                    className="text-lg font-semibold"
+                    style={{
+                      color: "#0f172a",
+                    }}
+                  >
+                    Publicar un viaje
+                  </h3>
 
-                <p className="mt-3 text-sm leading-6 text-slate-500">
-                  Comparte tu ruta y permite que otros
-                  estudiantes se unan.
-                </p>
+                  <p className="mt-3 text-sm leading-6 text-slate-500">
+                    Comparte tu ruta y permite que otros
+                    estudiantes se unan.
+                  </p>
 
-                <Button
-                  variant="ghost"
-                  className="
-                    mt-5
-                    px-0
-                    text-emerald-600
-                    hover:bg-transparent
-                    hover:text-emerald-700
-                  "
-                >
-                  Publicar viaje →
-                </Button>
+                  <Button
+                    variant="ghost"
+                    className="
+                      mt-5
+                      px-0
+                      text-emerald-600
+                      hover:bg-transparent
+                      hover:text-emerald-700
+                    "
+                  >
+                    Publicar viaje →
+                  </Button>
 
-              </CardContent>
+                </CardContent>
 
-            </Card>}
+              </Card>
+            )}
 
 
             {/* MIS VIAJES */}
@@ -891,6 +1196,8 @@ function Home({ onLogout, onProfile, user }) {
 
       </section>
 
+
+      {/* FOOTER */}
 
       <Footer />
 
