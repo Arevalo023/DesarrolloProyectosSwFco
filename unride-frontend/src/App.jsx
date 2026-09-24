@@ -3,28 +3,72 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import Vehiculos from "./pages/Vehiculos";
+import {
+  cerrarSesion,
+  guardarRolActivo,
+  iniciarSesion,
+  obtenerRolActivo,
+} from "./services/session";
 
 function App() {
   const [pantalla, setPantalla] = useState("login");
 
   const [usuario, setUsuario] = useState(null);
 
+  // Rol con el que el usuario está operando (Pasajero / Conductor)
+  const [rolActivo, setRolActivo] = useState(() => obtenerRolActivo());
+
+  // true cuando se regresó al login porque la sesión expiró
+  const [sesionExpirada, setSesionExpirada] = useState(false);
+
   // ============================================================
-  // SESIÓN EXPIRADA (evento lanzado por services/api.js en 401)
+  // EVENTOS DE SESIÓN (lanzados por services/api.js)
   // ============================================================
 
   useEffect(() => {
+    // 401: token expirado o inválido
     const alExpirarSesion = () => {
       setUsuario(null);
+      setRolActivo(null);
+      setSesionExpirada(true);
       setPantalla("login");
     };
 
+    // 403 INVALID_ACTIVE_ROLE: api.js ya regresó al rol principal
+    const alReiniciarRol = (event) => {
+      setRolActivo(event.detail);
+    };
+
     window.addEventListener("auth:logout", alExpirarSesion);
+    window.addEventListener("auth:rol-activo", alReiniciarRol);
 
     return () => {
       window.removeEventListener("auth:logout", alExpirarSesion);
+      window.removeEventListener("auth:rol-activo", alReiniciarRol);
     };
   }, []);
+
+  // ============================================================
+  // CAMBIAR ROL ACTIVO
+  // ============================================================
+
+  const cambiarRolActivo = (rol) => {
+    guardarRolActivo(rol);
+    setRolActivo(rol);
+  };
+
+  // ============================================================
+  // NUEVO ROL (ej. primer vehículo -> Conductor)
+  // Guarda el token nuevo y cambia al rol recién obtenido
+  // ============================================================
+
+  const manejarRolAgregado = (sesion, rol) => {
+    iniciarSesion(sesion);
+    guardarRolActivo(rol);
+
+    setUsuario(sesion.user);
+    setRolActivo(rol);
+  };
 
   // ============================================================
   // LOGIN
@@ -34,6 +78,8 @@ function App() {
     console.log("Login correcto:", respuesta);
 
     setUsuario(respuesta.user);
+    setRolActivo(obtenerRolActivo());
+    setSesionExpirada(false);
     setPantalla("home");
   };
 
@@ -42,10 +88,10 @@ function App() {
   // ============================================================
 
   const manejarLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("usuario");
+    cerrarSesion();
 
     setUsuario(null);
+    setRolActivo(null);
     setPantalla("login");
   };
 
@@ -57,6 +103,7 @@ function App() {
     return (
       <Login
         onLogin={manejarLogin}
+        sesionExpirada={sesionExpirada}
       />
     );
   }
@@ -71,6 +118,10 @@ function App() {
         user={usuario || usuarioPrueba}
 
         onLogout={manejarLogout}
+
+        rolActivo={rolActivo}
+
+        onCambiarRol={cambiarRolActivo}
 
         onProfile={() => {
           setPantalla("perfil");
@@ -110,6 +161,7 @@ function App() {
   if (pantalla === "vehiculos") {
     return (
     <Vehiculos
+    onRolAgregado={manejarRolAgregado}
     onBackHome={() => {
       setPantalla("home");
     }}

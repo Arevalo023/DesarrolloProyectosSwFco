@@ -22,6 +22,9 @@ import {
   Car,
 } from "lucide-react";
 
+import { apiRequest } from "@/services/api";
+import { guardarUsuario, obtenerToken, rolesDe } from "@/services/session";
+
 export default function Profile({
   user,
   onBackHome,
@@ -108,7 +111,14 @@ export default function Profile({
 
     let rol = "Pasajero";
 
-    if (typeof usuario.rol === "string") {
+    const roles = rolesDe(usuario).filter((r) => typeof r === "string");
+
+    if (roles.length > 0) {
+
+      // Todos los roles del usuario, ej. "Pasajero, Conductor"
+      rol = roles.join(", ");
+
+    } else if (typeof usuario.rol === "string") {
 
       rol = usuario.rol;
 
@@ -200,29 +210,23 @@ export default function Profile({
 
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!obtenerToken()) return;
 
     const cargarPerfil = async () => {
       setCargando(true);
       setError("");
       try {
-        const headers = { Authorization: `Bearer ${token}` };
-        const [profileResponse, campusesResponse] = await Promise.all([
-          fetch("http://localhost:3000/users/me", { headers }),
-          fetch("http://localhost:3000/users/campuses", { headers }),
+        const [data, campusesData] = await Promise.all([
+          apiRequest("/users/me"),
+          apiRequest("/users/campuses"),
         ]);
-        const data = await profileResponse.json();
-        const campusesData = await campusesResponse.json();
-        if (!profileResponse.ok) throw new Error(data.message || "No se pudo cargar el perfil.");
-        if (!campusesResponse.ok) throw new Error(campusesData.message || "No se pudieron cargar los campus.");
 
         const usuarioActualizado = data.user;
         const perfil = normalizarUsuario(usuarioActualizado);
-        setCampuses(campusesData.campuses);
+        setCampuses(campusesData.campuses || []);
         setDatos(perfil);
         setDatosGuardados(perfil);
-        localStorage.setItem("usuario", JSON.stringify(usuarioActualizado));
+        guardarUsuario(usuarioActualizado);
       } catch (requestError) {
         setError(requestError.message);
       } finally {
@@ -327,22 +331,16 @@ export default function Profile({
         }
       }
 
-      const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:3000/users/me", {
+      const respuesta = await apiRequest("/users/me", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+        body: {
           nombre: datos.nombre,
           apellido: datos.apellido,
           telefono: datos.telefono || null,
           campus_id: datos.campus_id,
-        }),
+        },
       });
-      const respuesta = await response.json();
-      if (!response.ok) throw new Error(respuesta.message || "No se pudo actualizar el perfil.");
+      guardarUsuario(respuesta.user);
 
       const perfil = normalizarUsuario(respuesta.user);
       setDatos(perfil);

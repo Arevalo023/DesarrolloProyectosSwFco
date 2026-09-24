@@ -5,10 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Car, ArrowRight } from "lucide-react";
+import { apiRequest } from "@/services/api";
+import { iniciarSesion } from "@/services/session";
 
-const API_URL = "http://localhost:3000";
-
-export default function Login({ onRegister, onLogin }) {
+export default function Login({ onRegister, onLogin, sesionExpirada = false }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -35,19 +35,13 @@ export default function Login({ onRegister, onLogin }) {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/users/login`, {
+      const data = await apiRequest("/users/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: { email, password },
+        auth: false,
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || "Credenciales incorrectas");
-      }
-
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("usuario", JSON.stringify(data.user));
+      iniciarSesion(data);
       onLogin(data);
     } catch (err) {
       setError(err.message);
@@ -80,6 +74,15 @@ export default function Login({ onRegister, onLogin }) {
           >
             Inicia sesión con tu correo universitario
           </p>
+
+          {sesionExpirada && !error && (
+            <p
+              role="status"
+              className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2"
+            >
+              Tu sesión expiró. Inicia sesión de nuevo.
+            </p>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">

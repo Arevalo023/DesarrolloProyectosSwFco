@@ -13,22 +13,22 @@ const expandRoleAliases = (role) => {
 
 /**
  * Middleware para control de acceso basado en roles (RBAC).
- * Restringe el acceso a endpoints según el rol o roles del usuario autenticado.
- * 
+ * Valida contra el ROL ACTIVO del usuario (req.activeRole), que
+ * authMiddleware obtiene del header X-Active-Role o, si no viene,
+ * del rol principal del token.
+ *
  * Uso:
  *   router.post('/trips', authMiddleware.verifyToken, roleMiddleware(['Conductor']), tripController.create);
  *   router.get('/admin', authMiddleware.verifyToken, roleMiddleware('Administrador'), adminController.dashboard);
- *   router.post('/vehicles', authMiddleware.verifyToken, roleMiddleware(['conductor', 'admin']), vehicleController.create);
- * 
+ *
  * @param {...(string|string[])} allowedRoles - Roles permitidos para acceder a la ruta.
  * @returns {Function} Express middleware function (req, res, next)
  */
 const roleMiddleware = (...allowedRoles) => {
+  const allowedList = allowedRoles.flat(Infinity).filter(Boolean);
+
   // Aplanar y normalizar los roles permitidos a minúsculas
-  const targetRoles = allowedRoles
-    .flat(Infinity)
-    .filter(Boolean)
-    .flatMap(expandRoleAliases);
+  const targetRoles = allowedList.flatMap(expandRoleAliases);
 
   return (req, res, next) => {
     // 1. Validar que exista usuario autenticado previamente por authMiddleware
@@ -38,27 +38,39 @@ const roleMiddleware = (...allowedRoles) => {
       });
     }
 
-    // 2. Extraer roles del usuario autenticado (soporta array roles y fallback a rol escalar)
+    // 2. Rol activo (authMiddleware siempre lo define)
+    const activeRoles = expandRoleAliases(req.activeRole);
+
+    if (targetRoles.some((role) => activeRoles.includes(role))) {
+      return next();
+    }
+
+    // 3. Si el usuario SÍ tiene un rol permitido pero no está activo,
+    //    indicarle que cambie de modo en lugar de un mensaje genérico
     const rawUserRoles = Array.isArray(req.user.roles)
       ? req.user.roles
       : (req.user.rol ? [req.user.rol] : []);
 
-    const userRoles = rawUserRoles
-      .filter(Boolean)
-      .flatMap(expandRoleAliases);
+    const ownedAllowed = allowedList.find((allowed) =>
+      rawUserRoles
+        .flatMap(expandRoleAliases)
+        .some((role) => expandRoleAliases(allowed).includes(role))
+    );
 
-    // 3. Verificar si el usuario cuenta con al menos uno de los roles permitidos
-    const hasPermission = targetRoles.some(role => userRoles.includes(role));
-
-    if (!hasPermission) {
+    if (ownedAllowed) {
       return res.status(403).json({
-        message: 'Acceso denegado: No cuentas con los permisos necesarios para realizar esta acción.'
+        message: `Cambia a modo ${ownedAllowed} para realizar esta acción.`,
+        code: 'ROLE_NOT_ACTIVE',
+        requiredRole: ownedAllowed
       });
     }
 
-    // 4. Autorizado: continuar con la petición
-    next();
+    return res.status(403).json({
+      message: 'Acceso denegado: No cuentas con los permisos necesarios para realizar esta acción.'
+    });
   };
 };
+
+roleMiddleware.expandRoleAliases = expandRoleAliases;
 
 module.exports = roleMiddleware;

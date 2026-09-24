@@ -59,7 +59,7 @@ const formularioInicial = {
   asientos: "",
 };
 
-export default function Vehiculos({ onBackHome }) {
+export default function Vehiculos({ onBackHome, onRolAgregado }) {
   /*
   |--------------------------------------------------------------------------
   | ESTADOS
@@ -403,17 +403,31 @@ export default function Vehiculos({ onBackHome }) {
       */
 
       if (modoFormulario === "agregar") {
-        const { mensaje: respuesta, vehiculo } =
+        const { mensaje: respuesta, vehiculo, sesion, rolAgregado } =
           await crearVehiculo(formulario);
 
         setVehiculos((anteriores) =>
           ordenarVehiculos([...anteriores, vehiculo])
         );
 
-        mostrarMensaje(
-          respuesta || "Vehículo registrado correctamente.",
-          "exito"
-        );
+        if (sesion && rolAgregado) {
+          /*
+          | Primer vehículo: el usuario ahora es Conductor.
+          | App.jsx guarda la sesión nueva y cambia a modo Conductor.
+          */
+
+          onRolAgregado?.(sesion, rolAgregado);
+
+          mostrarMensaje(
+            "Vehículo registrado. Ya estás en modo Conductor y puedes publicar viajes.",
+            "exito"
+          );
+        } else {
+          mostrarMensaje(
+            respuesta || "Vehículo registrado correctamente.",
+            "exito"
+          );
+        }
       }
 
       /*

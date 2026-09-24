@@ -2,7 +2,54 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const userModel = require('../models/userModel');
 
+/**
+ * Genera el token JWT y el objeto de usuario que recibe el frontend.
+ * Se usa en el login y cuando cambian los roles del usuario
+ * (ej. al registrar su primer vehículo se vuelve Conductor).
+ * @param {object} user - Usuario tal como lo devuelve userModel (findById / findByEmail)
+ * @returns {{ token: string, user: object }}
+ */
+const createSession = (user) => {
+  // Lista de roles M:N
+  const roles = Array.isArray(user.roles) && user.roles.length > 0
+    ? user.roles
+    : [user.rol_nombre || 'Pasajero'];
+  const primaryRole = roles[0] || user.rol_nombre || 'Pasajero';
+
+  const payload = {
+    id: user.id,
+    correo: user.correo,
+    roles, // Array de nombres de roles: ['Pasajero'] o ['Pasajero', 'Conductor']
+    rol: primaryRole, // Retrocompatibilidad
+    rol_id: user.rol_id,
+    campus_id: user.campus_id
+  };
+
+  const token = jwt.sign(
+    payload,
+    process.env.JWT_SECRET || 'uniride_default_secret_key',
+    { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+  );
+
+  return {
+    token,
+    user: {
+      id: user.id,
+      nombre: user.nombre,
+      apellido: user.apellido,
+      correo: user.correo,
+      telefono: user.telefono,
+      roles,
+      rol: primaryRole,
+      campus: user.campus_nombre,
+      universidad: user.universidad_nombre
+    }
+  };
+};
+
 const authService = {
+  createSession,
+
   /**
    * Registra un nuevo usuario en el sistema.
    * @param {object} params
@@ -111,42 +158,8 @@ const authService = {
       throw error;
     }
 
-    // 3. Obtener lista de roles M:N
-    const roles = Array.isArray(user.roles) && user.roles.length > 0
-      ? user.roles
-      : [user.rol_nombre || 'Pasajero'];
-    const primaryRole = roles[0] || user.rol_nombre || 'Pasajero';
-
-    // 4. Generar token JWT con soporte de roles M:N
-    const payload = {
-      id: user.id,
-      correo: user.correo,
-      roles, // Array de nombres de roles: ['Pasajero'] o ['Pasajero', 'Conductor']
-      rol: primaryRole, // Retrocompatibilidad
-      rol_id: user.rol_id,
-      campus_id: user.campus_id
-    };
-
-    const token = jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'uniride_default_secret_key',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
-    );
-
-    return {
-      token,
-      user: {
-        id: user.id,
-        nombre: user.nombre,
-        apellido: user.apellido,
-        correo: user.correo,
-        telefono: user.telefono,
-        roles,
-        rol: primaryRole,
-        campus: user.campus_nombre,
-        universidad: user.universidad_nombre
-      }
-    };
+    // 3. Generar token JWT y datos de sesión (roles M:N)
+    return createSession(user);
   },
 
   /**

@@ -4,8 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Car } from "lucide-react";
-
-const API_URL = "http://localhost:3000";
+import { apiRequest } from "@/services/api";
 
 const campusOptions = [
   { value: 1, label: "Campus Arteaga" },
@@ -67,23 +66,18 @@ export default function Register({ onBackToLogin }) {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/users/register`, {
+      await apiRequest("/users/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           nombre,
           apellido,
           correo,
           password,
           telefono: telefono || null,
           campus_id,
-        }),
+        },
+        auth: false,
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "No se pudo crear la cuenta");
-      }
 
       onBackToLogin();
     } catch (registrationError) {

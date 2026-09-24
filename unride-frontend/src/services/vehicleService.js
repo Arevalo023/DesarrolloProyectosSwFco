@@ -49,7 +49,14 @@ export async function crearVehiculo(formulario) {
     method: "POST",
     body: haciaApi(formulario),
   });
-  return { mensaje: data.message, vehiculo: desdeApi(data.vehicle) };
+  return {
+    mensaje: data.message,
+    vehiculo: desdeApi(data.vehicle),
+    // Solo viene en el primer vehículo: el usuario se volvió Conductor
+    // y el backend manda un token nuevo con sus roles actualizados
+    sesion: data.token ? { token: data.token, user: data.user } : null,
+    rolAgregado: data.rolAgregado || null,
+  };
 }
 
 export async function actualizarVehiculo(id, formulario) {

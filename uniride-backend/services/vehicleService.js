@@ -1,4 +1,31 @@
 const vehicleModel = require("../models/vehicleModel");
+const userModel = require("../models/userModel");
+const authService = require("./authService");
+
+/**
+ * Si el usuario aún no es Conductor, le agrega el rol y genera
+ * una sesión nueva (token con los roles actualizados).
+ * Devuelve null si ya era Conductor o si no se pudo asignar el rol.
+ * @param {number} usuario_id
+ * @returns {Promise<{token: string, user: object}|null>}
+ */
+const asegurarRolConductor = async (usuario_id) => {
+  const user = await userModel.findById(usuario_id);
+  const roles = (user?.roles || []).map((r) => String(r).trim().toLowerCase());
+
+  if (roles.includes("conductor")) {
+    return null;
+  }
+
+  const conductorRolId = await userModel.findRoleIdByName("Conductor");
+  if (!conductorRolId) {
+    console.warn('No existe el rol "Conductor" en la tabla Roles; no se asignó.');
+    return null;
+  }
+
+  const updatedUser = await userModel.addRole(usuario_id, conductorRolId);
+  return authService.createSession(updatedUser);
+};
 
 const vehicleService = {
 
@@ -14,7 +41,7 @@ const vehicleService = {
       throw error;
     }
 
-    return vehicleModel.create({
+    const vehicle = await vehicleModel.create({
       usuario_id,
       marca,
       modelo,
@@ -23,6 +50,18 @@ const vehicleService = {
       placa,
       asientos_disponibles,
     });
+
+    // Registrar un vehículo convierte al usuario en Conductor
+    // (conserva sus otros roles, ej. Pasajero)
+    let session = null;
+    try {
+      session = await asegurarRolConductor(usuario_id);
+    } catch (err) {
+      // El vehículo ya quedó guardado; no se revierte por esto
+      console.warn("No se pudo asignar el rol Conductor:", err.message);
+    }
+
+    return { vehicle, session };
   },
   // obtener los vehículos del usuario autenticado
   async listMine(usuario_id) {

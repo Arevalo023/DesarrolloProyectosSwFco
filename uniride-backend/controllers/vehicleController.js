@@ -1,13 +1,13 @@
 const vehicleService = require("../services/vehicleService");
- 
+
 const vehicleController = {
- 
+
   // crear un nuevo vehículo
   async create(req, res) {
     try {
       const { marca, modelo, anio, color, placa, asientos_disponibles } =
         req.body;
-      const vehicle = await vehicleService.create(req.user.id, {
+      const { vehicle, session } = await vehicleService.create(req.user.id, {
         marca,
         modelo,
         anio,
@@ -15,6 +15,18 @@ const vehicleController = {
         placa,
         asientos_disponibles,
       });
+      // Si el usuario se volvió Conductor con este vehículo, se envía
+      // un token nuevo con sus roles actualizados
+      if (session) {
+        return res.status(201).json({
+          message: "Vehículo registrado exitosamente. Ahora también eres Conductor.",
+          vehicle,
+          token: session.token,
+          user: session.user,
+          rolAgregado: "Conductor",
+        });
+      }
+
       return res
         .status(201)
         .json({ message: "Vehículo registrado exitosamente.", vehicle });
@@ -25,7 +37,7 @@ const vehicleController = {
         .json({ message: error.message || "Error al registrar el vehículo." });
     }
   },
- 
+
   // obtener los vehículos del usuario autenticado
   async listMine(req, res) {
     try {
@@ -107,6 +119,5 @@ const vehicleController = {
     }
   },
 };
- 
+
 module.exports = vehicleController;
- 

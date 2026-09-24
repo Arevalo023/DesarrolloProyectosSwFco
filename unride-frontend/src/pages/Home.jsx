@@ -17,9 +17,18 @@ import {
 
 import heroImage from "@/assets/hero.png";
 
-const API_URL = "http://localhost:3000";
+import { apiRequest } from "@/services/api";
+import { mismoRol, rolesDe } from "@/services/session";
 
-function Home({ onLogout, onProfile, onVehiculos, onPublish, user }) {
+function Home({
+  onLogout,
+  onProfile,
+  onVehiculos,
+  onPublish,
+  user,
+  rolActivo,
+  onCambiarRol,
+}) {
   const [menuPerfil, setMenuPerfil] = useState(false);
 
   const [filters, setFilters] = useState({
@@ -34,15 +43,29 @@ function Home({ onLogout, onProfile, onVehiculos, onPublish, user }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const userRoles = (
-    Array.isArray(user?.roles)
-      ? user.roles
-      : user?.rol
-        ? [user.rol]
-        : []
-  ).map((role) => String(role).toLowerCase());
+  // ============================================================
+  // ROLES
+  // ============================================================
 
-  const canPublish = userRoles.includes("conductor");
+  const userRoles = rolesDe(user);
+
+  const tieneRol = (rol) =>
+    userRoles.some((r) => mismoRol(r, rol));
+
+  // Si aún no hay rol activo guardado, se usa el principal
+  const rolEnUso = rolActivo || user?.rol || userRoles[0] || "";
+
+  const modoConductor = mismoRol(rolEnUso, "Conductor");
+
+  const modoPasajero = mismoRol(rolEnUso, "Pasajero");
+
+  const canPublish = modoConductor;
+
+  const cambiarModo = (rol) => {
+    setError("");
+    setMessage("");
+    onCambiarRol?.(rol);
+  };
 
   // ============================================================
   // BAJAR A LA SECCIÓN DE BÚSQUEDA
@@ -83,22 +106,7 @@ function Home({ onLogout, onProfile, onVehiculos, onPublish, user }) {
         Object.entries(filters).filter(([, value]) => value)
       );
 
-      const response = await fetch(
-        `${API_URL}/api/trips?${query}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "No se pudieron cargar los viajes."
-        );
-      }
+      const data = await apiRequest(`/api/trips?${query}`);
 
       setTrips(data.trips || []);
     } catch (requestError) {
@@ -119,23 +127,10 @@ function Home({ onLogout, onProfile, onVehiculos, onPublish, user }) {
     setMessage("");
 
     try {
-      const response = await fetch(
-        `${API_URL}/api/trips/${tripId}/book`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+      const data = await apiRequest(
+        `/api/trips/${tripId}/book`,
+        { method: "POST" }
       );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "No se pudo reservar el viaje."
-        );
-      }
 
       setTrips((current) =>
         current
@@ -234,6 +229,44 @@ function Home({ onLogout, onProfile, onVehiculos, onPublish, user }) {
           {/* PERFIL Y CERRAR SESIÓN */}
 
           <div className="flex items-center gap-2">
+
+            {/* ==================================================
+                MODO (ROL ACTIVO)
+                Con varios roles se puede cambiar; con uno solo
+                se muestra como etiqueta fija.
+            ================================================== */}
+
+            {userRoles.length > 1 ? (
+              <div
+                role="group"
+                aria-label="Modo de uso"
+                className="flex rounded-full border border-slate-200 bg-slate-100 p-1"
+              >
+                {userRoles.map((rol) => {
+                  const activo = mismoRol(rol, rolEnUso);
+
+                  return (
+                    <button
+                      key={rol}
+                      type="button"
+                      aria-pressed={activo}
+                      onClick={() => cambiarModo(rol)}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                        activo
+                          ? "bg-emerald-600 text-white shadow-sm"
+                          : "text-slate-600 hover:text-emerald-700"
+                      }`}
+                    >
+                      {rol}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : rolEnUso ? (
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                {rolEnUso}
+              </span>
+            ) : null}
 
             {/* ==================================================
                 BOTÓN DEL PERFIL + MENÚ
@@ -807,24 +840,39 @@ function Home({ onLogout, onProfile, onVehiculos, onPublish, user }) {
                         {trip.cupo_disponible} asientos disponibles
                       </span>
 
-                      <Button
-                        type="button"
-                        onClick={() =>
-                          reservarViaje(trip.id)
-                        }
-                        disabled={
-                          bookingId === trip.id
-                        }
-                        className="
-                          bg-emerald-600
-                          text-white
-                          hover:bg-emerald-700
-                        "
-                      >
-                        {bookingId === trip.id
-                          ? "Reservando..."
-                          : "Tomar viaje"}
-                      </Button>
+                      {modoPasajero ? (
+                        <Button
+                          type="button"
+                          onClick={() =>
+                            reservarViaje(trip.id)
+                          }
+                          disabled={
+                            bookingId === trip.id
+                          }
+                          className="
+                            bg-emerald-600
+                            text-white
+                            hover:bg-emerald-700
+                          "
+                        >
+                          {bookingId === trip.id
+                            ? "Reservando..."
+                            : "Tomar viaje"}
+                        </Button>
+                      ) : tieneRol("Pasajero") ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => cambiarModo("Pasajero")}
+                          className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        >
+                          Cambiar a modo Pasajero para reservar
+                        </Button>
+                      ) : (
+                        <span className="text-sm text-slate-500">
+                          Solo pasajeros pueden reservar
+                        </span>
+                      )}
 
                     </div>
 
@@ -991,6 +1039,28 @@ function Home({ onLogout, onProfile, onVehiculos, onPublish, user }) {
                         "
                       >
                         Publicar viaje →
+                      </Button>
+                    </>
+                  ) : tieneRol("Conductor") ? (
+                    <>
+                      <p className="mt-3 text-sm leading-6 text-slate-500">
+                        Estás en modo Pasajero. Cambia a modo Conductor
+                        para publicar viajes.
+                      </p>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => cambiarModo("Conductor")}
+                        className="
+                          mt-5
+                          px-0
+                          text-emerald-600
+                          hover:bg-transparent
+                          hover:text-emerald-700
+                        "
+                      >
+                        Cambiar a modo Conductor →
                       </Button>
                     </>
                   ) : (

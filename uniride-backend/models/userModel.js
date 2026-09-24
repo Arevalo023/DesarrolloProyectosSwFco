@@ -244,6 +244,20 @@ const userModel = {
   },
 
   /**
+   * Obtiene el id de un rol por su nombre (sin distinguir mayúsculas).
+   * @param {string} nombre - Ej. 'Conductor'
+   * @returns {Promise<number|null>}
+   */
+  async findRoleIdByName(nombre) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('nombre', sql.VarChar(50), nombre)
+      .query('SELECT TOP 1 id FROM Roles WHERE LOWER(nombre) = LOWER(@nombre)');
+
+    return result.recordset[0]?.id ?? null;
+  },
+
+  /**
    * Asigna un nuevo rol a un usuario en la tabla intermedia UsuariosRoles.
    * @param {number} userId
    * @param {number} rolId
