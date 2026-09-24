@@ -107,7 +107,7 @@ export default function Register({ onBackToLogin }) {
         <CardContent className="pt-8 pb-6 px-6">
           <div className="flex items-center justify-center gap-2 mb-1">
             <Car className="text-emerald-600" size={48} />
-            <h1 className="text-xl font-bold !text-black" style={{ margin: 0 }}>
+            <h1 className="text-xl font-bold text-black!" style={{ margin: 0 }}>
               Uni <span className="text-emerald-600">Ride</span>
             </h1>
           </div>
@@ -233,7 +233,7 @@ export default function Register({ onBackToLogin }) {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium mb-3.5"
             >
               {loading ? (
                 "Creando cuenta..."
