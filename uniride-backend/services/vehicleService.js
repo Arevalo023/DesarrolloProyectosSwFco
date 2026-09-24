@@ -5,22 +5,8 @@ const vehicleService = {
   // crear un nuevo vehículo
   async create(
     usuario_id,
-    roles,
     { marca, modelo, anio, color, placa, asientos_disponibles },
   ) {
-    const userRoles = Array.isArray(roles) ? roles : (roles ? [roles] : []);
-    const isConductor = userRoles.some(
-      (r) => String(r).trim().toLowerCase() === "conductor"
-    );
-
-    if (!isConductor) {
-      const error = new Error(
-        "Solo los usuarios con rol de conductor pueden registrar vehículos",
-      );
-      error.statusCode = 403;
-      throw error;
-    }
-
     const existing = await vehicleModel.findByPlaca(placa);
     if (existing) {
       const error = new Error("La placa ya está registrada");

@@ -4,17 +4,15 @@ const router = express.Router();
 const vehicleController = require('../controllers/vehicleController');
 const validateMiddleware = require('../middlewares/validateMiddleware');
 const authMiddleware = require('../middlewares/authMiddleware');
-const roleMiddleware = require('../middlewares/roleMiddleware');
 
 /**
  * @route   POST /api/vehicles
- * @desc    Registrar un nuevo vehículo (solo conductores)
- * @access  Privado (requiere Bearer Token y rol Conductor)
+ * @desc    Registrar un nuevo vehículo (cualquier usuario autenticado)
+ * @access  Privado (requiere Bearer Token)
  */
 router.post(
   '/',
   authMiddleware.verifyToken,
-  roleMiddleware(['Conductor']),
   validateMiddleware.validateVehicle,
   vehicleController.create
 );

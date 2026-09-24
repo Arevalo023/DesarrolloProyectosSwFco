@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,10 +9,20 @@ import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
 
 import {
+  listarMisVehiculos,
+  crearVehiculo,
+  actualizarVehiculo,
+  cambiarEstadoVehiculo,
+} from "@/services/vehicleService";
+
+import {
   Car,
   Plus,
   Pencil,
-  Trash2,
+  Power,
+  PowerOff,
+  LoaderCircle,
+  RefreshCw,
   ArrowLeft,
   Save,
   X,
@@ -23,23 +33,16 @@ import {
 
 /*
 |--------------------------------------------------------------------------
-| DATOS DE PRUEBA
-|--------------------------------------------------------------------------
-| Estos datos son temporales mientras el backend no esté conectado.
+| UTILIDADES
 |--------------------------------------------------------------------------
 */
 
-const vehiculosIniciales = [
-  {
-    id: 1,
-    marca: "Nissan",
-    modelo: "Versa",
-    año: "2020",
-    color: "Blanco",
-    placas: "ABC-123",
-    asientos: "5",
-  },
-];
+// Activos primero; dentro de cada grupo, por orden de registro
+const ordenarVehiculos = (lista) =>
+  [...lista].sort((a, b) => {
+    if (a.activo !== b.activo) return a.activo ? -1 : 1;
+    return a.id - b.id;
+  });
 
 /*
 |--------------------------------------------------------------------------
@@ -63,7 +66,19 @@ export default function Vehiculos({ onBackHome }) {
   |--------------------------------------------------------------------------
   */
 
-  const [vehiculos, setVehiculos] = useState(vehiculosIniciales);
+  const [vehiculos, setVehiculos] = useState([]);
+
+  // "cargando" | "error" | "ok"
+  const [estadoCarga, setEstadoCarga] = useState("cargando");
+
+  const [errorCarga, setErrorCarga] = useState("");
+
+  // Se incrementa para volver a pedir la lista (botón Reintentar)
+  const [intentoCarga, setIntentoCarga] = useState(0);
+
+  const [guardando, setGuardando] = useState(false);
+
+  const [cambiandoEstadoId, setCambiandoEstadoId] = useState(null);
 
   const [modoFormulario, setModoFormulario] = useState(null);
 
@@ -76,6 +91,48 @@ export default function Vehiculos({ onBackHome }) {
   const [errores, setErrores] = useState({});
 
   const [mensaje, setMensaje] = useState("");
+
+  // "exito" | "error"
+  const [tipoMensaje, setTipoMensaje] = useState("exito");
+
+  const mostrarMensaje = (texto, tipo) => {
+    setMensaje(texto);
+    setTipoMensaje(tipo);
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | CARGAR VEHÍCULOS DEL BACKEND
+  |--------------------------------------------------------------------------
+  | La bandera "cancelado" evita actualizar el estado si el componente se
+  | desmonta antes de que llegue la respuesta (StrictMode monta dos veces).
+  */
+
+  useEffect(() => {
+    let cancelado = false;
+
+    listarMisVehiculos()
+      .then((lista) => {
+        if (cancelado) return;
+        setVehiculos(ordenarVehiculos(lista));
+        setEstadoCarga("ok");
+      })
+      .catch((error) => {
+        if (cancelado) return;
+        setErrorCarga(error.message);
+        setEstadoCarga("error");
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [intentoCarga]);
+
+  const reintentarCarga = () => {
+    setErrorCarga("");
+    setEstadoCarga("cargando");
+    setIntentoCarga((n) => n + 1);
+  };
 
   /*
   |--------------------------------------------------------------------------
@@ -311,63 +368,87 @@ export default function Vehiculos({ onBackHome }) {
   |--------------------------------------------------------------------------
   */
 
-  const guardarVehiculo = (e) => {
+  const guardarVehiculo = async (e) => {
     e.preventDefault();
+
+    if (guardando) {
+      return;
+    }
 
     setMensaje("");
 
     /*
-    | Validamos antes de guardar.
+    | Validamos antes de enviar al backend.
     */
 
     const formularioValido =
       validarFormulario();
 
-    /*
-    | Si hay errores, no continuamos.
-    */
-
     if (!formularioValido) {
-      setMensaje(
-        "Revisa los campos marcados antes de continuar."
+      mostrarMensaje(
+        "Revisa los campos marcados antes de continuar.",
+        "error"
       );
 
       return;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | AGREGAR
-    |--------------------------------------------------------------------------
-    */
+    setGuardando(true);
 
-    if (modoFormulario === "agregar") {
-      const nuevoVehiculo = {
-        id: Date.now(),
+    try {
+      /*
+      |----------------------------------------------------------------------
+      | AGREGAR
+      |----------------------------------------------------------------------
+      */
 
-        marca: formulario.marca.trim(),
+      if (modoFormulario === "agregar") {
+        const { mensaje: respuesta, vehiculo } =
+          await crearVehiculo(formulario);
 
-        modelo: formulario.modelo.trim(),
+        setVehiculos((anteriores) =>
+          ordenarVehiculos([...anteriores, vehiculo])
+        );
 
-        año: formulario.año,
+        mostrarMensaje(
+          respuesta || "Vehículo registrado correctamente.",
+          "exito"
+        );
+      }
 
-        color: formulario.color.trim(),
+      /*
+      |----------------------------------------------------------------------
+      | EDITAR
+      |----------------------------------------------------------------------
+      */
 
-        placas: formulario.placas
-          .trim()
-          .toUpperCase(),
+      if (
+        modoFormulario === "editar" &&
+        vehiculoEditando
+      ) {
+        const { mensaje: respuesta, vehiculo } =
+          await actualizarVehiculo(
+            vehiculoEditando.id,
+            formulario
+          );
 
-        asientos: formulario.asientos,
-      };
+        setVehiculos((anteriores) =>
+          ordenarVehiculos(
+            anteriores.map((v) =>
+              v.id === vehiculo.id ? vehiculo : v
+            )
+          )
+        );
 
-      setVehiculos((anteriores) => [
-        ...anteriores,
-        nuevoVehiculo,
-      ]);
+        mostrarMensaje(
+          respuesta || "Vehículo actualizado correctamente.",
+          "exito"
+        );
+      }
 
-      setMensaje(
-        "Vehículo agregado correctamente."
-      );
+      /*
+      | Cerramos el formulario solo si el backend confirmó.
+      */
 
       setModoFormulario(null);
 
@@ -378,86 +459,67 @@ export default function Vehiculos({ onBackHome }) {
       });
 
       setErrores({});
+    } catch (error) {
+      /*
+      | El formulario sigue abierto para que el usuario corrija
+      | (ej. 409 placa duplicada).
+      */
 
-      return;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | EDITAR
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-      modoFormulario === "editar" &&
-      vehiculoEditando
-    ) {
-      const vehiculoActualizado = {
-        ...vehiculoEditando,
-
-        marca: formulario.marca.trim(),
-
-        modelo: formulario.modelo.trim(),
-
-        año: formulario.año,
-
-        color: formulario.color.trim(),
-
-        placas: formulario.placas
-          .trim()
-          .toUpperCase(),
-
-        asientos: formulario.asientos,
-      };
-
-      setVehiculos((anteriores) =>
-        anteriores.map((vehiculo) =>
-          vehiculo.id === vehiculoEditando.id
-            ? vehiculoActualizado
-            : vehiculo
-        )
-      );
-
-      setMensaje(
-        "Vehículo actualizado correctamente."
-      );
-
-      setModoFormulario(null);
-
-      setVehiculoEditando(null);
-
-      setFormulario({
-        ...formularioInicial,
-      });
-
-      setErrores({});
+      mostrarMensaje(error.message, "error");
+    } finally {
+      setGuardando(false);
     }
   };
 
   /*
   |--------------------------------------------------------------------------
-  | ELIMINAR VEHÍCULO
+  | DESACTIVAR / REACTIVAR VEHÍCULO
   |--------------------------------------------------------------------------
   */
 
-  const eliminarVehiculo = (id) => {
-    const confirmar = window.confirm(
-      "¿Estás seguro de que deseas eliminar este vehículo?"
-    );
+  const cambiarEstado = async (vehiculo) => {
+    const nuevoEstado = !vehiculo.activo;
 
-    if (!confirmar) {
-      return;
+    if (!nuevoEstado) {
+      const confirmar = window.confirm(
+        `¿Desactivar ${vehiculo.marca} ${vehiculo.modelo} (${vehiculo.placas})? No podrás usarlo en nuevos viajes hasta que lo reactives.`
+      );
+
+      if (!confirmar) {
+        return;
+      }
     }
 
-    setVehiculos((anteriores) =>
-      anteriores.filter(
-        (vehiculo) => vehiculo.id !== id
-      )
-    );
+    setMensaje("");
 
-    setMensaje(
-      "Vehículo eliminado correctamente."
-    );
+    setCambiandoEstadoId(vehiculo.id);
+
+    try {
+      const { vehiculo: actualizado } =
+        await cambiarEstadoVehiculo(
+          vehiculo.id,
+          nuevoEstado
+        );
+
+      setVehiculos((anteriores) =>
+        ordenarVehiculos(
+          anteriores.map((v) =>
+            v.id === actualizado.id ? actualizado : v
+          )
+        )
+      );
+
+      mostrarMensaje(
+        actualizado.activo
+          ? "Vehículo reactivado correctamente."
+          : "Vehículo desactivado correctamente.",
+        "exito"
+      );
+    } catch (error) {
+      mostrarMensaje(error.message, "error");
+    } finally {
+      setCambiandoEstadoId(null);
+    }
   };
 
   /*
@@ -565,6 +627,7 @@ export default function Vehiculos({ onBackHome }) {
             <Button
               type="button"
               onClick={abrirAgregar}
+              disabled={estadoCarga !== "ok"}
               className="flex items-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
             >
               <Plus size={18} />
@@ -581,14 +644,15 @@ export default function Vehiculos({ onBackHome }) {
 
         {mensaje && (
           <div
+            role={tipoMensaje === "error" ? "alert" : "status"}
             className={`mb-6 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
-              mensaje.includes("correctamente")
+              tipoMensaje === "exito"
                 ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                 : "border-red-200 bg-red-50 text-red-700"
             }`}
           >
 
-            {mensaje.includes("correctamente") ? (
+            {tipoMensaje === "exito" ? (
               <CheckCircle2 size={20} />
             ) : (
               <AlertCircle size={20} />
@@ -879,6 +943,7 @@ export default function Vehiculos({ onBackHome }) {
                     type="button"
                     variant="outline"
                     onClick={cancelarFormulario}
+                    disabled={guardando}
                     className="flex items-center justify-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100"
                   >
                     <X size={18} />
@@ -888,13 +953,20 @@ export default function Vehiculos({ onBackHome }) {
 
                   <Button
                     type="submit"
+                    disabled={guardando}
                     className="flex items-center justify-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
                   >
-                    <Save size={18} />
+                    {guardando ? (
+                      <LoaderCircle size={18} className="animate-spin" />
+                    ) : (
+                      <Save size={18} />
+                    )}
 
-                    {modoFormulario === "agregar"
-                      ? "Guardar vehículo"
-                      : "Guardar cambios"}
+                    {guardando
+                      ? "Guardando..."
+                      : modoFormulario === "agregar"
+                        ? "Guardar vehículo"
+                        : "Guardar cambios"}
 
                   </Button>
 
@@ -911,7 +983,63 @@ export default function Vehiculos({ onBackHome }) {
         {/* LISTA DE VEHÍCULOS                                            */}
         {/* ============================================================ */}
 
-        {vehiculos.length === 0 ? (
+        {estadoCarga === "cargando" ? (
+
+          <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+
+            <CardContent
+              role="status"
+              className="flex flex-col items-center justify-center px-6 py-16 text-center"
+            >
+
+              <LoaderCircle
+                size={30}
+                className="mb-4 animate-spin text-emerald-600"
+              />
+
+              <p className="text-sm text-slate-500">
+                Cargando vehículos...
+              </p>
+
+            </CardContent>
+
+          </Card>
+
+        ) : estadoCarga === "error" ? (
+
+          <Card className="rounded-2xl border-red-200 bg-white shadow-sm">
+
+            <CardContent className="flex flex-col items-center justify-center px-6 py-16 text-center">
+
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600">
+
+                <AlertCircle size={30} />
+
+              </div>
+
+              <h2 className="text-xl font-bold text-slate-900">
+                No se pudieron cargar tus vehículos
+              </h2>
+
+              <p className="mt-2 max-w-md text-sm text-slate-500">
+                {errorCarga}
+              </p>
+
+              <Button
+                type="button"
+                onClick={reintentarCarga}
+                className="mt-6 flex items-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                <RefreshCw size={18} />
+
+                Reintentar
+              </Button>
+
+            </CardContent>
+
+          </Card>
+
+        ) : vehiculos.length === 0 ? (
 
           <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
 
@@ -963,15 +1091,27 @@ export default function Vehiculos({ onBackHome }) {
                   {/* ENCABEZADO                                           */}
                   {/* -------------------------------------------------- */}
 
-                  <div className="flex items-center gap-4 border-b bg-emerald-50 px-5 py-5">
+                  <div
+                    className={`flex items-center gap-4 border-b px-5 py-5 ${
+                      vehiculo.activo
+                        ? "bg-emerald-50"
+                        : "bg-slate-100 opacity-60"
+                    }`}
+                  >
 
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                    <div
+                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${
+                        vehiculo.activo
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-slate-200 text-slate-500"
+                      }`}
+                    >
 
                       <Car size={24} />
 
                     </div>
 
-                    <div>
+                    <div className="flex-1">
 
                       <h2 className="font-bold text-slate-900">
                         {vehiculo.marca}
@@ -983,13 +1123,27 @@ export default function Vehiculos({ onBackHome }) {
 
                     </div>
 
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        vehiculo.activo
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-slate-200 text-slate-600"
+                      }`}
+                    >
+                      {vehiculo.activo ? "Activo" : "Inactivo"}
+                    </span>
+
                   </div>
 
                   {/* -------------------------------------------------- */}
                   {/* INFORMACIÓN                                         */}
                   {/* -------------------------------------------------- */}
 
-                  <div className="space-y-4 px-5 py-5">
+                  <div
+                    className={`space-y-4 px-5 py-5 ${
+                      vehiculo.activo ? "" : "opacity-60"
+                    }`}
+                  >
 
                     <div className="flex justify-between gap-4">
 
@@ -1054,6 +1208,7 @@ export default function Vehiculos({ onBackHome }) {
                     <Button
                       type="button"
                       variant="outline"
+                      disabled={cambiandoEstadoId === vehiculo.id}
                       onClick={() =>
                         abrirEditar(vehiculo)
                       }
@@ -1067,14 +1222,31 @@ export default function Vehiculos({ onBackHome }) {
                     <Button
                       type="button"
                       variant="outline"
+                      disabled={cambiandoEstadoId === vehiculo.id}
                       onClick={() =>
-                        eliminarVehiculo(vehiculo.id)
+                        cambiarEstado(vehiculo)
                       }
-                      className="flex flex-1 items-center justify-center gap-2 border-red-200 text-red-600 hover:bg-red-50"
+                      className={`flex flex-1 items-center justify-center gap-2 ${
+                        vehiculo.activo
+                          ? "border-red-200 text-red-600 hover:bg-red-50"
+                          : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      }`}
                     >
-                      <Trash2 size={17} />
+                      {cambiandoEstadoId === vehiculo.id ? (
+                        <LoaderCircle size={17} className="animate-spin" />
+                      ) : vehiculo.activo ? (
+                        <PowerOff size={17} />
+                      ) : (
+                        <Power size={17} />
+                      )}
 
-                      Eliminar
+                      {cambiandoEstadoId === vehiculo.id
+                        ? vehiculo.activo
+                          ? "Desactivando..."
+                          : "Reactivando..."
+                        : vehiculo.activo
+                          ? "Desactivar"
+                          : "Reactivar"}
                     </Button>
 
                   </div>

@@ -1,15 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import Vehiculos from "./pages/Vehiculos";
-import PublicarViaje from "./pages/PublicarViaje";
-import Register from "./pages/Register";
 
 function App() {
   const [pantalla, setPantalla] = useState("login");
 
   const [usuario, setUsuario] = useState(null);
+
+  // ============================================================
+  // SESIÓN EXPIRADA (evento lanzado por services/api.js en 401)
+  // ============================================================
+
+  useEffect(() => {
+    const alExpirarSesion = () => {
+      setUsuario(null);
+      setPantalla("login");
+    };
+
+    window.addEventListener("auth:logout", alExpirarSesion);
+
+    return () => {
+      window.removeEventListener("auth:logout", alExpirarSesion);
+    };
+  }, []);
 
   // ============================================================
   // LOGIN
@@ -42,19 +57,6 @@ function App() {
     return (
       <Login
         onLogin={manejarLogin}
-        onRegister={() => {
-          setPantalla("registro");
-        }}
-      />
-    );
-  }
-
-  if (pantalla === "registro") {
-    return (
-      <Register
-        onBackToLogin={() => {
-          setPantalla("login");
-        }}
       />
     );
   }
@@ -76,10 +78,6 @@ function App() {
 
         onVehiculos={() => {
           setPantalla("vehiculos");
-        }}
-
-        onPublish={() => {
-          setPantalla("publicar");
         }}
       />
     );
@@ -118,19 +116,6 @@ function App() {
     />
   );
 }
-
-  if (pantalla === "publicar") {
-    return (
-      <PublicarViaje
-        onBackHome={() => {
-          setPantalla("home");
-        }}
-        onPublished={() => {
-          setPantalla("home");
-        }}
-      />
-    );
-  }
 
   return null;
 }
