@@ -3,6 +3,8 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import Vehiculos from "./pages/Vehiculos";
+import Register from "./pages/Register";
+import PublicarViaje from "./pages/PublicarViaje";
 import {
   cerrarSesion,
   guardarRolActivo,
@@ -104,6 +106,24 @@ function App() {
       <Login
         onLogin={manejarLogin}
         sesionExpirada={sesionExpirada}
+        onRegister={() => {
+          setSesionExpirada(false);
+          setPantalla("registro");
+        }}
+      />
+    );
+  }
+
+  // ============================================================
+  // REGISTRO
+  // ============================================================
+
+  if (pantalla === "registro") {
+    return (
+      <Register
+        onBackToLogin={() => {
+          setPantalla("login");
+        }}
       />
     );
   }
@@ -129,6 +149,27 @@ function App() {
 
         onVehiculos={() => {
           setPantalla("vehiculos");
+        }}
+
+        onPublish={() => {
+          setPantalla("publicar");
+        }}
+      />
+    );
+  }
+
+  // ============================================================
+  // PUBLICAR VIAJE
+  // ============================================================
+
+  if (pantalla === "publicar") {
+    return (
+      <PublicarViaje
+        onBackHome={() => {
+          setPantalla("home");
+        }}
+        onPublished={() => {
+          setPantalla("home");
         }}
       />
     );
