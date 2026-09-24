@@ -3,6 +3,8 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import Vehiculos from "./pages/Vehiculos";
+import PublicarViaje from "./pages/PublicarViaje";
+import Register from "./pages/Register";
 
 function App() {
   const [pantalla, setPantalla] = useState("login");
@@ -40,6 +42,19 @@ function App() {
     return (
       <Login
         onLogin={manejarLogin}
+        onRegister={() => {
+          setPantalla("registro");
+        }}
+      />
+    );
+  }
+
+  if (pantalla === "registro") {
+    return (
+      <Register
+        onBackToLogin={() => {
+          setPantalla("login");
+        }}
       />
     );
   }
@@ -61,6 +76,10 @@ function App() {
 
         onVehiculos={() => {
           setPantalla("vehiculos");
+        }}
+
+        onPublish={() => {
+          setPantalla("publicar");
         }}
       />
     );
@@ -99,6 +118,19 @@ function App() {
     />
   );
 }
+
+  if (pantalla === "publicar") {
+    return (
+      <PublicarViaje
+        onBackHome={() => {
+          setPantalla("home");
+        }}
+        onPublished={() => {
+          setPantalla("home");
+        }}
+      />
+    );
+  }
 
   return null;
 }

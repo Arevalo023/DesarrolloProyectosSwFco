@@ -19,7 +19,7 @@ export default function Footer() {
           <Car className="text-emerald-600" size={24} />
 
           <p className="m-0 font-bold text-slate-800">
-            Uni{" "}
+            Uni{""}
             <span className="text-emerald-600">Ride</span>
           </p>
         </div>

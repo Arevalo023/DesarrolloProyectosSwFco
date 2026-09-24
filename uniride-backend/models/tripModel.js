@@ -66,6 +66,76 @@ const tripModel = {
     return result.recordset[0] || null;
   },
 
+  async create({
+    conductor_id,
+    vehiculo_id,
+    origen,
+    destino,
+    fecha_salida,
+    cupo_disponible,
+    costo_por_pasajero,
+  }) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("conductor_id", sql.Int, conductor_id)
+      .input("vehiculo_id", sql.Int, vehiculo_id)
+      .input("origen", sql.VarChar(255), origen)
+      .input("destino", sql.VarChar(255), destino)
+      .input("fecha_salida", sql.DateTime, fecha_salida)
+      .input("cupo_disponible", sql.Int, cupo_disponible)
+      .input("costo_por_pasajero", sql.Decimal(10, 2), costo_por_pasajero)
+      .query(`
+        INSERT INTO Viajes (
+          conductor_id,
+          vehiculo_id,
+          origen,
+          destino,
+          fecha_salida,
+          cupo_disponible,
+          costo_por_pasajero,
+          estado
+        )
+        OUTPUT INSERTED.id
+        VALUES (
+          @conductor_id,
+          @vehiculo_id,
+          @origen,
+          @destino,
+          @fecha_salida,
+          @cupo_disponible,
+          @costo_por_pasajero,
+          'programado'
+        )
+      `);
+
+    return this.findById(result.recordset[0].id);
+  },
+
+  async findByDriver(conductorId) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("conductor_id", sql.Int, conductorId)
+      .query(`
+        SELECT v.id, v.conductor_id, v.vehiculo_id, v.origen, v.destino,
+               v.fecha_salida, v.cupo_disponible,
+               v.cupo_disponible AS asientos_disponibles,
+               v.costo_por_pasajero, v.estado,
+               ve.marca AS vehiculo_marca,
+               ve.modelo AS vehiculo_modelo,
+               ve.anio AS vehiculo_anio,
+               ve.color AS vehiculo_color,
+               ve.placa AS vehiculo_placa,
+               ve.asientos_disponibles AS vehiculo_asientos_disponibles,
+               ve.activo AS vehiculo_activo
+        FROM Viajes v
+        INNER JOIN Vehiculos ve ON ve.id = v.vehiculo_id
+        WHERE v.conductor_id = @conductor_id
+        ORDER BY v.fecha_salida ASC
+      `);
+
+    return result.recordset;
+  },
+
   /**
    * Reserva un lugar en un viaje disponible para el pasajero autenticado.
    * Descuenta atómicamente el cupo y registra la solicitud en la tabla SolicitudesViaje.

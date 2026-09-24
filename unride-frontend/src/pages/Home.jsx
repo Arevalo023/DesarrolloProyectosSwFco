@@ -19,7 +19,7 @@ import heroImage from "@/assets/hero.png";
 
 const API_URL = "http://localhost:3000";
 
-function Home({ onLogout, onProfile, onVehiculos, user }) {
+function Home({ onLogout, onProfile, onVehiculos, onPublish, user }) {
   const [menuPerfil, setMenuPerfil] = useState(false);
 
   const [filters, setFilters] = useState({
@@ -159,13 +159,13 @@ function Home({ onLogout, onProfile, onVehiculos, user }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-slate-900">
+    <div className="flex min-h-screen flex-col bg-gray-50 text-slate-900">
 
       {/* ========================================================
           NAVBAR
       ======================================================== */}
 
-      <nav className="w-full border-b bg-white">
+      <nav className="sticky top-0 z-40 order-0 w-full border-b bg-white">
 
         <div
           className="
@@ -270,22 +270,14 @@ function Home({ onLogout, onProfile, onVehiculos, user }) {
                   MENÚ DEL PERFIL
               ================================================= */}
 
-              {menuPerfil && (
-                <div
-                  className="
-                    absolute
-                    right-0
-                    top-12
-                    z-50
-                    w-56
-                    rounded-xl
-                    border
-                    bg-white
-                    p-2
-                    shadow-lg
-                  "
-                >
-
+              <div
+                className={`absolute right-0 top-12 z-50 w-56 origin-top-right rounded-xl border bg-white p-2 shadow-lg transition-all duration-200 ease-out ${
+                  menuPerfil
+                    ? "pointer-events-auto scale-100 opacity-100"
+                    : "pointer-events-none scale-95 opacity-0"
+                }`}
+                aria-hidden={!menuPerfil}
+              >
                   {/* VER MI PERFIL */}
 
                   <button
@@ -382,8 +374,7 @@ function Home({ onLogout, onProfile, onVehiculos, user }) {
                     </span>
                   </button>
 
-                </div>
-              )}
+              </div>
 
             </div>
 
@@ -416,7 +407,7 @@ function Home({ onLogout, onProfile, onVehiculos, user }) {
 
       <section
         id="inicio"
-        className="border-b bg-white"
+        className="order-1 border-b bg-white"
       >
 
         <div
@@ -534,7 +525,7 @@ function Home({ onLogout, onProfile, onVehiculos, user }) {
 
       <section
         id="buscar"
-        className="px-6 py-20"
+        className="order-3 px-6 py-20"
       >
 
         <div className="mx-auto max-w-6xl">
@@ -857,6 +848,7 @@ function Home({ onLogout, onProfile, onVehiculos, user }) {
 
       <section
         className="
+          order-2
           border-t
           bg-white
           px-6
@@ -951,8 +943,7 @@ function Home({ onLogout, onProfile, onVehiculos, user }) {
 
             {/* PUBLICAR VIAJE */}
 
-            {canPublish && (
-              <Card className="transition-shadow hover:shadow-lg">
+            <Card className="transition-shadow hover:shadow-lg">
 
                 <CardContent className="p-6">
 
@@ -981,28 +972,53 @@ function Home({ onLogout, onProfile, onVehiculos, user }) {
                     Publicar un viaje
                   </h3>
 
-                  <p className="mt-3 text-sm leading-6 text-slate-500">
-                    Comparte tu ruta y permite que otros
-                    estudiantes se unan.
-                  </p>
+                  {canPublish ? (
+                    <>
+                      <p className="mt-3 text-sm leading-6 text-slate-500">
+                        Comparte tu ruta y permite que otros
+                        estudiantes se unan.
+                      </p>
 
-                  <Button
-                    variant="ghost"
-                    className="
-                      mt-5
-                      px-0
-                      text-emerald-600
-                      hover:bg-transparent
-                      hover:text-emerald-700
-                    "
-                  >
-                    Publicar viaje →
-                  </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={onPublish}
+                        className="
+                          mt-5
+                          px-0
+                          text-emerald-600
+                          hover:bg-transparent
+                          hover:text-emerald-700
+                        "
+                      >
+                        Publicar viaje →
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-3 text-sm leading-6 text-slate-500">
+                        Añade un vehículo para poder publicar viajes...
+                      </p>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={onVehiculos}
+                        className="
+                          mt-5
+                          px-0
+                          text-emerald-600
+                          hover:bg-transparent
+                          hover:text-emerald-700
+                        "
+                      >
+                        Ir a mis vehículos →
+                      </Button>
+                    </>
+                  )}
 
                 </CardContent>
 
               </Card>
-            )}
 
 
             {/* MIS VIAJES */}
@@ -1071,7 +1087,7 @@ function Home({ onLogout, onProfile, onVehiculos, user }) {
 
       <section
         id="uniride"
-        className="border-t px-6 py-20"
+        className="order-4 border-t px-6 py-20"
       >
 
         <div
@@ -1199,7 +1215,9 @@ function Home({ onLogout, onProfile, onVehiculos, user }) {
 
       {/* FOOTER */}
 
-      <Footer />
+      <div className="order-5">
+        <Footer />
+      </div>
 
     </div>
   );
