@@ -28,7 +28,14 @@ export const guardarUsuario = (usuario) => {
 // Lista de roles del usuario, ej. ["Pasajero", "Conductor"]
 export const rolesDe = (usuario) => {
   const roles = usuario?.roles ?? usuario?.rol;
-  return Array.isArray(roles) ? roles : roles ? [roles] : [];
+  const lista = Array.isArray(roles) ? roles : roles ? [roles] : [];
+
+  return lista
+    .map((rol) => {
+      if (typeof rol === "string") return rol.trim();
+      return rol?.nombre ?? rol?.name ?? "";
+    })
+    .filter(Boolean);
 };
 
 export const mismoRol = (a, b) =>
@@ -45,7 +52,7 @@ export const guardarRolActivo = (rol) => {
 };
 
 // Rol principal del usuario (el que usa el backend si no hay header)
-export const rolPrincipal = (usuario) => usuario?.rol || rolesDe(usuario)[0] || null;
+export const rolPrincipal = (usuario) => rolesDe(usuario)[0] || null;
 
 export const iniciarSesion = ({ token, user }) => {
   localStorage.setItem(CLAVE_TOKEN, token);

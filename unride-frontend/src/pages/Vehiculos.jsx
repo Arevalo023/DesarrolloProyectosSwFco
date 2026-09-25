@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import AlertBanner from "@/components/ui/alert-banner";
 
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
@@ -26,7 +27,6 @@ import {
   ArrowLeft,
   Save,
   X,
-  CheckCircle2,
   AlertCircle,
   Users,
 } from "lucide-react";
@@ -657,25 +657,8 @@ export default function Vehiculos({ onBackHome, onRolAgregado }) {
         {/* ============================================================ */}
 
         {mensaje && (
-          <div
-            role={tipoMensaje === "error" ? "alert" : "status"}
-            className={`mb-6 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
-              tipoMensaje === "exito"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-red-200 bg-red-50 text-red-700"
-            }`}
-          >
-
-            {tipoMensaje === "exito" ? (
-              <CheckCircle2 size={20} />
-            ) : (
-              <AlertCircle size={20} />
-            )}
-
-            <span>
-              {mensaje}
-            </span>
-
+          <div className="mb-6">
+            <AlertBanner type={tipoMensaje === "exito" ? "success" : "error"} message={mensaje} />
           </div>
         )}
 

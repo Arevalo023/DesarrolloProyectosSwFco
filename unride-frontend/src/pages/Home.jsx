@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import AlertBanner from "@/components/ui/alert-banner";
 import { useState } from "react";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
@@ -25,11 +26,13 @@ function Home({
   onProfile,
   onVehiculos,
   onPublish,
+  onMisViajes,
   user,
   rolActivo,
   onCambiarRol,
 }) {
   const [menuPerfil, setMenuPerfil] = useState(false);
+  const [confirmarCierreSesion, setConfirmarCierreSesion] = useState(false);
 
   const [filters, setFilters] = useState({
     origen: "",
@@ -372,6 +375,34 @@ function Home({
                     </span>
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuPerfil(false);
+                      onMisViajes();
+                    }}
+                    className="
+                      flex
+                      w-full
+                      items-center
+                      gap-3
+                      rounded-lg
+                      px-4
+                      py-3
+                      text-left
+                      text-sm
+                      text-slate-700
+                      hover:bg-emerald-50
+                      hover:text-emerald-700
+                    "
+                  >
+                    <ClipboardList size={18} />
+
+                    <span>
+                      Mis viajes
+                    </span>
+                  </button>
+
 
                   {/* SEPARADOR */}
 
@@ -384,7 +415,7 @@ function Home({
                     type="button"
                     onClick={() => {
                       setMenuPerfil(false);
-                      onLogout();
+                      setConfirmarCierreSesion(true);
                     }}
                     className="
                       flex
@@ -417,7 +448,7 @@ function Home({
             <Button
               type="button"
               variant="outline"
-              onClick={onLogout}
+              onClick={() => setConfirmarCierreSesion(true)}
               className="flex items-center gap-2"
             >
               <LogOut size={16} />
@@ -735,38 +766,9 @@ function Home({
               </form>
 
 
-              {error && (
-                <p
-                  className="
-                    mt-4
-                    rounded-md
-                    bg-red-50
-                    px-3
-                    py-2
-                    text-sm
-                    text-red-700
-                  "
-                >
-                  {error}
-                </p>
-              )}
+              {error && <div className="mt-4"><AlertBanner type="error" message={error} /></div>}
 
-
-              {message && (
-                <p
-                  className="
-                    mt-4
-                    rounded-md
-                    bg-emerald-50
-                    px-3
-                    py-2
-                    text-sm
-                    text-emerald-700
-                  "
-                >
-                  {message}
-                </p>
-              )}
+              {message && <div className="mt-4"><AlertBanner type="success" message={message} /></div>}
 
             </CardContent>
 
@@ -1129,6 +1131,7 @@ function Home({
 
                 <Button
                   variant="ghost"
+                  onClick={onMisViajes}
                   className="
                     mt-5
                     px-0
@@ -1150,6 +1153,40 @@ function Home({
 
       </section>
 
+      {confirmarCierreSesion && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
+              <LogOut size={22} />
+            </div>
+
+            <h3 className="text-xl font-bold text-slate-900">Cerrar sesión</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              ¿Seguro que deseas salir de tu sesión actual? Tendrás que iniciar sesión de nuevo para continuar.
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmarCierreSesion(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                className="bg-red-600 text-white hover:bg-red-700"
+                onClick={() => {
+                  setConfirmarCierreSesion(false);
+                  onLogout();
+                }}
+              >
+                Cerrar sesión
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================
           INFORMACIÓN UNIRIDE
