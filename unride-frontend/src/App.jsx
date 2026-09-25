@@ -5,20 +5,33 @@ import Profile from "./pages/Profile";
 import Vehiculos from "./pages/Vehiculos";
 import Register from "./pages/Register";
 import PublicarViaje from "./pages/PublicarViaje";
+import MisViajes from "./pages/MisViajes";
 import {
   cerrarSesion,
   guardarRolActivo,
   iniciarSesion,
+  mismoRol,
+  obtenerToken,
+  obtenerUsuario,
   obtenerRolActivo,
+  rolPrincipal,
+  rolesDe,
 } from "./services/session";
 
 function App() {
-  const [pantalla, setPantalla] = useState("login");
+  const [pantalla, setPantalla] = useState(() => (
+    obtenerToken() && obtenerUsuario() ? "home" : "login"
+  ));
 
-  const [usuario, setUsuario] = useState(null);
+  const [usuario, setUsuario] = useState(() => obtenerUsuario());
 
   // Rol con el que el usuario está operando (Pasajero / Conductor)
-  const [rolActivo, setRolActivo] = useState(() => obtenerRolActivo());
+  const [rolActivo, setRolActivo] = useState(() => {
+    const usuarioGuardado = obtenerUsuario();
+    const rolGuardado = obtenerRolActivo();
+    return rolesDe(usuarioGuardado).find((rol) => mismoRol(rol, rolGuardado))
+      || rolPrincipal(usuarioGuardado);
+  });
 
   // true cuando se regresó al login porque la sesión expiró
   const [sesionExpirada, setSesionExpirada] = useState(false);
@@ -38,7 +51,12 @@ function App() {
 
     // 403 INVALID_ACTIVE_ROLE: api.js ya regresó al rol principal
     const alReiniciarRol = (event) => {
-      setRolActivo(event.detail);
+      const usuarioActual = obtenerUsuario();
+      const rolValido = rolesDe(usuarioActual).find((rol) => mismoRol(rol, event.detail));
+      const rolPrincipalUsuario = rolPrincipal(usuarioActual);
+      const rol = rolValido || rolPrincipalUsuario;
+      guardarRolActivo(rol);
+      setRolActivo(rol);
     };
 
     window.addEventListener("auth:logout", alExpirarSesion);
@@ -55,8 +73,11 @@ function App() {
   // ============================================================
 
   const cambiarRolActivo = (rol) => {
-    guardarRolActivo(rol);
-    setRolActivo(rol);
+    const rolValido = rolesDe(usuario).find((rolDisponible) => mismoRol(rolDisponible, rol));
+    if (!rolValido) return;
+
+    guardarRolActivo(rolValido);
+    setRolActivo(rolValido);
   };
 
   // ============================================================
@@ -66,10 +87,12 @@ function App() {
 
   const manejarRolAgregado = (sesion, rol) => {
     iniciarSesion(sesion);
-    guardarRolActivo(rol);
+    const rolValido = rolesDe(sesion.user).find((rolDisponible) => mismoRol(rolDisponible, rol))
+      || rolPrincipal(sesion.user);
+    guardarRolActivo(rolValido);
 
     setUsuario(sesion.user);
-    setRolActivo(rol);
+    setRolActivo(rolValido);
   };
 
   // ============================================================
@@ -80,7 +103,11 @@ function App() {
     console.log("Login correcto:", respuesta);
 
     setUsuario(respuesta.user);
-    setRolActivo(obtenerRolActivo());
+    const rol = rolesDe(respuesta.user).find((rolDisponible) =>
+      mismoRol(rolDisponible, obtenerRolActivo())
+    ) || rolPrincipal(respuesta.user);
+    guardarRolActivo(rol);
+    setRolActivo(rol);
     setSesionExpirada(false);
     setPantalla("home");
   };
@@ -135,7 +162,7 @@ function App() {
   if (pantalla === "home") {
     return (
       <Home
-        user={usuario || usuarioPrueba}
+        user={usuario}
 
         onLogout={manejarLogout}
 
@@ -153,6 +180,23 @@ function App() {
 
         onPublish={() => {
           setPantalla("publicar");
+        }}
+        onMisViajes={() => {
+          setPantalla("mis-viajes");
+        }}
+      />
+    );
+  }
+
+  // ============================================================
+  // MIS VIAJES
+  // ============================================================
+
+  if (pantalla === "mis-viajes") {
+    return (
+      <MisViajes
+        onBackHome={() => {
+          setPantalla("home");
         }}
       />
     );
@@ -182,7 +226,7 @@ function App() {
     if (pantalla === "perfil") {
     return (
       <Profile
-        user={usuario || usuarioPrueba}
+        user={usuario}
         onBackHome={() => {
           setPantalla("home");
         }}

@@ -7,6 +7,19 @@ const validationError = (message) => {
   return error;
 };
 
+const isVehicleActive = (value) => {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "activo", "enabled", "yes"].includes(normalized)) return true;
+    if (["0", "false", "inactivo", "disabled", "no"].includes(normalized)) return false;
+    return true;
+  }
+  return Boolean(value);
+};
+
 const addVehicleData = (trip) => ({
   ...trip,
   vehiculo: {
@@ -23,6 +36,7 @@ const addVehicleData = (trip) => ({
 });
 
 const tripService = {
+  isVehicleActive,
   async create({ conductorId, vehiculoId, origen, destino, fechaSalida, cupoDisponible, costoPorPasajero }) {
     if (!Number.isInteger(vehiculoId) || vehiculoId <= 0) {
       throw validationError("El vehículo asignado debe ser válido.");
@@ -60,7 +74,7 @@ const tripService = {
       error.statusCode = 403;
       throw error;
     }
-    if (!vehicle.activo) {
+    if (!isVehicleActive(vehicle.activo)) {
       throw validationError("El vehículo seleccionado no está activo.");
     }
     if (cupoDisponible > vehicle.asientos_disponibles) {

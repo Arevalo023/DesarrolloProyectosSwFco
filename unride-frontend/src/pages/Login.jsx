@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import AlertBanner from "@/components/ui/alert-banner";
 import { Car, ArrowRight } from "lucide-react";
 import { apiRequest } from "@/services/api";
 import { iniciarSesion } from "@/services/session";
@@ -76,12 +77,9 @@ export default function Login({ onRegister, onLogin, sesionExpirada = false }) {
           </p>
 
           {sesionExpirada && !error && (
-            <p
-              role="status"
-              className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2"
-            >
-              Tu sesión expiró. Inicia sesión de nuevo.
-            </p>
+            <div className="mb-4">
+              <AlertBanner type="warning" message="Tu sesión expiró. Inicia sesión de nuevo." />
+            </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -129,11 +127,7 @@ export default function Login({ onRegister, onLogin, sesionExpirada = false }) {
               </label>
             </div>
 
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
-                {error}
-              </p>
-            )}
+            {error && <AlertBanner type="error" message={error} />}
 
             <Button
               type="submit"

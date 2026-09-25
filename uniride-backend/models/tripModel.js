@@ -18,7 +18,7 @@ const tripModel = {
       .input("fecha", sql.Date, fecha || null);
 
     const result = await request.query(`
-      SELECT v.id, v.origen, v.destino, v.fecha_salida,
+      SELECT TOP (10) v.id, v.origen, v.destino, v.fecha_salida,
              v.cupo_disponible,
              v.cupo_disponible AS asientos_disponibles,
              v.costo_por_pasajero, v.estado,
@@ -120,6 +120,12 @@ const tripModel = {
                v.fecha_salida, v.cupo_disponible,
                v.cupo_disponible AS asientos_disponibles,
                v.costo_por_pasajero, v.estado,
+               COALESCE((
+                 SELECT COUNT(*)
+                 FROM SolicitudesViaje sv
+                 WHERE sv.viaje_id = v.id
+                   AND sv.estado IN ('pendiente', 'aceptada')
+               ), 0) AS usuarios_separaron_asiento,
                ve.marca AS vehiculo_marca,
                ve.modelo AS vehiculo_modelo,
                ve.anio AS vehiculo_anio,

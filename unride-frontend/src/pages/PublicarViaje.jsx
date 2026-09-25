@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import AlertBanner from "@/components/ui/alert-banner";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
 
@@ -52,9 +53,17 @@ export default function PublicarViaje({ onBackHome, onPublished }) {
           throw new Error(data.message || "No se pudieron cargar los vehículos.");
         }
 
-        const vehiculosActivos = (data.vehicles || []).filter(
-          (vehiculo) => vehiculo.activo === true || vehiculo.activo === 1 || vehiculo.activo === undefined
-        );
+        const vehiculosActivos = (data.vehicles || []).filter((vehiculo) => {
+          const valor = vehiculo.activo;
+          if (valor === null || valor === undefined) return true;
+          if (typeof valor === "boolean") return valor;
+          if (typeof valor === "number") return valor !== 0;
+          if (typeof valor === "string") {
+            const normalizado = valor.trim().toLowerCase();
+            return !["0", "false", "inactivo", "disabled", "no"].includes(normalizado);
+          }
+          return Boolean(valor);
+        });
 
         setVehiculos(vehiculosActivos);
         setFormulario((actual) => ({
@@ -228,19 +237,9 @@ export default function PublicarViaje({ onBackHome, onPublished }) {
                   </div>
                 </div>
 
-                {error && (
-                  <div className="flex items-start gap-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-                    <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                    <span>{error}</span>
-                  </div>
-                )}
+                {error && <AlertBanner type="error" message={error} />}
 
-                {mensaje && (
-                  <div className="flex items-start gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                    <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
-                    <span>{mensaje}</span>
-                  </div>
-                )}
+                {mensaje && <AlertBanner type="success" message={mensaje} />}
 
                 <Button type="submit" disabled={enviando || cargandoVehiculos || vehiculos.length === 0} className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
                   {enviando ? "Publicando..." : "Publicar viaje"}

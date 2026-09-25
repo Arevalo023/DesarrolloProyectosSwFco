@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import AlertBanner from "@/components/ui/alert-banner";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
 
@@ -1146,49 +1147,14 @@ export default function Profile({
             ================================================== */}
 
             {mensaje && (
-
-              <div
-                className="
-                  px-6
-                  sm:px-11
-                  pb-3
-                "
-              >
-
-                <div
-                  className="
-                    flex
-                    items-center
-                    gap-2
-                    text-sm
-                    font-medium
-                    rounded-xl
-                    px-4
-                    py-3
-                    border
-                  "
-                  style={{
-                    color: "#047857",
-                    backgroundColor: "#ecfdf5",
-                    borderColor: "#a7f3d0",
-                  }}
-                >
-
-                  <CheckCircle2 size={18} />
-
-                  {mensaje}
-
-                </div>
-
+              <div className="px-6 sm:px-11 pb-3">
+                <AlertBanner type="success" message={mensaje} />
               </div>
-
             )}
 
             {error && (
               <div className="px-6 sm:px-11 pb-3">
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                  {error}
-                </div>
+                <AlertBanner type="error" message={error} />
               </div>
             )}
 
