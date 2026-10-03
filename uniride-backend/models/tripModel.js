@@ -239,7 +239,7 @@ const tripModel = {
       await transaction.commit();
       return {
         ...result.recordset[0],
-        asientos_restantes: trip.cupo_disponible - 1
+        asientos_restantes: trip.cupo_disponible  // sin descuento hasta que el conductor acepte
       };
     } catch (error) {
       await transaction.rollback();
