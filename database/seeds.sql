@@ -1,27 +1,35 @@
-USE uniride;
-GO
-
 -- =====================================================================
 -- SEEDS DE DATOS DE EJEMPLO (DEMO)
 -- Objetivo: poblar todas las tablas con información realista para
 -- poder trabajar y visualizar la app. Todos los INSERT son idempotentes
 -- (usan IF NOT EXISTS), por lo que este script se puede ejecutar
 -- varias veces sin duplicar información.
--- Requiere haber ejecutado antes: uniride.sql, seeds.sql y
--- migration_roles_mn.sql (para que existan Roles/Universidades/Campus
--- y la tabla UsuariosRoles).
+--
+-- Ejecutar con:  npm run db:seed   (desde uniride-backend)
+-- Requiere el esquema y catálogos de uniride.sql (db:seed lo aplica antes).
+-- Si lo ejecutas a mano, selecciona antes la base "uniride".
+--
+-- Contraseña de TODOS los usuarios demo:  Demo1234!
+--
+-- Fechas de viajes: relativas al día en que se ejecuta por primera vez
+-- (viajes activos en los próximos días, completados en días pasados).
+-- Si los viajes demo ya existen NO se mueven de fecha; para refrescarlos
+-- hay que borrarlos y volver a ejecutar el seed.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
 -- 1. USUARIOS
 -- ---------------------------------------------------------------------
+-- bcrypt de 'Demo1234!'
+DECLARE @demoHash VARCHAR(255) = '$2a$10$Avm4.1J2pOOyd8DCOn9PvOimYsPs5VrCYsh44eCcSsMK4Z1m1FfXO';
+
 IF NOT EXISTS (SELECT 1 FROM Usuarios WHERE correo = 'ana.garcia@uadec.edu.mx')
     INSERT INTO Usuarios (rol_id, campus_id, nombre, apellido, correo, password_hash, telefono)
     VALUES (
         (SELECT id FROM Roles WHERE nombre = 'Pasajero'),
         (SELECT id FROM Campus WHERE nombre = 'Campus Arteaga'),
         'Ana', 'García', 'ana.garcia@uadec.edu.mx',
-        '$2b$12$demoHashAnaGarcia0000000000000000000000000000000000000',
+        @demoHash,
         '8441234501'
     );
 
@@ -31,7 +39,7 @@ IF NOT EXISTS (SELECT 1 FROM Usuarios WHERE correo = 'luis.martinez@uadec.edu.mx
         (SELECT id FROM Roles WHERE nombre = 'Conductor'),
         (SELECT id FROM Campus WHERE nombre = 'Campus Arteaga'),
         'Luis', 'Martínez', 'luis.martinez@uadec.edu.mx',
-        '$2b$12$demoHashLuisMartinez000000000000000000000000000000000',
+        @demoHash,
         '8441234502'
     );
 
@@ -41,7 +49,7 @@ IF NOT EXISTS (SELECT 1 FROM Usuarios WHERE correo = 'sofia.hernandez@uadec.edu.
         (SELECT id FROM Roles WHERE nombre = 'Pasajero'),
         (SELECT id FROM Campus WHERE nombre = 'Campus Poniente'),
         'Sofía', 'Hernández', 'sofia.hernandez@uadec.edu.mx',
-        '$2b$12$demoHashSofiaHernandez00000000000000000000000000000000',
+        @demoHash,
         '8441234503'
     );
 
@@ -51,7 +59,7 @@ IF NOT EXISTS (SELECT 1 FROM Usuarios WHERE correo = 'carlos.ramirez@uadec.edu.m
         (SELECT id FROM Roles WHERE nombre = 'Conductor'),
         (SELECT id FROM Campus WHERE nombre = 'Campus Poniente'),
         'Carlos', 'Ramírez', 'carlos.ramirez@uadec.edu.mx',
-        '$2b$12$demoHashCarlosRamirez000000000000000000000000000000000',
+        @demoHash,
         '8441234504'
     );
 
@@ -61,7 +69,7 @@ IF NOT EXISTS (SELECT 1 FROM Usuarios WHERE correo = 'maria.lopez@uadec.edu.mx')
         (SELECT id FROM Roles WHERE nombre = 'Conductor'), -- rol principal; también es Pasajero (ver UsuariosRoles)
         (SELECT id FROM Campus WHERE nombre = 'Campus Arteaga'),
         'María', 'López', 'maria.lopez@uadec.edu.mx',
-        '$2b$12$demoHashMariaLopez00000000000000000000000000000000000',
+        @demoHash,
         '8441234505'
     );
 
@@ -71,7 +79,7 @@ IF NOT EXISTS (SELECT 1 FROM Usuarios WHERE correo = 'jorge.torres@uadec.edu.mx'
         (SELECT id FROM Roles WHERE nombre = 'Administrador'),
         (SELECT id FROM Campus WHERE nombre = 'Campus Arteaga'),
         'Jorge', 'Torres', 'jorge.torres@uadec.edu.mx',
-        '$2b$12$demoHashJorgeTorres0000000000000000000000000000000000',
+        @demoHash,
         '8441234506'
     );
 
@@ -81,7 +89,7 @@ IF NOT EXISTS (SELECT 1 FROM Usuarios WHERE correo = 'daniela.flores@universidad
         (SELECT id FROM Roles WHERE nombre = 'Pasajero'),
         (SELECT id FROM Campus WHERE nombre = 'Campus Central'),
         'Daniela', 'Flores', 'daniela.flores@universidad.edu',
-        '$2b$12$demoHashDanielaFlores000000000000000000000000000000000',
+        @demoHash,
         '8441234507'
     );
 
@@ -91,7 +99,7 @@ IF NOT EXISTS (SELECT 1 FROM Usuarios WHERE correo = 'roberto.sanchez@universida
         (SELECT id FROM Roles WHERE nombre = 'Conductor'),
         (SELECT id FROM Campus WHERE nombre = 'Campus Central'),
         'Roberto', 'Sánchez', 'roberto.sanchez@universidad.edu',
-        '$2b$12$demoHashRobertoSanchez00000000000000000000000000000000',
+        @demoHash,
         '8441234508'
     );
 
@@ -101,7 +109,7 @@ IF NOT EXISTS (SELECT 1 FROM Usuarios WHERE correo = 'paola.jimenez@universidad.
         (SELECT id FROM Roles WHERE nombre = 'Pasajero'),
         (SELECT id FROM Campus WHERE nombre = 'Campus Central'),
         'Paola', 'Jiménez', 'paola.jimenez@universidad.edu',
-        '$2b$12$demoHashPaolaJimenez0000000000000000000000000000000000',
+        @demoHash,
         '8441234509'
     );
 
@@ -111,9 +119,14 @@ IF NOT EXISTS (SELECT 1 FROM Usuarios WHERE correo = 'eduardo.castillo@uadec.edu
         (SELECT id FROM Roles WHERE nombre = 'Conductor'),
         (SELECT id FROM Campus WHERE nombre = 'Campus Poniente'),
         'Eduardo', 'Castillo', 'eduardo.castillo@uadec.edu.mx',
-        '$2b$12$demoHashEduardoCastillo0000000000000000000000000000000',
+        @demoHash,
         '8441234510'
     );
+
+-- Bases sembradas con la versión anterior tenían hashes falsos: se corrigen
+UPDATE Usuarios
+SET password_hash = @demoHash
+WHERE password_hash LIKE '$2b$12$demoHash%';
 GO
 
 -- ---------------------------------------------------------------------
@@ -172,170 +185,174 @@ GO
 
 -- ---------------------------------------------------------------------
 -- 4. VIAJES
+-- Llave para no duplicar: conductor + origen + destino.
+-- Fechas relativas a hoy (@hoy = medianoche del día de ejecución).
 -- ---------------------------------------------------------------------
-IF NOT EXISTS (SELECT 1 FROM Viajes WHERE fecha_salida = '2026-09-25T08:00:00' AND origen = 'Campus Arteaga')
+DECLARE @hoy DATETIME = CAST(CAST(GETDATE() AS DATE) AS DATETIME);
+
+IF NOT EXISTS (
+    SELECT 1 FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'luis.martinez@uadec.edu.mx' AND v.origen = 'Campus Arteaga' AND v.destino = 'Plaza Sendero, Saltillo'
+)
     INSERT INTO Viajes (conductor_id, vehiculo_id, origen, destino, fecha_salida, cupo_disponible, costo_por_pasajero, estado)
     VALUES (
         (SELECT id FROM Usuarios WHERE correo = 'luis.martinez@uadec.edu.mx'),
         (SELECT id FROM Vehiculos WHERE placa = 'SAL-001'),
-        'Campus Arteaga', 'Plaza Sendero, Saltillo', '2026-09-25T08:00:00', 3, 35.00, 'activo'
+        'Campus Arteaga', 'Plaza Sendero, Saltillo',
+        DATEADD(MINUTE, 8 * 60, DATEADD(DAY, 2, @hoy)),      -- en 2 días, 08:00
+        3, 35.00, 'activo'
     );
 
-IF NOT EXISTS (SELECT 1 FROM Viajes WHERE fecha_salida = '2026-09-25T14:00:00' AND origen = 'Campus Poniente')
+IF NOT EXISTS (
+    SELECT 1 FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'carlos.ramirez@uadec.edu.mx' AND v.origen = 'Campus Poniente' AND v.destino = 'Centro de Saltillo'
+)
     INSERT INTO Viajes (conductor_id, vehiculo_id, origen, destino, fecha_salida, cupo_disponible, costo_por_pasajero, estado)
     VALUES (
         (SELECT id FROM Usuarios WHERE correo = 'carlos.ramirez@uadec.edu.mx'),
         (SELECT id FROM Vehiculos WHERE placa = 'SAL-002'),
-        'Campus Poniente', 'Centro de Saltillo', '2026-09-25T14:00:00', 2, 30.00, 'activo'
+        'Campus Poniente', 'Centro de Saltillo',
+        DATEADD(MINUTE, 14 * 60, DATEADD(DAY, 2, @hoy)),     -- en 2 días, 14:00
+        2, 30.00, 'activo'
     );
 
-IF NOT EXISTS (SELECT 1 FROM Viajes WHERE fecha_salida = '2026-09-24T18:00:00' AND origen = 'Campus Arteaga')
+IF NOT EXISTS (
+    SELECT 1 FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'maria.lopez@uadec.edu.mx' AND v.origen = 'Campus Arteaga' AND v.destino = 'Ramos Arizpe'
+)
     INSERT INTO Viajes (conductor_id, vehiculo_id, origen, destino, fecha_salida, cupo_disponible, costo_por_pasajero, estado)
     VALUES (
         (SELECT id FROM Usuarios WHERE correo = 'maria.lopez@uadec.edu.mx'),
         (SELECT id FROM Vehiculos WHERE placa = 'SAL-003'),
-        'Campus Arteaga', 'Ramos Arizpe', '2026-09-24T18:00:00', 3, 40.00, 'completado'
+        'Campus Arteaga', 'Ramos Arizpe',
+        DATEADD(MINUTE, 18 * 60, DATEADD(DAY, -1, @hoy)),    -- ayer, 18:00
+        3, 40.00, 'completado'
     );
 
-IF NOT EXISTS (SELECT 1 FROM Viajes WHERE fecha_salida = '2026-09-26T06:30:00' AND origen = 'Campus Central')
+IF NOT EXISTS (
+    SELECT 1 FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'roberto.sanchez@universidad.edu' AND v.origen = 'Campus Central' AND v.destino = 'Aeropuerto de Saltillo'
+)
     INSERT INTO Viajes (conductor_id, vehiculo_id, origen, destino, fecha_salida, cupo_disponible, costo_por_pasajero, estado)
     VALUES (
         (SELECT id FROM Usuarios WHERE correo = 'roberto.sanchez@universidad.edu'),
         (SELECT id FROM Vehiculos WHERE placa = 'SAL-004'),
-        'Campus Central', 'Aeropuerto de Saltillo', '2026-09-26T06:30:00', 4, 60.00, 'activo'
+        'Campus Central', 'Aeropuerto de Saltillo',
+        DATEADD(MINUTE, 6 * 60 + 30, DATEADD(DAY, 3, @hoy)), -- en 3 días, 06:30
+        4, 60.00, 'activo'
     );
 
-IF NOT EXISTS (SELECT 1 FROM Viajes WHERE fecha_salida = '2026-09-23T19:00:00' AND origen = 'Campus Poniente')
+IF NOT EXISTS (
+    SELECT 1 FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'eduardo.castillo@uadec.edu.mx' AND v.origen = 'Campus Poniente' AND v.destino = 'Zona Centro'
+)
     INSERT INTO Viajes (conductor_id, vehiculo_id, origen, destino, fecha_salida, cupo_disponible, costo_por_pasajero, estado)
     VALUES (
         (SELECT id FROM Usuarios WHERE correo = 'eduardo.castillo@uadec.edu.mx'),
         (SELECT id FROM Vehiculos WHERE placa = 'SAL-005'),
-        'Campus Poniente', 'Zona Centro', '2026-09-23T19:00:00', 3, 25.00, 'completado'
+        'Campus Poniente', 'Zona Centro',
+        DATEADD(MINUTE, 19 * 60, DATEADD(DAY, -2, @hoy)),    -- hace 2 días, 19:00
+        3, 25.00, 'completado'
     );
 GO
 
 -- ---------------------------------------------------------------------
 -- 5. SOLICITUDES DE VIAJE
 -- ---------------------------------------------------------------------
-IF NOT EXISTS (
-    SELECT 1 FROM SolicitudesViaje sv
-    JOIN Usuarios p ON p.id = sv.pasajero_id
-    JOIN Viajes v ON v.id = sv.viaje_id
-    WHERE p.correo = 'ana.garcia@uadec.edu.mx' AND v.fecha_salida = '2026-09-25T08:00:00'
-)
-    INSERT INTO SolicitudesViaje (viaje_id, pasajero_id, estado)
-    VALUES (
-        (SELECT id FROM Viajes WHERE fecha_salida = '2026-09-25T08:00:00' AND origen = 'Campus Arteaga'),
-        (SELECT id FROM Usuarios WHERE correo = 'ana.garcia@uadec.edu.mx'),
-        'aceptada'
-    );
+-- Viajes demo (se ubican por conductor + origen + destino)
+DECLARE @viajeSendero INT = (SELECT TOP 1 v.id FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'luis.martinez@uadec.edu.mx' AND v.origen = 'Campus Arteaga' AND v.destino = 'Plaza Sendero, Saltillo' ORDER BY v.id);
+DECLARE @viajeCentro INT = (SELECT TOP 1 v.id FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'carlos.ramirez@uadec.edu.mx' AND v.origen = 'Campus Poniente' AND v.destino = 'Centro de Saltillo' ORDER BY v.id);
+DECLARE @viajeRamos INT = (SELECT TOP 1 v.id FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'maria.lopez@uadec.edu.mx' AND v.origen = 'Campus Arteaga' AND v.destino = 'Ramos Arizpe' ORDER BY v.id);
+DECLARE @viajeAeropuerto INT = (SELECT TOP 1 v.id FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'roberto.sanchez@universidad.edu' AND v.origen = 'Campus Central' AND v.destino = 'Aeropuerto de Saltillo' ORDER BY v.id);
+DECLARE @viajeZonaCentro INT = (SELECT TOP 1 v.id FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'eduardo.castillo@uadec.edu.mx' AND v.origen = 'Campus Poniente' AND v.destino = 'Zona Centro' ORDER BY v.id);
 
 IF NOT EXISTS (
-    SELECT 1 FROM SolicitudesViaje sv
-    JOIN Usuarios p ON p.id = sv.pasajero_id
-    JOIN Viajes v ON v.id = sv.viaje_id
-    WHERE p.correo = 'sofia.hernandez@uadec.edu.mx' AND v.fecha_salida = '2026-09-25T14:00:00'
+    SELECT 1 FROM SolicitudesViaje sv JOIN Usuarios p ON p.id = sv.pasajero_id
+    WHERE p.correo = 'ana.garcia@uadec.edu.mx' AND sv.viaje_id = @viajeSendero
 )
     INSERT INTO SolicitudesViaje (viaje_id, pasajero_id, estado)
-    VALUES (
-        (SELECT id FROM Viajes WHERE fecha_salida = '2026-09-25T14:00:00' AND origen = 'Campus Poniente'),
-        (SELECT id FROM Usuarios WHERE correo = 'sofia.hernandez@uadec.edu.mx'),
-        'pendiente'
-    );
+    VALUES (@viajeSendero, (SELECT id FROM Usuarios WHERE correo = 'ana.garcia@uadec.edu.mx'), 'aceptada');
 
 IF NOT EXISTS (
-    SELECT 1 FROM SolicitudesViaje sv
-    JOIN Usuarios p ON p.id = sv.pasajero_id
-    JOIN Viajes v ON v.id = sv.viaje_id
-    WHERE p.correo = 'daniela.flores@universidad.edu' AND v.fecha_salida = '2026-09-26T06:30:00'
+    SELECT 1 FROM SolicitudesViaje sv JOIN Usuarios p ON p.id = sv.pasajero_id
+    WHERE p.correo = 'sofia.hernandez@uadec.edu.mx' AND sv.viaje_id = @viajeCentro
 )
     INSERT INTO SolicitudesViaje (viaje_id, pasajero_id, estado)
-    VALUES (
-        (SELECT id FROM Viajes WHERE fecha_salida = '2026-09-26T06:30:00' AND origen = 'Campus Central'),
-        (SELECT id FROM Usuarios WHERE correo = 'daniela.flores@universidad.edu'),
-        'aceptada'
-    );
+    VALUES (@viajeCentro, (SELECT id FROM Usuarios WHERE correo = 'sofia.hernandez@uadec.edu.mx'), 'pendiente');
 
 IF NOT EXISTS (
-    SELECT 1 FROM SolicitudesViaje sv
-    JOIN Usuarios p ON p.id = sv.pasajero_id
-    JOIN Viajes v ON v.id = sv.viaje_id
-    WHERE p.correo = 'paola.jimenez@universidad.edu' AND v.fecha_salida = '2026-09-26T06:30:00'
+    SELECT 1 FROM SolicitudesViaje sv JOIN Usuarios p ON p.id = sv.pasajero_id
+    WHERE p.correo = 'daniela.flores@universidad.edu' AND sv.viaje_id = @viajeAeropuerto
 )
     INSERT INTO SolicitudesViaje (viaje_id, pasajero_id, estado)
-    VALUES (
-        (SELECT id FROM Viajes WHERE fecha_salida = '2026-09-26T06:30:00' AND origen = 'Campus Central'),
-        (SELECT id FROM Usuarios WHERE correo = 'paola.jimenez@universidad.edu'),
-        'pendiente'
-    );
+    VALUES (@viajeAeropuerto, (SELECT id FROM Usuarios WHERE correo = 'daniela.flores@universidad.edu'), 'aceptada');
 
 IF NOT EXISTS (
-    SELECT 1 FROM SolicitudesViaje sv
-    JOIN Usuarios p ON p.id = sv.pasajero_id
-    JOIN Viajes v ON v.id = sv.viaje_id
-    WHERE p.correo = 'ana.garcia@uadec.edu.mx' AND v.fecha_salida = '2026-09-24T18:00:00'
+    SELECT 1 FROM SolicitudesViaje sv JOIN Usuarios p ON p.id = sv.pasajero_id
+    WHERE p.correo = 'paola.jimenez@universidad.edu' AND sv.viaje_id = @viajeAeropuerto
 )
     INSERT INTO SolicitudesViaje (viaje_id, pasajero_id, estado)
-    VALUES (
-        (SELECT id FROM Viajes WHERE fecha_salida = '2026-09-24T18:00:00' AND origen = 'Campus Arteaga'),
-        (SELECT id FROM Usuarios WHERE correo = 'ana.garcia@uadec.edu.mx'),
-        'aceptada'
-    );
+    VALUES (@viajeAeropuerto, (SELECT id FROM Usuarios WHERE correo = 'paola.jimenez@universidad.edu'), 'pendiente');
 
 IF NOT EXISTS (
-    SELECT 1 FROM SolicitudesViaje sv
-    JOIN Usuarios p ON p.id = sv.pasajero_id
-    JOIN Viajes v ON v.id = sv.viaje_id
-    WHERE p.correo = 'sofia.hernandez@uadec.edu.mx' AND v.fecha_salida = '2026-09-23T19:00:00'
+    SELECT 1 FROM SolicitudesViaje sv JOIN Usuarios p ON p.id = sv.pasajero_id
+    WHERE p.correo = 'ana.garcia@uadec.edu.mx' AND sv.viaje_id = @viajeRamos
 )
     INSERT INTO SolicitudesViaje (viaje_id, pasajero_id, estado)
-    VALUES (
-        (SELECT id FROM Viajes WHERE fecha_salida = '2026-09-23T19:00:00' AND origen = 'Campus Poniente'),
-        (SELECT id FROM Usuarios WHERE correo = 'sofia.hernandez@uadec.edu.mx'),
-        'aceptada'
-    );
+    VALUES (@viajeRamos, (SELECT id FROM Usuarios WHERE correo = 'ana.garcia@uadec.edu.mx'), 'aceptada');
+
+IF NOT EXISTS (
+    SELECT 1 FROM SolicitudesViaje sv JOIN Usuarios p ON p.id = sv.pasajero_id
+    WHERE p.correo = 'sofia.hernandez@uadec.edu.mx' AND sv.viaje_id = @viajeZonaCentro
+)
+    INSERT INTO SolicitudesViaje (viaje_id, pasajero_id, estado)
+    VALUES (@viajeZonaCentro, (SELECT id FROM Usuarios WHERE correo = 'sofia.hernandez@uadec.edu.mx'), 'aceptada');
 GO
 
 -- ---------------------------------------------------------------------
 -- 6. CALIFICACIONES (sobre los viajes ya completados)
 -- ---------------------------------------------------------------------
+DECLARE @viajeRamos INT = (SELECT TOP 1 v.id FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'maria.lopez@uadec.edu.mx' AND v.origen = 'Campus Arteaga' AND v.destino = 'Ramos Arizpe' ORDER BY v.id);
+DECLARE @viajeZonaCentro INT = (SELECT TOP 1 v.id FROM Viajes v JOIN Usuarios u ON u.id = v.conductor_id
+    WHERE u.correo = 'eduardo.castillo@uadec.edu.mx' AND v.origen = 'Campus Poniente' AND v.destino = 'Zona Centro' ORDER BY v.id);
+
 IF NOT EXISTS (
-    SELECT 1 FROM Calificaciones c
-    JOIN Viajes v ON v.id = c.viaje_id
-    JOIN Usuarios cal ON cal.id = c.calificador_id
-    WHERE v.fecha_salida = '2026-09-24T18:00:00' AND cal.correo = 'ana.garcia@uadec.edu.mx'
+    SELECT 1 FROM Calificaciones c JOIN Usuarios cal ON cal.id = c.calificador_id
+    WHERE c.viaje_id = @viajeRamos AND cal.correo = 'ana.garcia@uadec.edu.mx'
 )
     INSERT INTO Calificaciones (viaje_id, calificador_id, calificado_id, puntuacion, comentario)
     VALUES (
-        (SELECT id FROM Viajes WHERE fecha_salida = '2026-09-24T18:00:00' AND origen = 'Campus Arteaga'),
+        @viajeRamos,
         (SELECT id FROM Usuarios WHERE correo = 'ana.garcia@uadec.edu.mx'),
         (SELECT id FROM Usuarios WHERE correo = 'maria.lopez@uadec.edu.mx'),
         5, 'Excelente conductora, muy puntual.'
     );
 
 IF NOT EXISTS (
-    SELECT 1 FROM Calificaciones c
-    JOIN Viajes v ON v.id = c.viaje_id
-    JOIN Usuarios cal ON cal.id = c.calificador_id
-    WHERE v.fecha_salida = '2026-09-24T18:00:00' AND cal.correo = 'maria.lopez@uadec.edu.mx'
+    SELECT 1 FROM Calificaciones c JOIN Usuarios cal ON cal.id = c.calificador_id
+    WHERE c.viaje_id = @viajeRamos AND cal.correo = 'maria.lopez@uadec.edu.mx'
 )
     INSERT INTO Calificaciones (viaje_id, calificador_id, calificado_id, puntuacion, comentario)
     VALUES (
-        (SELECT id FROM Viajes WHERE fecha_salida = '2026-09-24T18:00:00' AND origen = 'Campus Arteaga'),
+        @viajeRamos,
         (SELECT id FROM Usuarios WHERE correo = 'maria.lopez@uadec.edu.mx'),
         (SELECT id FROM Usuarios WHERE correo = 'ana.garcia@uadec.edu.mx'),
         5, 'Buena pasajera, sin contratiempos.'
     );
 
 IF NOT EXISTS (
-    SELECT 1 FROM Calificaciones c
-    JOIN Viajes v ON v.id = c.viaje_id
-    JOIN Usuarios cal ON cal.id = c.calificador_id
-    WHERE v.fecha_salida = '2026-09-23T19:00:00' AND cal.correo = 'sofia.hernandez@uadec.edu.mx'
+    SELECT 1 FROM Calificaciones c JOIN Usuarios cal ON cal.id = c.calificador_id
+    WHERE c.viaje_id = @viajeZonaCentro AND cal.correo = 'sofia.hernandez@uadec.edu.mx'
 )
     INSERT INTO Calificaciones (viaje_id, calificador_id, calificado_id, puntuacion, comentario)
     VALUES (
-        (SELECT id FROM Viajes WHERE fecha_salida = '2026-09-23T19:00:00' AND origen = 'Campus Poniente'),
+        @viajeZonaCentro,
         (SELECT id FROM Usuarios WHERE correo = 'sofia.hernandez@uadec.edu.mx'),
         (SELECT id FROM Usuarios WHERE correo = 'eduardo.castillo@uadec.edu.mx'),
         4, 'Buen viaje, un poco de retraso al salir.'
@@ -359,7 +376,7 @@ IF NOT EXISTS (SELECT 1 FROM Notificaciones WHERE titulo = 'Nueva solicitud de v
     VALUES (
         (SELECT id FROM Usuarios WHERE correo = 'luis.martinez@uadec.edu.mx'),
         'Nueva solicitud de viaje',
-        'Ana García solicitó unirse a tu viaje del 25 de septiembre.',
+        'Ana García solicitó unirse a tu viaje a Plaza Sendero.',
         1, 'solicitud'
     );
 

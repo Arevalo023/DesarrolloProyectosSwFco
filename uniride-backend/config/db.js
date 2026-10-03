@@ -1,19 +1,16 @@
-require('dotenv').config();
 const sql = require('mssql');
+const { getDbSettings, getMissingEnv, describeDbError } = require('./dbConfig');
 
-const dbSettings = {
-  user: process.env.DB_USER || 'sa',
-  password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER || 'localhost',
-  database: process.env.DB_NAME || 'uniride',
-  port: parseInt(process.env.DB_PORT, 10) || 1433,
-  options: {
-    encrypt: false,
-    trustServerCertificate: true,
-  }
-};
+// 1. Validar variables de entorno antes de intentar conectar
+const missingEnv = getMissingEnv();
+if (missingEnv.length) {
+  console.error(`❌ Faltan variables en .env: ${missingEnv.join(', ')}. Copia .env.example a .env y complétalo.`);
+  process.exit(1);
+}
 
-// Crear un pool de conexiones global
+const dbSettings = getDbSettings();
+
+// 2. Crear un pool de conexiones global
 const poolPromise = new sql.ConnectionPool(dbSettings)
   .connect()
   .then(pool => {
@@ -21,7 +18,8 @@ const poolPromise = new sql.ConnectionPool(dbSettings)
     return pool;
   })
   .catch(err => {
-    console.error('❌ Error al conectar con la base de datos: ', err);
+    console.error(`❌ Error al conectar con la base de datos: ${describeDbError(err)}`);
+    console.error(err);
     process.exit(1);
   });
 
