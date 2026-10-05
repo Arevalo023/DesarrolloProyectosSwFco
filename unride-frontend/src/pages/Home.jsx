@@ -102,86 +102,41 @@ function Home({
   // ============================================================
 
   const buscarViajes = async (event) => {
-  event.preventDefault();
+    event.preventDefault();
 
-  setLoading(true);
-  setError("");
-  setMessage("");
+    setLoading(true);
+    setError("");
+    setMessage("");
 
-  try {
-    const query = new URLSearchParams(
-      Object.entries(filters).filter(([, value]) => value)
-    );
+    try {
+      const query = new URLSearchParams(
+        Object.entries(filters).filter(
+          ([, value]) => value
+        )
+      );
 
-    const data = await apiRequest(`/api/trips?${query}`);
+      const data = await apiRequest(
+        `/api/trips?${query.toString()}`
+      );
 
-    setTrips(data.trips || []);
-  } catch (requestError) {
-    console.warn(
-      "API no disponible. Usando datos de prueba:",
-      requestError
-    );
+      setTrips(data.trips || []);
 
-    const viajesMock = [
-      {
-        id: 1,
-        origen: "Universidad Autónoma de Coahuila",
-        destino: "Plaza de Armas",
-        fecha_salida: "2026-10-05T08:00:00",
-        cupo_disponible: 3,
-        costo_por_pasajero: 35,
-        estado: "programado",
-        conductor: "Carlos Martínez",
-        conductor_id: 10,
-        conductor_telefono: "8441234567",
-        marca: "Nissan",
-        modelo: "Versa",
-        color: "Gris",
-        placa: "ABC-123",
-      },
-      {
-        id: 2,
-        origen: "Campus Arteaga",
-        destino: "Centro de Saltillo",
-        fecha_salida: "2026-10-05T09:30:00",
-        cupo_disponible: 2,
-        costo_por_pasajero: 40,
-        estado: "programado",
-        conductor: "Andrea López",
-        conductor_id: 11,
-        conductor_telefono: "8449876543",
-        marca: "Toyota",
-        modelo: "Corolla",
-        color: "Blanco",
-        placa: "XYZ-456",
-      },
-      {
-        id: 3,
-        origen: "Universidad Autónoma de Coahuila",
-        destino: "Plaza Sendero",
-        fecha_salida: "2026-10-06T07:45:00",
-        cupo_disponible: 4,
-        costo_por_pasajero: 30,
-        estado: "programado",
-        conductor: "Luis Hernández",
-        conductor_id: 12,
-        conductor_telefono: "8445551212",
-        marca: "Chevrolet",
-        modelo: "Aveo",
-        color: "Negro",
-        placa: "UNI-789",
-      },
-    ];
+      if (!data.trips || data.trips.length === 0) {
+        setMessage(
+          "No se encontraron viajes con los filtros seleccionados."
+        );
+      }
+    } catch (requestError) {
+      setTrips([]);
 
-    setTrips(viajesMock);
-
-    setMessage(
-      "Mostrando viajes de prueba para validar el frontend."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+      setError(
+        requestError.message ||
+          "No se pudieron obtener los viajes."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ============================================================
   // RESERVAR VIAJE

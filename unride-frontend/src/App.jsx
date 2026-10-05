@@ -301,6 +301,10 @@ function App() {
         onBackHome={() => {
           setPantalla("home");
         }}
+
+        onPublicarViaje={() => {
+          setPantalla("publicar");
+        }}
       />
     );
   }
