@@ -12,44 +12,7 @@ import Logo from "@/components/Logo";
 import "../styles/Notificaciones.css";
 
 export default function Notificaciones({ onVolver }) {
-  const [notificaciones, setNotificaciones] = useState([
-    {
-      id: 1,
-      tipo: "success",
-      titulo: "Reserva confirmada",
-      mensaje:
-        "Tu lugar para el viaje de Universidad Autónoma de Coahuila a Plaza de Armas ha sido confirmado.",
-      tiempo: "Ahora",
-      leida: false,
-    },
-    {
-      id: 2,
-      tipo: "warning",
-      titulo: "Tu viaje comienza pronto",
-      mensaje:
-        "Tu viaje comienza a las 08:00 AM. Recuerda llegar con anticipación al punto de encuentro.",
-      tiempo: "Hace 1 h",
-      leida: false,
-    },
-    {
-      id: 3,
-      tipo: "info",
-      titulo: "Viaje completado",
-      mensaje:
-        "Tu viaje ha finalizado correctamente. Gracias por usar UniRide.",
-      tiempo: "Ayer",
-      leida: true,
-    },
-    {
-      id: 4,
-      tipo: "error",
-      titulo: "Viaje cancelado",
-      mensaje:
-        "El conductor canceló el viaje programado. Puedes buscar otra opción disponible.",
-      tiempo: "Hace 2 días",
-      leida: true,
-    },
-  ]);
+  const [notificaciones, setNotificaciones] = useState([]);
 
   const [notificacionSeleccionada, setNotificacionSeleccionada] =
   useState(null);
