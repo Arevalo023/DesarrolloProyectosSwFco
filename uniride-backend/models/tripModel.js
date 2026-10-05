@@ -211,22 +211,7 @@ const tripModel = {
         throw error;
       }
 
-      // 3. Descontar cupo disponible atómicamente
-      const updated = await transaction.request()
-        .input("tripId", sql.Int, tripId)
-        .query(`
-          UPDATE Viajes
-          SET cupo_disponible = cupo_disponible - 1
-          WHERE id = @tripId AND estado IN ('activo', 'programado') AND cupo_disponible > 0
-        `);
-
-      if (!updated.rowsAffected[0]) {
-        const error = new Error("El cupo para este viaje se encuentra agotado.");
-        error.statusCode = 409;
-        throw error;
-      }
-
-      // 4. Registrar la reserva en SolicitudesViaje
+      // 3. Registrar la reserva en SolicitudesViaje (estado 'pendiente', sin descontar cupo)
       const result = await transaction.request()
         .input("tripId", sql.Int, tripId)
         .input("passengerId", sql.Int, passengerId)
@@ -239,7 +224,7 @@ const tripModel = {
       await transaction.commit();
       return {
         ...result.recordset[0],
-        asientos_restantes: trip.cupo_disponible  // sin descuento hasta que el conductor acepte
+        asientos_restantes: trip.cupo_disponible, // el cupo se descuenta al ser aceptada por el conductor
       };
     } catch (error) {
       await transaction.rollback();

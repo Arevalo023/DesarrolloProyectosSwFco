@@ -1,4 +1,5 @@
 const tripService = require("../services/tripService");
+const reservationService = require("../services/reservationService");
 
 const tripController = {
   async create(req, res) {
@@ -88,6 +89,19 @@ const tripController = {
     } catch (error) {
       return res.status(error.statusCode || 500).json({
         message: error.message || "No se pudo realizar la reserva.",
+      });
+    }
+  },
+
+  async listReservations(req, res) {
+    try {
+      const reservations = await reservationService.listByPassenger(req.user.id, {
+        order: req.query.order,
+      });
+      return res.status(200).json({ reservations });
+    } catch (error) {
+      return res.status(error.statusCode || 500).json({
+        message: error.message || "No se pudieron obtener las reservaciones.",
       });
     }
   },

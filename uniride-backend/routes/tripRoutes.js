@@ -18,6 +18,7 @@ router.get(
 	roleMiddleware(["Conductor"]),
 	tripController.listByDriver
 );
+router.get("/reservations", authMiddleware.verifyToken, tripController.listReservations);
 router.get("/", authMiddleware.verifyToken, tripController.listAvailable);
 router.post("/:id/book", authMiddleware.verifyToken, roleMiddleware(["Pasajero"]), tripController.book);
 
