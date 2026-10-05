@@ -1,0 +1,582 @@
+.reserva-page {
+  min-height: 100vh;
+  background: #f4f8f7;
+  color: #0f172a;
+
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+/* =========================================================
+   NAVBAR
+========================================================= */
+
+.reserva-navbar {
+  height: 76px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 32px;
+
+  background: #ffffff;
+
+  border-bottom: 1px solid #d7e0dd;
+}
+
+.reserva-back-navbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 8px 10px;
+
+  border: none;
+  border-radius: 10px;
+
+  background: transparent;
+
+  color: #334155;
+
+  cursor: pointer;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  transition: 0.2s ease;
+}
+
+.reserva-back-navbar:hover {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+/* =========================================================
+   CONTENEDOR
+========================================================= */
+
+.reserva-container {
+  width: min(1100px, calc(100% - 40px));
+
+  margin: 0 auto;
+
+  padding: 60px 0 85px;
+}
+
+/* =========================================================
+   ENCABEZADO
+========================================================= */
+
+.reserva-header {
+  max-width: 700px;
+
+  margin: 0 auto 40px;
+
+  text-align: center;
+}
+
+.reserva-eyebrow {
+  margin: 0 0 10px;
+
+  color: #059669;
+
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.reserva-header h1 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 36px;
+  font-weight: 800;
+
+  line-height: 1.2;
+}
+
+.reserva-header p {
+  margin: 12px auto 0;
+
+  color: #475569;
+
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* =========================================================
+   LAYOUT
+========================================================= */
+
+.reserva-layout {
+  display: grid;
+
+  grid-template-columns: minmax(0, 1fr) 340px;
+
+  gap: 24px;
+
+  align-items: start;
+}
+
+/* =========================================================
+   TARJETAS PRINCIPALES
+========================================================= */
+
+.reserva-card,
+.reserva-summary-card {
+  background: #ffffff;
+
+  border: 1px solid #d7e0dd;
+  border-radius: 18px;
+
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.reserva-card {
+  padding: 28px;
+}
+
+.reserva-summary-card {
+  position: sticky;
+  top: 95px;
+
+  padding: 24px;
+}
+
+/* =========================================================
+   CABECERA DEL VIAJE
+========================================================= */
+
+.reserva-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  gap: 20px;
+}
+
+.reserva-card-header h2 {
+  margin: 6px 0 0;
+
+  color: #0f172a;
+
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.reserva-card-header h2 span {
+  color: #64748b;
+}
+
+.reserva-small-label {
+  color: #64748b;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.reserva-price {
+  color: #059669;
+
+  font-size: 28px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   RUTA
+========================================================= */
+
+.reserva-route {
+  margin-top: 30px;
+  padding: 23px;
+
+  background: #f1f5f4;
+
+  border: 1px solid #dbe4e1;
+  border-radius: 15px;
+}
+
+.reserva-route-row {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 14px;
+}
+
+.reserva-route-icon {
+  width: 38px;
+  height: 38px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background: #d1fae5;
+  color: #047857;
+}
+
+.reserva-route-icon.destino {
+  background: #059669;
+  color: #ffffff;
+}
+
+.reserva-route-row p {
+  margin: 4px 0 0;
+
+  color: #0f172a;
+
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.reserva-route-line {
+  width: 2px;
+  height: 24px;
+
+  margin-left: 18px;
+
+  background: #94a3b8;
+}
+
+/* =========================================================
+   INFORMACIÓN DEL VIAJE
+========================================================= */
+
+.reserva-information-grid {
+  display: grid;
+
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 15px;
+
+  margin-top: 25px;
+}
+
+.reserva-info-item {
+  display: flex;
+  align-items: center;
+
+  gap: 11px;
+
+  padding: 16px;
+
+  background: #f1f5f4;
+
+  border: 1px solid #dbe4e1;
+  border-radius: 12px;
+
+  color: #059669;
+}
+
+.reserva-info-item div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.reserva-info-item span {
+  color: #64748b;
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.reserva-info-item strong {
+  color: #1e293b;
+
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   DIVISOR
+========================================================= */
+
+.reserva-divider {
+  height: 1px;
+
+  margin: 25px 0;
+
+  background: #d7e0dd;
+}
+
+/* =========================================================
+   CONDUCTOR
+========================================================= */
+
+.reserva-driver-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 20px;
+}
+
+.reserva-section-title {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  color: #059669;
+}
+
+.reserva-section-title h3 {
+  margin: 3px 0 0;
+
+  color: #0f172a;
+
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.reserva-verified {
+  display: flex;
+  align-items: center;
+
+  gap: 5px;
+
+  padding: 7px 11px;
+
+  background: #d1fae5;
+  color: #065f46;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   VEHÍCULO
+========================================================= */
+
+.reserva-vehicle {
+  display: flex;
+  align-items: center;
+
+  gap: 13px;
+
+  margin-top: 25px;
+  padding: 18px;
+
+  background: #ffffff;
+
+  border: 1px solid #d7e0dd;
+  border-radius: 14px;
+}
+
+.reserva-vehicle-icon {
+  width: 46px;
+  height: 46px;
+
+  display: grid;
+  place-items: center;
+
+  background: #d1fae5;
+  color: #047857;
+
+  border-radius: 12px;
+}
+
+.reserva-vehicle h3 {
+  margin: 3px 0;
+
+  color: #0f172a;
+
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.reserva-vehicle p {
+  margin: 0;
+
+  color: #475569;
+
+  font-size: 13px;
+}
+
+/* =========================================================
+   RESUMEN
+========================================================= */
+
+.reserva-summary-card h2 {
+  margin: 0 0 25px;
+
+  color: #0f172a;
+
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.reserva-summary-row {
+  display: flex;
+  justify-content: space-between;
+
+  gap: 15px;
+
+  margin-bottom: 15px;
+
+  color: #475569;
+
+  font-size: 14px;
+}
+
+.reserva-summary-row strong {
+  color: #0f172a;
+
+  font-weight: 800;
+}
+
+.reserva-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  color: #0f172a;
+
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.reserva-total strong {
+  color: #059669;
+
+  font-size: 28px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   BOTONES
+========================================================= */
+
+.reserva-confirm-button,
+.reserva-cancel-button {
+  width: 100%;
+
+  padding: 13px 15px;
+
+  border-radius: 11px;
+
+  cursor: pointer;
+
+  font-weight: 800;
+
+  transition: 0.2s ease;
+}
+
+.reserva-confirm-button {
+  margin-top: 25px;
+
+  border: none;
+
+  background: #059669;
+  color: #ffffff;
+}
+
+.reserva-confirm-button:hover {
+  background: #047857;
+}
+
+.reserva-cancel-button {
+  margin-top: 10px;
+
+  background: #ffffff;
+  color: #334155;
+
+  border: 1px solid #94a3b8;
+}
+
+.reserva-cancel-button:hover {
+  background: #f8fafc;
+
+  border-color: #64748b;
+}
+
+/* =========================================================
+   AYUDA
+========================================================= */
+
+.reserva-help {
+  margin: 16px 0 0;
+
+  color: #64748b;
+
+  text-align: center;
+
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 850px) {
+  .reserva-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .reserva-summary-card {
+    position: static;
+  }
+}
+
+/* =========================================================
+   MÓVIL
+========================================================= */
+
+@media (max-width: 650px) {
+  .reserva-navbar {
+    height: 68px;
+
+    padding: 0 18px;
+  }
+
+  .reserva-container {
+    width: calc(100% - 24px);
+
+    padding: 40px 0 65px;
+  }
+
+  .reserva-header {
+    margin-bottom: 30px;
+  }
+
+  .reserva-header h1 {
+    font-size: 28px;
+  }
+
+  .reserva-header p {
+    font-size: 14px;
+  }
+
+  .reserva-information-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reserva-card-header {
+    flex-direction: column;
+  }
+
+  .reserva-driver-section {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .reserva-card {
+    padding: 20px;
+  }
+}

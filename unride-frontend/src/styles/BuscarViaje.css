@@ -1,0 +1,505 @@
+.buscar-viaje-page {
+  min-height: 100vh;
+  background: #f8fbfa;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  color: #0f172a;
+}
+
+.buscar-viaje-navbar {
+  min-height: 82px;
+  background: #ffffff;
+  border-bottom: 1px solid #dfe6e4;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 28px;
+  gap: 30px;
+
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.buscar-viaje-logo-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.buscar-viaje-logo-icon {
+  font-size: 28px;
+}
+
+.buscar-viaje-logo-text {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.buscar-viaje-logo-uni {
+  color: #111827;
+}
+
+.buscar-viaje-logo-ride {
+  color: #00a878;
+}
+
+.buscar-viaje-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.buscar-viaje-nav-button,
+.buscar-viaje-nav-active {
+  background: transparent;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.buscar-viaje-nav-button {
+  color: #1f2937;
+}
+
+.buscar-viaje-nav-active {
+  color: #00a878;
+  font-weight: 700;
+}
+
+.buscar-viaje-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.buscar-viaje-role-badge {
+  padding: 8px 16px;
+  border-radius: 999px;
+
+  background: #e9fbf4;
+  color: #008c67;
+
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.buscar-viaje-profile-button,
+.buscar-viaje-exit-button {
+  width: 42px;
+  height: 42px;
+
+  border: none;
+  border-radius: 12px;
+
+  cursor: pointer;
+}
+
+.buscar-viaje-profile-button {
+  background: #dff9ef;
+  font-size: 18px;
+}
+
+.buscar-viaje-exit-button {
+  background: #ffffff;
+  font-size: 22px;
+}
+
+.buscar-viaje-container {
+  width: min(1100px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 55px 0 80px;
+}
+
+.buscar-viaje-hero {
+  text-align: center;
+  margin-bottom: 35px;
+}
+
+.buscar-viaje-eyebrow {
+  margin: 0;
+
+  color: #00a878;
+
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.buscar-viaje-title {
+  margin: 8px 0 12px;
+  font-size: 36px;
+  line-height: 1.2;
+}
+
+.buscar-viaje-subtitle {
+  max-width: 650px;
+  margin: 0 auto;
+
+  color: #718096;
+
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+.buscar-viaje-search-card {
+  padding: 28px;
+
+  background: #ffffff;
+
+  border: 1px solid #e3e9e7;
+  border-radius: 22px;
+
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.buscar-viaje-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.buscar-viaje-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.buscar-viaje-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.buscar-viaje-input-wrapper {
+  display: flex;
+  align-items: center;
+
+  padding: 0 14px;
+
+  border: 1px solid #dce5e2;
+  border-radius: 14px;
+
+  background: #ffffff;
+}
+
+.buscar-viaje-input-icon {
+  margin-right: 9px;
+  font-size: 16px;
+}
+
+.buscar-viaje-input {
+  flex: 1;
+  width: 100%;
+
+  padding: 14px 0;
+
+  border: none;
+  outline: none;
+
+  background: transparent;
+
+  color: #1f2937;
+  font-size: 15px;
+}
+
+.buscar-viaje-search-button-container {
+  display: flex;
+  justify-content: center;
+
+  margin-top: 26px;
+}
+
+.buscar-viaje-search-button {
+  padding: 13px 24px;
+
+  border: none;
+  border-radius: 12px;
+
+  background: #111111;
+  color: #ffffff;
+
+  cursor: pointer;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  transition: 0.2s ease;
+}
+
+.buscar-viaje-search-button:hover {
+  transform: translateY(-1px);
+  opacity: 0.9;
+}
+
+.buscar-viaje-results-section {
+  margin-top: 55px;
+}
+
+.buscar-viaje-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.buscar-viaje-section-title {
+  margin: 5px 0 0;
+  font-size: 27px;
+}
+
+.buscar-viaje-result-count {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.buscar-viaje-trip-list {
+  display: grid;
+  gap: 18px;
+}
+
+.buscar-viaje-trip-card {
+  padding: 24px;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8e6;
+  border-radius: 20px;
+
+  box-shadow: 0 8px 25px rgba(15, 23, 42, 0.04);
+
+  transition: 0.2s ease;
+}
+
+.buscar-viaje-trip-card:hover {
+  transform: translateY(-2px);
+
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
+}
+
+.buscar-viaje-trip-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 20px;
+}
+
+.buscar-viaje-driver-info {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.buscar-viaje-avatar {
+  width: 48px;
+  height: 48px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 50%;
+
+  background: #e8fbf3;
+  color: #00966f;
+
+  font-weight: 800;
+}
+
+.buscar-viaje-driver-name {
+  margin: 0;
+  font-size: 17px;
+}
+
+.buscar-viaje-driver-role {
+  margin: 4px 0 0;
+
+  color: #7b8794;
+
+  font-size: 13px;
+}
+
+.buscar-viaje-price {
+  color: #00966f;
+
+  font-size: 25px;
+  font-weight: 800;
+}
+
+.buscar-viaje-route-container {
+  margin-top: 24px;
+  padding: 18px 0;
+
+  border-top: 1px solid #edf1f0;
+  border-bottom: 1px solid #edf1f0;
+}
+
+.buscar-viaje-route-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.buscar-viaje-route-dot {
+  width: 12px;
+  height: 12px;
+
+  margin-top: 5px;
+
+  flex-shrink: 0;
+
+  border: 3px solid #00a878;
+  border-radius: 50%;
+
+  box-sizing: border-box;
+}
+
+.buscar-viaje-route-dot-destination {
+  background: #00a878;
+}
+
+.buscar-viaje-route-line {
+  width: 1px;
+  height: 20px;
+
+  margin-left: 5px;
+
+  background: #cfd8d5;
+}
+
+.buscar-viaje-route-label {
+  color: #7b8794;
+  font-size: 12px;
+}
+
+.buscar-viaje-route-text {
+  margin: 2px 0 0;
+
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.buscar-viaje-trip-details {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 22px;
+
+  padding: 18px 0;
+
+  color: #52606d;
+
+  font-size: 14px;
+}
+
+.buscar-viaje-vehicle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+}
+
+.buscar-viaje-vehicle-label {
+  color: #7b8794;
+  font-size: 12px;
+}
+
+.buscar-viaje-vehicle-text {
+  margin: 3px 0 0;
+
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.buscar-viaje-view-button {
+  padding: 11px 20px;
+
+  border: none;
+  border-radius: 11px;
+
+  background: #00a878;
+  color: #ffffff;
+
+  cursor: pointer;
+
+  font-weight: 700;
+
+  transition: 0.2s ease;
+}
+
+.buscar-viaje-view-button:hover {
+  background: #008f67;
+}
+
+/* ================================
+   RESPONSIVE
+================================ */
+
+@media (max-width: 768px) {
+  .buscar-viaje-navbar {
+    padding: 14px 18px;
+    flex-wrap: wrap;
+  }
+
+  .buscar-viaje-nav-links {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .buscar-viaje-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .buscar-viaje-title {
+    font-size: 29px;
+  }
+
+  .buscar-viaje-results-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .buscar-viaje-trip-top {
+    align-items: flex-start;
+  }
+
+  .buscar-viaje-vehicle-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .buscar-viaje-view-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .buscar-viaje-container {
+    width: min(100% - 24px, 1100px);
+    padding-top: 35px;
+  }
+
+  .buscar-viaje-search-card,
+  .buscar-viaje-trip-card {
+    padding: 18px;
+  }
+
+  .buscar-viaje-nav-right {
+    gap: 6px;
+  }
+
+  .buscar-viaje-role-badge {
+    display: none;
+  }
+
+  .buscar-viaje-trip-details {
+    flex-direction: column;
+    gap: 8px;
+  }
+}

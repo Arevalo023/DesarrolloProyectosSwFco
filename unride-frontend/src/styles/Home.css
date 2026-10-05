@@ -1,0 +1,151 @@
+/* =========================================================
+   RESULTADOS DE VIAJES
+========================================================= */
+
+.viajes-resultados {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  width: 100%;
+  margin-top: 32px;
+}
+
+.viaje-resultado-card {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #d7e0dd;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+  text-align: left;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.viaje-resultado-card:hover {
+  transform: translateY(-2px);
+  border-color: #b5c5bf;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+}
+
+.viaje-resultado-layout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.viaje-resultado-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.viaje-resultado-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.viaje-resultado-ruta {
+  margin: 0;
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.viaje-resultado-fecha {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.viaje-resultado-precio {
+  flex-shrink: 0;
+  color: #059669;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.viaje-resultado-datos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.viaje-dato {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.viaje-dato-label {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.viaje-dato strong {
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.viaje-resultado-accion {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.viaje-ver-button {
+  min-width: 115px;
+  background: #059669 !important;
+  color: #ffffff !important;
+  border-radius: 10px;
+  font-weight: 700;
+  transition: 0.2s ease;
+}
+
+.viaje-ver-button:hover {
+  background: #047857 !important;
+}
+
+@media (max-width: 850px) {
+  .viaje-resultado-layout {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .viaje-resultado-datos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .viaje-resultado-accion {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 600px) {
+  .viaje-resultado-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .viaje-resultado-datos {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .viaje-resultado-accion {
+    width: 100%;
+  }
+
+  .viaje-ver-button {
+    width: 100%;
+  }
+}

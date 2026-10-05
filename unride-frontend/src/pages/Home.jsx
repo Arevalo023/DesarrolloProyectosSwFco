@@ -5,6 +5,7 @@ import AlertBanner from "@/components/ui/alert-banner";
 import { useState } from "react";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
+import "../styles/Home.css";
 
 import {
   Search,
@@ -14,6 +15,7 @@ import {
   MapPin,
   CalendarDays,
   UserRound,
+  Bell,
 } from "lucide-react";
 
 import heroImage from "@/assets/hero.png";
@@ -27,6 +29,8 @@ function Home({
   onVehiculos,
   onPublish,
   onMisViajes,
+  onNotificaciones,
+  onVerViaje,
   user,
   rolActivo,
   onCambiarRol,
@@ -98,27 +102,86 @@ function Home({
   // ============================================================
 
   const buscarViajes = async (event) => {
-    event.preventDefault();
+  event.preventDefault();
 
-    setLoading(true);
-    setError("");
-    setMessage("");
+  setLoading(true);
+  setError("");
+  setMessage("");
 
-    try {
-      const query = new URLSearchParams(
-        Object.entries(filters).filter(([, value]) => value)
-      );
+  try {
+    const query = new URLSearchParams(
+      Object.entries(filters).filter(([, value]) => value)
+    );
 
-      const data = await apiRequest(`/api/trips?${query}`);
+    const data = await apiRequest(`/api/trips?${query}`);
 
-      setTrips(data.trips || []);
-    } catch (requestError) {
-      setError(requestError.message);
-      setTrips([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setTrips(data.trips || []);
+  } catch (requestError) {
+    console.warn(
+      "API no disponible. Usando datos de prueba:",
+      requestError
+    );
+
+    const viajesMock = [
+      {
+        id: 1,
+        origen: "Universidad Autónoma de Coahuila",
+        destino: "Plaza de Armas",
+        fecha_salida: "2026-10-05T08:00:00",
+        cupo_disponible: 3,
+        costo_por_pasajero: 35,
+        estado: "programado",
+        conductor: "Carlos Martínez",
+        conductor_id: 10,
+        conductor_telefono: "8441234567",
+        marca: "Nissan",
+        modelo: "Versa",
+        color: "Gris",
+        placa: "ABC-123",
+      },
+      {
+        id: 2,
+        origen: "Campus Arteaga",
+        destino: "Centro de Saltillo",
+        fecha_salida: "2026-10-05T09:30:00",
+        cupo_disponible: 2,
+        costo_por_pasajero: 40,
+        estado: "programado",
+        conductor: "Andrea López",
+        conductor_id: 11,
+        conductor_telefono: "8449876543",
+        marca: "Toyota",
+        modelo: "Corolla",
+        color: "Blanco",
+        placa: "XYZ-456",
+      },
+      {
+        id: 3,
+        origen: "Universidad Autónoma de Coahuila",
+        destino: "Plaza Sendero",
+        fecha_salida: "2026-10-06T07:45:00",
+        cupo_disponible: 4,
+        costo_por_pasajero: 30,
+        estado: "programado",
+        conductor: "Luis Hernández",
+        conductor_id: 12,
+        conductor_telefono: "8445551212",
+        marca: "Chevrolet",
+        modelo: "Aveo",
+        color: "Negro",
+        placa: "UNI-789",
+      },
+    ];
+
+    setTrips(viajesMock);
+
+    setMessage(
+      "Mostrando viajes de prueba para validar el frontend."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ============================================================
   // RESERVAR VIAJE
@@ -270,6 +333,42 @@ function Home({
                 {rolEnUso}
               </span>
             ) : null}
+
+            {/* NOTIFICACIONES */}
+            <button
+              type="button"
+              onClick={onNotificaciones}
+              className="
+                relative
+                flex
+                h-10
+                w-10
+                items-center
+                justify-center
+                rounded-full
+                text-slate-600
+                transition
+                hover:bg-emerald-50
+                hover:text-emerald-700
+              "
+              title="Notificaciones"
+              aria-label="Abrir notificaciones"
+            >
+              <Bell size={20} />
+
+              <span
+                className="
+                  absolute
+                  right-2
+                  top-2
+                  h-2
+                  w-2
+                  rounded-full
+                  bg-emerald-500
+                "
+                aria-hidden="true"
+              />
+            </button>
 
             {/* ==================================================
                 BOTÓN DEL PERFIL + MENÚ
@@ -778,108 +877,99 @@ function Home({
           {/* RESULTADOS */}
 
           {trips.length > 0 && (
-            <div className="mt-8 grid gap-4 md:grid-cols-2">
+            <div className="viajes-resultados">
 
               {trips.map((trip) => (
 
-                <Card key={trip.id}>
+                <Card
+                  key={trip.id}
+                  className="viaje-resultado-card"
+                >
+                  <CardContent className="p-6">
+                    <div className="viaje-resultado-layout">
+                      <div className="viaje-resultado-info">
+                        <div className="viaje-resultado-header">
+                          <div>
+                            <h3 className="viaje-resultado-ruta">
+                              {trip.origen} → {trip.destino}
+                            </h3>
 
-                  <CardContent
-                    className="
-                      flex
-                      flex-col
-                      gap-3
-                      p-5
-                    "
-                  >
+                            <p className="viaje-resultado-fecha">
+                              {new Date(trip.fecha_salida).toLocaleString(
+                                "es-MX",
+                                {
+                                  day: "2-digit",
+                                  month: "long",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
+                            </p>
+                          </div>
 
-                    <div
-                      className="
-                        flex
-                        items-start
-                        justify-between
-                        gap-4
-                      "
-                    >
+                          <span className="viaje-resultado-precio">
+                            ${trip.costo_por_pasajero}
+                          </span>
+                        </div>
 
-                      <div>
+                        <div className="viaje-resultado-datos">
+                          <div className="viaje-dato">
+                            <span className="viaje-dato-label">
+                              Conductor
+                            </span>
 
-                        <h3 className="font-semibold text-slate-900">
-                          {trip.origen} → {trip.destino}
-                        </h3>
+                            <strong>{trip.conductor}</strong>
+                          </div>
 
-                        <p className="text-sm text-slate-500">
-                          {new Date(
-                            trip.fecha_salida
-                          ).toLocaleString()}
-                        </p>
+                          <div className="viaje-dato">
+                            <span className="viaje-dato-label">
+                              Vehículo
+                            </span>
 
+                            <strong>
+                              {trip.marca} {trip.modelo}
+                            </strong>
+                          </div>
+
+                          <div className="viaje-dato">
+                            <span className="viaje-dato-label">
+                              Lugares disponibles
+                            </span>
+
+                            <strong>
+                              {trip.cupo_disponible}
+                            </strong>
+                          </div>
+                        </div>
                       </div>
 
-                      <span className="font-semibold text-emerald-700">
-                        ${trip.costo_por_pasajero}
-                      </span>
-
+                      <div className="viaje-resultado-accion">
+                        {modoPasajero ? (
+                          <Button
+                            type="button"
+                            onClick={() => onVerViaje?.(trip)}
+                            className="viaje-ver-button"
+                          >
+                            Ver viaje
+                          </Button>
+                        ) : tieneRol("Pasajero") ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => cambiarModo("Pasajero")}
+                            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                          >
+                            Cambiar a modo Pasajero
+                          </Button>
+                        ) : (
+                          <span className="text-sm text-slate-500">
+                            Solo pasajeros pueden reservar
+                          </span>
+                        )}
+                      </div>
                     </div>
-
-
-                    <p className="text-sm text-slate-600">
-                      Conduce {trip.conductor} · {trip.marca}{" "}
-                      {trip.modelo}
-                    </p>
-
-
-                    <div
-                      className="
-                        flex
-                        items-center
-                        justify-between
-                        gap-3
-                      "
-                    >
-
-                      <span className="text-sm text-slate-500">
-                        {trip.cupo_disponible} asientos disponibles
-                      </span>
-
-                      {modoPasajero ? (
-                        <Button
-                          type="button"
-                          onClick={() =>
-                            reservarViaje(trip.id)
-                          }
-                          disabled={
-                            bookingId === trip.id
-                          }
-                          className="
-                            bg-emerald-600
-                            text-white
-                            hover:bg-emerald-700
-                          "
-                        >
-                          {bookingId === trip.id
-                            ? "Reservando..."
-                            : "Tomar viaje"}
-                        </Button>
-                      ) : tieneRol("Pasajero") ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => cambiarModo("Pasajero")}
-                          className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                        >
-                          Cambiar a modo Pasajero para reservar
-                        </Button>
-                      ) : (
-                        <span className="text-sm text-slate-500">
-                          Solo pasajeros pueden reservar
-                        </span>
-                      )}
-
-                    </div>
-
                   </CardContent>
-
                 </Card>
 
               ))}

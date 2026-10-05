@@ -1,0 +1,206 @@
+.confirmacion-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.confirmacion-modal {
+  width: min(460px, 100%);
+
+  padding: 32px;
+
+  background: #ffffff;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+
+  box-shadow:
+    0 25px 60px rgba(15, 23, 42, 0.18);
+
+  text-align: center;
+}
+
+.confirmacion-icono {
+  width: 72px;
+  height: 72px;
+
+  display: grid;
+  place-items: center;
+
+  margin: 0 auto 18px;
+
+  border-radius: 50%;
+
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.confirmacion-etiqueta {
+  margin: 0 0 7px;
+
+  color: #059669;
+
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.confirmacion-modal h2 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 26px;
+}
+
+.confirmacion-descripcion {
+  margin: 12px auto 0;
+
+  color: #64748b;
+
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.confirmacion-viaje {
+  margin-top: 25px;
+
+  padding: 18px;
+
+  background: #f8fafc;
+
+  border-radius: 14px;
+
+  text-align: left;
+}
+
+.confirmacion-ruta {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 11px;
+
+  color: #059669;
+}
+
+.confirmacion-ruta div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.confirmacion-ruta span {
+  color: #94a3b8;
+
+  font-size: 11px;
+}
+
+.confirmacion-ruta strong {
+  color: #1e293b;
+
+  font-size: 14px;
+}
+
+.confirmacion-detalles {
+  display: flex;
+  justify-content: space-between;
+
+  gap: 15px;
+
+  margin-top: 18px;
+  padding-top: 16px;
+
+  border-top: 1px solid #e2e8f0;
+}
+
+.confirmacion-detalles div {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  color: #64748b;
+
+  font-size: 12px;
+}
+
+.confirmacion-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin: 22px 0;
+
+  color: #475569;
+
+  font-size: 15px;
+}
+
+.confirmacion-total strong {
+  color: #059669;
+
+  font-size: 25px;
+}
+
+.confirmacion-principal,
+.confirmacion-secundario {
+  width: 100%;
+
+  padding: 13px;
+
+  border-radius: 11px;
+
+  cursor: pointer;
+
+  font-weight: 700;
+
+  transition: 0.2s ease;
+}
+
+.confirmacion-principal {
+  border: none;
+
+  background: #059669;
+  color: #ffffff;
+}
+
+.confirmacion-principal:hover {
+  background: #047857;
+}
+
+.confirmacion-secundario {
+  margin-top: 10px;
+
+  border: 1px solid #cbd5e1;
+
+  background: #ffffff;
+  color: #475569;
+}
+
+.confirmacion-secundario:hover {
+  background: #f8fafc;
+}
+
+@media (max-width: 520px) {
+  .confirmacion-modal {
+    padding: 24px 18px;
+  }
+
+  .confirmacion-modal h2 {
+    font-size: 22px;
+  }
+
+  .confirmacion-detalles {
+    flex-direction: column;
+  }
+}
