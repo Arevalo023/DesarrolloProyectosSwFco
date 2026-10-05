@@ -24,7 +24,7 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -131,10 +131,11 @@ body {
 }
 
 h1,
-h2 {
+h2,
+h3 {
   font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+  color: #0f172a !important;
+  opacity: 1 !important;
 }
 
 h1 {
@@ -249,6 +250,18 @@ code {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+.text-slate-900 {
+  color: #0f172a !important;
+}
+
+.text-slate-800 {
+  color: #1e293b !important;
+}
+
+.text-slate-700 {
+  color: #334155 !important;
 }
 
 @layer base {
