@@ -9,6 +9,9 @@ import {
   Users,
   Plus,
   LoaderCircle,
+  Check,
+  X,
+  UserRound,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -120,7 +123,12 @@ const formatHora = (fecha) => {
 export default function MisViajes({
   onBackHome,
   onPublicarViaje,
+  onResponderSolicitud,
 }) {
+
+  // ============================================================
+  // ESTADOS
+  // ============================================================
 
   const [viajes, setViajes] =
     useState([]);
@@ -131,9 +139,19 @@ export default function MisViajes({
   const [error, setError] =
     useState("");
 
+  const [
+    procesandoSolicitud,
+    setProcesandoSolicitud,
+  ] = useState(null);
+
+  const [
+    mensajeSolicitud,
+    setMensajeSolicitud,
+  ] = useState("");
+
 
   // ============================================================
-  // CARGAR VIAJES
+  // CARGAR VIAJES REALES
   // ============================================================
 
   useEffect(() => {
@@ -162,6 +180,8 @@ export default function MisViajes({
           return;
         }
 
+        setViajes([]);
+
         setError(
           requestError.message ||
             "No se pudieron cargar tus viajes."
@@ -182,6 +202,171 @@ export default function MisViajes({
   }, []);
 
 
+  // ============================================================
+  // CONTAR PENDIENTES
+  // ============================================================
+
+  const contarPendientes = (
+    solicitudes = []
+  ) => {
+    return solicitudes.filter(
+      (solicitud) =>
+        solicitud.estado ===
+        "pendiente"
+    ).length;
+  };
+
+
+  // ============================================================
+  // CLASE ESTADO SOLICITUD
+  // ============================================================
+
+  const claseEstadoSolicitud = (
+    estado
+  ) => {
+    if (estado === "aceptada") {
+      return (
+        "bg-emerald-100 text-emerald-700"
+      );
+    }
+
+    if (estado === "rechazada") {
+      return (
+        "bg-red-100 text-red-700"
+      );
+    }
+
+    return (
+      "bg-amber-100 text-amber-700"
+    );
+  };
+
+
+  // ============================================================
+  // TEXTO ESTADO SOLICITUD
+  // ============================================================
+
+  const textoEstadoSolicitud = (
+    estado
+  ) => {
+    if (estado === "aceptada") {
+      return "Aceptada";
+    }
+
+    if (estado === "rechazada") {
+      return "Rechazada";
+    }
+
+    return "Pendiente";
+  };
+
+
+  // ============================================================
+  // RESPONDER SOLICITUD
+  // ============================================================
+
+  const responderSolicitud = async (
+    viajeId,
+    solicitudId,
+    nuevoEstado
+  ) => {
+    if (procesandoSolicitud) {
+      return;
+    }
+
+    if (!onResponderSolicitud) {
+      setError(
+        "La gestión de solicitudes todavía no está disponible en el backend."
+      );
+
+      return;
+    }
+
+    setProcesandoSolicitud(
+      solicitudId
+    );
+
+    setError("");
+    setMensajeSolicitud("");
+
+    try {
+      const resultado =
+        await onResponderSolicitud({
+          viajeId,
+          solicitudId,
+          estado: nuevoEstado,
+        });
+
+
+      // ========================================================
+      // ACTUALIZAR FRONTEND CON RESPUESTA REAL
+      // ========================================================
+
+      setViajes((actuales) =>
+        actuales.map((viaje) => {
+
+          if (viaje.id !== viajeId) {
+            return viaje;
+          }
+
+          const solicitudes =
+            (
+              viaje.solicitudes || []
+            ).map((solicitud) =>
+              solicitud.id ===
+              solicitudId
+                ? {
+                    ...solicitud,
+                    estado:
+                      nuevoEstado,
+                  }
+                : solicitud
+            );
+
+
+          return {
+            ...viaje,
+
+            solicitudes,
+
+            cupo_disponible:
+              resultado?.cupo_disponible ??
+              viaje.cupo_disponible,
+
+            usuarios_separaron_asiento:
+              resultado
+                ?.usuarios_separaron_asiento ??
+              viaje
+                .usuarios_separaron_asiento,
+          };
+        })
+      );
+
+
+      setMensajeSolicitud(
+        resultado?.message ||
+          (nuevoEstado ===
+          "aceptada"
+            ? "Solicitud aceptada correctamente."
+            : "Solicitud rechazada correctamente.")
+      );
+
+    } catch (requestError) {
+      setError(
+        requestError.message ||
+          "No fue posible actualizar la solicitud."
+      );
+
+    } finally {
+      setProcesandoSolicitud(null);
+    }
+  };
+
+
+  // ============================================================
+  // INTERFAZ
+  // ============================================================
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
 
@@ -190,6 +375,7 @@ export default function MisViajes({
       {/* ====================================================== */}
 
       <nav className="border-b border-slate-200 bg-white">
+
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-4">
 
           <Logo />
@@ -215,6 +401,7 @@ export default function MisViajes({
           </Button>
 
         </div>
+
       </nav>
 
 
@@ -266,8 +453,8 @@ export default function MisViajes({
                     opacity: 1,
                   }}
                 >
-                  Consulta y administra los viajes que
-                  has publicado como conductor.
+                  Consulta tus viajes y administra
+                  las solicitudes de los pasajeros.
                 </p>
 
               </div>
@@ -300,7 +487,7 @@ export default function MisViajes({
 
 
           {/* ================================================== */}
-          {/* ERROR                                              */}
+          {/* MENSAJES                                           */}
           {/* ================================================== */}
 
           {error && (
@@ -309,6 +496,20 @@ export default function MisViajes({
               <AlertBanner
                 type="error"
                 message={error}
+              />
+
+            </div>
+          )}
+
+
+          {mensajeSolicitud && (
+            <div className="mb-6">
+
+              <AlertBanner
+                type="success"
+                message={
+                  mensajeSolicitud
+                }
               />
 
             </div>
@@ -330,19 +531,17 @@ export default function MisViajes({
                   className="mb-4 animate-spin text-emerald-600"
                 />
 
-
-                <h2 className="!m-0 !text-lg !font-bold !text-slate-900">
-
+                <h2
+                  className="m-0 text-lg font-bold"
+                  style={{
+                    color: "#0f172a",
+                  }}
+                >
                   Cargando tus viajes
-
                 </h2>
 
-
                 <p className="mt-2 text-sm text-slate-500">
-
-                  Estamos consultando tus viajes
-                  publicados.
-
+                  Estamos consultando tus viajes publicados.
                 </p>
 
               </CardContent>
@@ -379,11 +578,10 @@ export default function MisViajes({
 
 
                 <p className="mt-3 max-w-md text-sm leading-6 text-slate-500">
-
                   Cuando publiques tu primer viaje,
                   aparecerá aquí para que puedas
-                  consultar su información y disponibilidad.
-
+                  consultar su información y
+                  administrar sus solicitudes.
                 </p>
 
 
@@ -420,7 +618,7 @@ export default function MisViajes({
             /* LISTA DE VIAJES                                  */
             /* ================================================= */
 
-            <div className="grid gap-5">
+            <div className="grid gap-6">
 
               {viajes.map(
                 (viaje) => {
@@ -428,6 +626,14 @@ export default function MisViajes({
                   const estado =
                     mapEstado(
                       viaje.estado
+                    );
+
+                  const solicitudesViaje =
+                    viaje.solicitudes || [];
+
+                  const pendientes =
+                    contarPendientes(
+                      solicitudesViaje
                     );
 
 
@@ -450,7 +656,9 @@ export default function MisViajes({
                       <CardContent className="p-0">
 
 
-                        {/* CABECERA */}
+                        {/* ===================================== */}
+                        {/* CABECERA                              */}
+                        {/* ===================================== */}
 
                         <div className="border-b border-slate-100 bg-white px-6 py-5">
 
@@ -491,9 +699,7 @@ export default function MisViajes({
 
                                 <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
 
-                                  <MapPin
-                                    size={18}
-                                  />
+                                  <MapPin size={18} />
 
                                 </div>
 
@@ -501,14 +707,17 @@ export default function MisViajes({
                                 <div>
 
                                   <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-
                                     Ruta
-
                                   </p>
 
 
-                                  <h2 className="!mb-0 !mt-1 !text-lg !font-bold !text-slate-900 md:!text-xl">
-
+                                  <h2
+                                    className="mb-0 mt-1 text-lg font-bold md:text-xl"
+                                    style={{
+                                      color:
+                                        "#0f172a",
+                                    }}
+                                  >
                                     {viaje.origen}
 
                                     <span className="mx-2 text-emerald-500">
@@ -516,7 +725,6 @@ export default function MisViajes({
                                     </span>
 
                                     {viaje.destino}
-
                                   </h2>
 
                                 </div>
@@ -531,6 +739,7 @@ export default function MisViajes({
                               <p className="text-xs font-medium text-emerald-700">
                                 Precio por pasajero
                               </p>
+
 
                               <p className="mt-1 text-2xl font-bold text-emerald-700">
 
@@ -549,7 +758,9 @@ export default function MisViajes({
                         </div>
 
 
-                        {/* DATOS */}
+                        {/* ===================================== */}
+                        {/* DATOS                                 */}
+                        {/* ===================================== */}
 
                         <div className="grid gap-4 px-6 py-5 sm:grid-cols-2 lg:grid-cols-4">
 
@@ -569,11 +780,9 @@ export default function MisViajes({
                             </div>
 
                             <p className="text-sm font-semibold text-slate-900">
-
                               {formatFecha(
                                 viaje.fecha_salida
                               )}
-
                             </p>
 
                           </div>
@@ -595,11 +804,9 @@ export default function MisViajes({
                             </div>
 
                             <p className="text-sm font-semibold text-slate-900">
-
                               {formatHora(
                                 viaje.fecha_salida
                               )}
-
                             </p>
 
                           </div>
@@ -621,10 +828,8 @@ export default function MisViajes({
                             </div>
 
                             <p className="text-sm font-semibold text-slate-900">
-
                               {viaje.cupo_disponible ??
                                 0}
-
                             </p>
 
                           </div>
@@ -646,12 +851,10 @@ export default function MisViajes({
                             </div>
 
                             <p className="text-sm font-semibold text-slate-900">
-
                               {Number(
                                 viaje.usuarios_separaron_asiento ??
                                   0
                               )}
-
                             </p>
 
                           </div>
@@ -659,7 +862,9 @@ export default function MisViajes({
                         </div>
 
 
-                        {/* VEHÍCULO */}
+                        {/* ===================================== */}
+                        {/* VEHÍCULO                              */}
+                        {/* ===================================== */}
 
                         <div className="border-t border-slate-100 bg-slate-50 px-6 py-4">
 
@@ -714,6 +919,268 @@ export default function MisViajes({
 
                         </div>
 
+
+                        {/* ===================================== */}
+                        {/* SOLICITUDES                           */}
+                        {/* ===================================== */}
+
+                        <div className="border-t border-slate-200 bg-white px-6 py-6">
+
+                          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                            <div>
+
+                              <div className="flex items-center gap-2">
+
+                                <Users
+                                  size={19}
+                                  className="text-emerald-600"
+                                />
+
+                                <h3
+                                  className="text-base font-bold"
+                                  style={{
+                                    color:
+                                      "#0f172a",
+                                  }}
+                                >
+                                  Solicitudes de pasajeros
+                                </h3>
+
+                              </div>
+
+                              <p className="mt-1 text-sm text-slate-500">
+                                Acepta o rechaza las solicitudes interesadas en este viaje.
+                              </p>
+
+                            </div>
+
+
+                            <span
+                              className={`
+                                inline-flex
+                                w-fit
+                                rounded-full
+                                px-3
+                                py-1
+                                text-xs
+                                font-semibold
+
+                                ${
+                                  pendientes > 0
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-slate-100 text-slate-600"
+                                }
+                              `}
+                            >
+                              {pendientes}{" "}
+
+                              {pendientes === 1
+                                ? "pendiente"
+                                : "pendientes"}
+                            </span>
+
+                          </div>
+
+
+                          {solicitudesViaje.length ===
+                          0 ? (
+
+                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-7 text-center">
+
+                              <Users
+                                size={26}
+                                className="mx-auto mb-3 text-slate-400"
+                              />
+
+                              <p className="text-sm font-medium text-slate-600">
+                                No hay solicitudes para este viaje.
+                              </p>
+
+                            </div>
+
+                          ) : (
+
+                            <div className="space-y-3">
+
+                              {solicitudesViaje.map(
+                                (
+                                  solicitud
+                                ) => (
+
+                                  <div
+                                    key={
+                                      solicitud.id
+                                    }
+                                    className="
+                                      flex
+                                      flex-col
+                                      gap-4
+                                      rounded-xl
+                                      border
+                                      border-slate-200
+                                      bg-slate-50
+                                      p-4
+                                      sm:flex-row
+                                      sm:items-center
+                                      sm:justify-between
+                                    "
+                                  >
+
+                                    {/* PASAJERO */}
+
+                                    <div className="flex items-center gap-3">
+
+                                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-white text-emerald-700 shadow-sm">
+
+                                        <UserRound
+                                          size={20}
+                                        />
+
+                                      </div>
+
+
+                                      <div>
+
+                                        <p className="font-semibold text-slate-900">
+
+                                          {solicitud.nombre ||
+                                            solicitud.pasajero ||
+                                            "Pasajero"}
+
+                                        </p>
+
+
+                                        <span
+                                          className={`
+                                            mt-1
+                                            inline-flex
+                                            rounded-full
+                                            px-2.5
+                                            py-1
+                                            text-xs
+                                            font-semibold
+
+                                            ${claseEstadoSolicitud(
+                                              solicitud.estado
+                                            )}
+                                          `}
+                                        >
+                                          {textoEstadoSolicitud(
+                                            solicitud.estado
+                                          )}
+                                        </span>
+
+                                      </div>
+
+                                    </div>
+
+
+                                    {/* BOTONES */}
+
+                                    {solicitud.estado ===
+                                      "pendiente" && (
+
+                                      <div className="flex flex-col gap-2 sm:flex-row">
+
+                                        <Button
+                                          type="button"
+                                          disabled={
+                                            procesandoSolicitud ===
+                                              solicitud.id ||
+                                            Number(
+                                              viaje.cupo_disponible ||
+                                                0
+                                            ) <= 0
+                                          }
+                                          onClick={() =>
+                                            responderSolicitud(
+                                              viaje.id,
+                                              solicitud.id,
+                                              "aceptada"
+                                            )
+                                          }
+                                          className="
+                                            flex
+                                            items-center
+                                            justify-center
+                                            gap-2
+                                            bg-emerald-600
+                                            text-white
+                                            hover:bg-emerald-700
+                                          "
+                                        >
+
+                                          {procesandoSolicitud ===
+                                          solicitud.id ? (
+
+                                            <LoaderCircle
+                                              size={17}
+                                              className="animate-spin"
+                                            />
+
+                                          ) : (
+
+                                            <Check
+                                              size={17}
+                                            />
+
+                                          )}
+
+                                          {procesandoSolicitud ===
+                                          solicitud.id
+                                            ? "Procesando..."
+                                            : "Aceptar"}
+
+                                        </Button>
+
+
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          disabled={
+                                            procesandoSolicitud ===
+                                            solicitud.id
+                                          }
+                                          onClick={() =>
+                                            responderSolicitud(
+                                              viaje.id,
+                                              solicitud.id,
+                                              "rechazada"
+                                            )
+                                          }
+                                          className="
+                                            flex
+                                            items-center
+                                            justify-center
+                                            gap-2
+                                            border-red-200
+                                            text-red-600
+                                            hover:bg-red-50
+                                          "
+                                        >
+
+                                          <X size={17} />
+
+                                          Rechazar
+
+                                        </Button>
+
+                                      </div>
+
+                                    )}
+
+                                  </div>
+
+                                )
+                              )}
+
+                            </div>
+
+                          )}
+
+                        </div>
+
                       </CardContent>
 
                     </Card>
@@ -728,7 +1195,6 @@ export default function MisViajes({
         </div>
 
       </main>
-
 
       <Footer />
 
