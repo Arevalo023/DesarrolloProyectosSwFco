@@ -53,6 +53,8 @@ const EXPECTED_RELATIONS = [
   ['Calificaciones', 'Viajes'],
   ['Calificaciones', 'Usuarios'],
   ['Notificaciones', 'Usuarios'],
+  ['Notificaciones', 'SolicitudesViaje'],
+  ['Notificaciones', 'Viajes'],
 ];
 
 const EXPECTED_ROLES = ['Pasajero', 'Conductor', 'Administrador', 'Moderador'];

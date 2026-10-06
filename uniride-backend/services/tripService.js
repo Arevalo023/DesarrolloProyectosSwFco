@@ -1,5 +1,6 @@
 const tripModel = require("../models/tripModel");
 const vehicleModel = require("../models/vehicleModel");
+const notificationService = require("./notificationService");
 
 const validationError = (message) => {
   const error = new Error(message);
@@ -101,8 +102,20 @@ const tripService = {
     return tripModel.findAvailable(filters);
   },
 
-  book(tripId, passengerId) {
-    return tripModel.book(tripId, passengerId);
+  async book(tripId, passengerId) {
+    const reservation = await tripModel.book(tripId, passengerId);
+
+    // La solicitud ya está guardada en BD; un fallo al notificar no debe romperla
+    try {
+      const trip = await tripModel.findById(reservation.viaje_id);
+      if (trip) {
+        await notificationService.notifyNewReservationRequest(reservation, trip);
+      }
+    } catch (err) {
+      console.error("[notifications] No se pudo notificar la nueva solicitud:", err);
+    }
+
+    return reservation;
   },
 };
 

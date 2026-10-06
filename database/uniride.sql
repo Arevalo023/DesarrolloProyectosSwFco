@@ -173,6 +173,15 @@ BEGIN
 END
 GO
 
+-- 9.1. Bases existentes: relacionar la notificación con la solicitud y el viaje
+IF COL_LENGTH('dbo.Notificaciones', 'solicitud_id') IS NULL
+    ALTER TABLE Notificaciones ADD solicitud_id INT NULL;
+GO
+
+IF COL_LENGTH('dbo.Notificaciones', 'viaje_id') IS NULL
+    ALTER TABLE Notificaciones ADD viaje_id INT NULL;
+GO
+
 /* ========================================================================
    2. LLAVES FORÁNEAS (mismos nombres que el esquema original;
       solo se crean si no existen)
@@ -246,6 +255,16 @@ GO
 IF OBJECT_ID('FK_Notificacion_Usuario', 'F') IS NULL
     ALTER TABLE Notificaciones ADD CONSTRAINT FK_Notificacion_Usuario
         FOREIGN KEY (usuario_id) REFERENCES Usuarios(id);
+GO
+
+IF OBJECT_ID('FK_Notificacion_Solicitud', 'F') IS NULL
+    ALTER TABLE Notificaciones ADD CONSTRAINT FK_Notificacion_Solicitud
+        FOREIGN KEY (solicitud_id) REFERENCES SolicitudesViaje(id);
+GO
+
+IF OBJECT_ID('FK_Notificacion_Viaje', 'F') IS NULL
+    ALTER TABLE Notificaciones ADD CONSTRAINT FK_Notificacion_Viaje
+        FOREIGN KEY (viaje_id) REFERENCES Viajes(id);
 GO
 
 /* ========================================================================

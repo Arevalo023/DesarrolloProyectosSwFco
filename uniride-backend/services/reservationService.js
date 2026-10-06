@@ -1,4 +1,6 @@
 const reservationModel = require("../models/reservationModel");
+const tripModel = require("../models/tripModel");
+const notificationService = require("./notificationService");
 
 const ESTADOS_VALIDOS = ["aceptada", "rechazada"];
 
@@ -12,11 +14,31 @@ const reservationService = {
       throw e;
     }
 
-    return reservationModel.respond(reservationId, driverId, nuevoEstado);
+    const reservation = await reservationModel.respond(reservationId, driverId, nuevoEstado);
+
+    // El cambio ya está confirmado en BD; un fallo al notificar no debe romperlo
+    try {
+      await notificationService.notifyReservationStatusChange(reservation);
+    } catch (err) {
+      console.error("[notifications] No se pudo notificar el cambio de estado:", err);
+    }
+
+    return reservation;
   },
 
   async cancel(reservationId, userId) {
-    return reservationModel.cancel(reservationId, userId);
+    const reservation = await reservationModel.cancel(reservationId, userId);
+
+    try {
+      const trip = await tripModel.findById(reservation.viaje_id);
+      if (trip) {
+        await notificationService.notifyReservationCancelled(reservation, trip);
+      }
+    } catch (err) {
+      console.error("[notifications] No se pudo notificar la cancelación:", err);
+    }
+
+    return reservation;
   },
 
   async listByPassenger(passengerId, { order = "asc" } = {}) {
