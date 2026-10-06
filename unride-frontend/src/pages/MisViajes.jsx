@@ -5,12 +5,10 @@ import {
   CalendarDays,
   Car,
   Clock3,
-  DollarSign,
   MapPin,
   Users,
   Plus,
   LoaderCircle,
-  AlertCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

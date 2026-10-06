@@ -46,7 +46,6 @@ function Home({
 
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [bookingId, setBookingId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -135,42 +134,6 @@ function Home({
       );
     } finally {
       setLoading(false);
-    }
-  };
-
-  // ============================================================
-  // RESERVAR VIAJE
-  // ============================================================
-
-  const reservarViaje = async (tripId) => {
-    setBookingId(tripId);
-    setError("");
-    setMessage("");
-
-    try {
-      const data = await apiRequest(
-        `/api/trips/${tripId}/book`,
-        { method: "POST" }
-      );
-
-      setTrips((current) =>
-        current
-          .map((trip) =>
-            trip.id === tripId
-              ? {
-                  ...trip,
-                  cupo_disponible: trip.cupo_disponible - 1,
-                }
-              : trip
-          )
-          .filter((trip) => trip.cupo_disponible > 0)
-      );
-
-      setMessage(data.message);
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setBookingId(null);
     }
   };
 
@@ -429,33 +392,35 @@ function Home({
                     </span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuPerfil(false);
-                      onMisViajes();
-                    }}
-                    className="
-                      flex
-                      w-full
-                      items-center
-                      gap-3
-                      rounded-lg
-                      px-4
-                      py-3
-                      text-left
-                      text-sm
-                      text-slate-700
-                      hover:bg-emerald-50
-                      hover:text-emerald-700
-                    "
-                  >
-                    <ClipboardList size={18} />
+                  {modoConductor && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuPerfil(false);
+                        onMisViajes();
+                      }}
+                      className="
+                        flex
+                        w-full
+                        items-center
+                        gap-3
+                        rounded-lg
+                        px-4
+                        py-3
+                        text-left
+                        text-sm
+                        text-slate-700
+                        hover:bg-emerald-50
+                        hover:text-emerald-700
+                      "
+                    >
+                      <ClipboardList size={18} />
 
-                    <span>
-                      Mis viajes
-                    </span>
-                  </button>
+                      <span>
+                        Mis viajes
+                      </span>
+                    </button>
+                  )}
 
 
                   {/* SEPARADOR */}
@@ -1140,7 +1105,7 @@ function Home({
 
             {/* MIS VIAJES */}
 
-            <Card className="transition-shadow hover:shadow-lg">
+            {modoConductor && <Card className="transition-shadow hover:shadow-lg">
 
               <CardContent className="p-6">
 
@@ -1190,7 +1155,7 @@ function Home({
 
               </CardContent>
 
-            </Card>
+            </Card>}
 
           </div>
 

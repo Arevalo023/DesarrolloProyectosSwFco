@@ -20,7 +20,6 @@ import {
   X,
   CheckCircle2,
   ArrowLeft,
-  Car,
 } from "lucide-react";
 
 import { apiRequest } from "@/services/api";

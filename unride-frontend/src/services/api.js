@@ -53,12 +53,7 @@ export async function apiRequest(ruta, { method = "GET", body, auth = true } = {
     );
   }
 
-  let data = {};
-  try {
-    data = await respuesta.json();
-  } catch {
-    data = {};
-  }
+  const data = await respuesta.json().catch(() => ({}));
 
   if (auth && respuesta.status === 401) {
     // Sesión expirada o token inválido: cerrar sesión en toda la app

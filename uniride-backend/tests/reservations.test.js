@@ -75,13 +75,20 @@ test("reservationController.respond rechaza IDs no numéricos o menores o iguale
 });
 
 test("reservationModel.findByPassenger retorna reservaciones con formato esperado", async () => {
+  const { poolPromise, sql } = require("../config/db");
   const reservationModel = require("../models/reservationModel");
-  // En las semillas, el usuario 1003 tiene reservaciones
-  const rows = await reservationModel.findByPassenger(1003, { order: "asc" });
+  const pool = await poolPromise;
+  const passenger = await pool.request()
+    .input("correo", sql.VarChar(150), "ana.garcia@uadec.edu.mx")
+    .query("SELECT id FROM Usuarios WHERE correo = @correo");
+  const passengerId = passenger.recordset[0]?.id;
+
+  assert.ok(passengerId, "Debe existir el pasajero demo");
+  const rows = await reservationModel.findByPassenger(passengerId, { order: "asc" });
   assert.ok(Array.isArray(rows));
   if (rows.length > 0) {
     const r = rows[0];
-    assert.equal(r.pasajero_id, 1003);
+    assert.equal(r.pasajero_id, passengerId);
     assert.ok(r.origen);
     assert.ok(r.destino);
     assert.ok(r.conductor_nombre);
@@ -102,11 +109,23 @@ test("reservationModel.cancel rechaza reservaciones inexistentes con 404", async
 });
 
 test("reservationModel.cancel rechaza usuarios no autorizados con 403", async () => {
+  const { poolPromise, sql } = require("../config/db");
   const reservationModel = require("../models/reservationModel");
-  // ID 1002 existe en seeds.sql (conductor 6003, pasajero 6002)
-  // Usuario 9999 no es ni conductor ni pasajero de esa reserva
+  const pool = await poolPromise;
+  const reservation = await pool.request()
+    .input("correo", sql.VarChar(150), "sofia.hernandez@uadec.edu.mx")
+    .query(`
+      SELECT TOP 1 sv.id
+      FROM SolicitudesViaje sv
+      INNER JOIN Usuarios u ON u.id = sv.pasajero_id
+      WHERE u.correo = @correo
+      ORDER BY sv.id
+    `);
+  const reservationId = reservation.recordset[0]?.id;
+
+  assert.ok(reservationId, "Debe existir una reservación demo");
   await assert.rejects(
-    () => reservationModel.cancel(1002, 9999),
+    () => reservationModel.cancel(reservationId, 999999),
     (err) => {
       assert.equal(err.statusCode, 403);
       assert.match(err.message, /No tienes permisos/);
@@ -121,9 +140,23 @@ test("Flujo de reservación: book (pendiente) -> respond (aceptada) -> cancel (c
   const reservationModel = require("../models/reservationModel");
 
   const pool = await poolPromise;
-  const driverId = 6003;
-  const passengerId = 6002;
-  const vehicleId = 1002;
+  const driver = await pool.request()
+    .input("correo", sql.VarChar(150), "carlos.ramirez@uadec.edu.mx")
+    .query("SELECT id FROM Usuarios WHERE correo = @correo");
+  const passenger = await pool.request()
+    .input("correo", sql.VarChar(150), "sofia.hernandez@uadec.edu.mx")
+    .query("SELECT id FROM Usuarios WHERE correo = @correo");
+  const vehicle = await pool.request()
+    .input("placa", sql.VarChar(20), "SAL-002")
+    .query("SELECT id FROM Vehiculos WHERE placa = @placa");
+
+  const driverId = driver.recordset[0]?.id;
+  const passengerId = passenger.recordset[0]?.id;
+  const vehicleId = vehicle.recordset[0]?.id;
+
+  assert.ok(driverId, "Debe existir el conductor demo");
+  assert.ok(passengerId, "Debe existir el pasajero demo");
+  assert.ok(vehicleId, "Debe existir el vehículo demo");
 
   // Fecha en el futuro (2 días adelante)
   const futureDate = new Date();

@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import {
-  AlertCircle,
   ArrowLeft,
   CalendarDays,
   Car,
-  CheckCircle2,
   Clock3,
   DollarSign,
   MapPin,
@@ -18,8 +16,7 @@ import { Label } from "@/components/ui/label";
 import AlertBanner from "@/components/ui/alert-banner";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
-
-const API_URL = "http://localhost:3000";
+import { apiRequest } from "@/services/api";
 
 const formularioInicial = {
   vehiculo_id: "",
@@ -42,16 +39,7 @@ export default function PublicarViaje({ onBackHome, onPublished }) {
   useEffect(() => {
     const cargarVehiculos = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/vehicles/user`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || "No se pudieron cargar los vehículos.");
-        }
+        const data = await apiRequest("/api/vehicles/user");
 
         const vehiculosActivos = (data.vehicles || []).filter((vehiculo) => {
           const valor = vehiculo.activo;
@@ -94,28 +82,19 @@ export default function PublicarViaje({ onBackHome, onPublished }) {
     setMensaje("");
 
     try {
-      const response = await fetch(`${API_URL}/api/trips`, {
+      const data = await apiRequest("/api/trips", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
+        body: {
           vehiculo_id: Number(formulario.vehiculo_id),
           origen: formulario.origen.trim(),
           destino: formulario.destino.trim(),
           fecha_salida: `${formulario.fecha}T${formulario.hora}`,
           costo_por_pasajero: Number(formulario.precio),
           cupo_disponible: Number(formulario.asientos),
-        }),
+        },
       });
-      const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || "No se pudo publicar el viaje.");
-      }
-
-      setMensaje("Viaje publicado correctamente.");
+      setMensaje(data.message || "Viaje publicado correctamente.");
       window.setTimeout(onPublished, 700);
     } catch (requestError) {
       setError(requestError.message);
