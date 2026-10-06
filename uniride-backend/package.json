@@ -6,7 +6,11 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "db:init": "node scripts/db-init.js",
-    "db:seed": "node scripts/db-init.js --seed"
+    "db:seed": "node scripts/db-init.js --seed",
+    "db:init:test": "DB_NAME=uniride_test node scripts/db-init.js",
+    "test": "jest tests/unit",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration --runInBand --forceExit"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -22,6 +26,8 @@
     "tedious": "^19.2.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.0.0"
   }
 }
