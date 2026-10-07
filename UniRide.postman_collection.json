@@ -1,0 +1,529 @@
+{
+  "info": {
+    "_postman_id": "uniride-api-collection-v1",
+    "name": "UniRide API - Colección Oficial",
+    "description": "Colección completa de endpoints para el proyecto UniRide (Backend Node.js/Express con SQL Server). Incluye Autenticación, Usuarios, Vehículos, Viajes, Reservaciones y Notificaciones.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "activeRole",
+      "value": "Pasajero",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check",
+      "item": [
+        {
+          "name": "Verificar Estado del Servidor",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Verifica que el servidor backend esté encendido y operativo."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Autenticación y Usuarios",
+      "item": [
+        {
+          "name": "Registro de Usuario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Carlos Mendoza\",\n  \"email\": \"carlos.mendoza@uadec.edu.mx\",\n  \"password\": \"Demo1234!\",\n  \"telefono\": \"8441234567\",\n  \"campus_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "register"]
+            },
+            "description": "Registra una nueva cuenta de usuario institucional."
+          },
+          "response": []
+        },
+        {
+          "name": "Inicio de Sesión (Login)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"luis.martinez@uadec.edu.mx\",\n  \"password\": \"Demo1234!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "login"]
+            },
+            "description": "Autentica al usuario y obtiene el JWT de sesión."
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Perfil Autenticado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me"]
+            },
+            "description": "Devuelve la información del usuario autenticado a partir del JWT."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Perfil",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Luis\",\n  \"apellido\": \"Martínez\",\n  \"telefono\": \"8441112233\",\n  \"campus_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me"]
+            },
+            "description": "Modifica los datos editables del perfil del usuario."
+          },
+          "response": []
+        },
+        {
+          "name": "Catálogo de Campus",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/campuses",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "campuses"]
+            },
+            "description": "Lista los campus disponibles registrados en la base de datos."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Vehículos",
+      "item": [
+        {
+          "name": "Registrar Vehículo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"marca\": \"Nissan\",\n  \"modelo\": \"Versa\",\n  \"anio\": 2022,\n  \"color\": \"Blanco\",\n  \"placa\": \"SAL-999\",\n  \"asientos_disponibles\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"]
+            },
+            "description": "Registra un vehículo propio. Si el usuario no era Conductor, se le añade automáticamente el rol."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Mis Vehículos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/user",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "user"]
+            },
+            "description": "Obtiene la lista de vehículos pertenecientes al usuario autenticado."
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Vehículo por ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "1"]
+            },
+            "description": "Obtiene la información de un vehículo específico por su ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Vehículo",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"marca\": \"Nissan\",\n  \"modelo\": \"Versa\",\n  \"anio\": 2023,\n  \"color\": \"Gris\",\n  \"placa\": \"SAL-999\",\n  \"asientos_disponibles\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "1"]
+            },
+            "description": "Modifica los datos de un vehículo propio."
+          },
+          "response": []
+        },
+        {
+          "name": "Cambiar Estado (Activo/Inactivo)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activo\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/1/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "1", "status"]
+            },
+            "description": "Activa o desactiva un vehículo para ser usado en la publicación de viajes."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Viajes",
+      "item": [
+        {
+          "name": "Publicar Viaje (Conductor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Conductor"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehiculo_id\": 1,\n  \"origen\": \"Campus Arteaga\",\n  \"destino\": \"Zona Centro Saltillo\",\n  \"fecha_salida\": \"2026-10-15T08:00:00.000Z\",\n  \"cupo_disponible\": 3,\n  \"costo_por_pasajero\": 25.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips"]
+            },
+            "description": "Publica un nuevo viaje para otros estudiantes. Requiere rol Conductor."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Mis Viajes Publicados (Conductor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Conductor"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/driver",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "driver"]
+            },
+            "description": "Devuelve los viajes publicados por el conductor autenticado."
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar Viajes Disponibles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips?origen=Arteaga&destino=Centro",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips"],
+              "query": [
+                {
+                  "key": "origen",
+                  "value": "Arteaga",
+                  "disabled": false
+                },
+                {
+                  "key": "destino",
+                  "value": "Centro",
+                  "disabled": false
+                },
+                {
+                  "key": "fecha",
+                  "value": "2026-10-15",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Consulta viajes activos/programados con cupo > 0 y fecha futura."
+          },
+          "response": []
+        },
+        {
+          "name": "Reservar Asiento en Viaje (Pasajero)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Pasajero"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/1/book",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "1", "book"]
+            },
+            "description": "Crea una solicitud de reserva en estado pendiente sin descontar cupo anticipadamente."
+          },
+          "response": []
+        },
+        {
+          "name": "Mis Reservaciones de Viaje",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/reservations?order=asc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "reservations"],
+              "query": [
+                {
+                  "key": "order",
+                  "value": "asc"
+                }
+              ]
+            },
+            "description": "Consulta todas las reservaciones solicitadas por el pasajero autenticado."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Reservaciones y Solicitudes",
+      "item": [
+        {
+          "name": "Mis Reservaciones (Alias)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reservations"]
+            },
+            "description": "Alias para consultar las reservaciones del pasajero autenticado."
+          },
+          "response": []
+        },
+        {
+          "name": "Aceptar o Rechazar Solicitud (Conductor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"aceptada\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reservations/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reservations", "1"]
+            },
+            "description": "El conductor dueño del viaje acepta o rechaza una solicitud. Al aceptar, descuenta 1 asiento atómicamente."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancelar Reservación (Pasajero o Conductor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservations/1/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reservations", "1", "cancel"]
+            },
+            "description": "Cancela la reservación. Si estaba aceptada, devuelve 1 asiento al viaje."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Notificaciones",
+      "item": [
+        {
+          "name": "Listar Notificaciones del Usuario",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications?noLeidas=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                {
+                  "key": "noLeidas",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Consulta las notificaciones del usuario autenticado ordenadas de la más reciente a la más antigua."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

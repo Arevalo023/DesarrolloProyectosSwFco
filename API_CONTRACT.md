@@ -1,13 +1,15 @@
-# 📄 Contrato de API - UniRide (Autenticación, Usuarios y Viajes)
+# 📄 Contrato Oficial de API - UniRide
 
-Este documento define el **Contrato Oficial de Integración** entre el Backend (Node.js/Express) y el Frontend (React/Vite).
+Este documento define el **Contrato Oficial de Integración** entre el Backend (Node.js/Express) y el Frontend (React/Vite), así como la especificación de referencia para pruebas y consumo de servicios.
+
+Colección de Postman disponible: [`UniRide.postman_collection.json`](file:///home/seb4stian53/Projects/DesarrolloProyectosSwFco/UniRide.postman_collection.json)
 
 ---
 
 ## 🌐 1. Información General
 
 - **Base URL (Desarrollo):** `http://localhost:3000`
-- **Formato de datos:** `JSON`
+- **Formato de datos:** `application/json` (UTF-8)
 - **Cabecera obligatoria para peticiones con cuerpo:**
   ```http
   Content-Type: application/json
@@ -21,18 +23,29 @@ Todas las respuestas de error (`4xx` y `5xx`) retornan una estructura uniforme c
   "message": "Descripción clara del error para mostrar al usuario"
 }
 ```
+Si el error está asociado a control de acceso o roles, puede incluir opcionalmente `code` y `requiredRole`:
+```json
+{
+  "message": "Cambia a modo Conductor para realizar esta acción.",
+  "code": "ROLE_NOT_ACTIVE",
+  "requiredRole": "Conductor"
+}
+```
 
 ---
 
 ## 🔑 2. Autenticación y Seguridad
 
-Para los endpoints protegidos (como `/users/me`), se utiliza **JSON Web Tokens (JWT)** con esquema `Bearer`:
+Para los endpoints protegidos, se utiliza **JSON Web Tokens (JWT)** con esquema `Bearer`:
 ```http
 Authorization: Bearer <tu_jwt_token_aqui>
 ```
 - **Duración del token:** 24 horas (`JWT_EXPIRES_IN=24h`).
-- **Expiración:** Si el token expira, el backend responderá con código `401 Unauthorized` y el mensaje `"La sesión ha expirado. Por favor inicia sesión nuevamente."`.
-- **Estructura del Payload JWT (Soporte M:N):**
+- **Expiración:** Si el token expira, el backend responderá con código `401 Unauthorized`:
+  ```json
+  { "message": "La sesión ha expirado. Por favor inicia sesión nuevamente." }
+  ```
+- **Estructura del Payload JWT (Soporte Roles M:N):**
   ```json
   {
     "id": 1,
@@ -44,33 +57,39 @@ Authorization: Bearer <tu_jwt_token_aqui>
     "exp": 1773696400
   }
   ```
-  *(Nota: `roles` contiene el array completo de roles asignados al usuario. `rol` se conserva con el rol primario por retrocompatibilidad).*
 
-### 2.1. Control de Acceso Basado en Roles (RBAC - `roleMiddleware`)
-Para endpoints con restricción de roles (por ejemplo, registrar o publicar viajes que requieren rol `Conductor`, o módulos administrativos):
-- Si el usuario no tiene la sesión iniciada o el token es inválido: `401 Unauthorized`.
-- Si el usuario está autenticado pero no cuenta con ninguno de los roles requeridos para la ruta:
+### 2.1. Header de Rol Activo (`X-Active-Role`)
+Cuando un usuario posee múltiples roles (por ejemplo, `Pasajero` y `Conductor`), puede enviar el encabezado:
+```http
+X-Active-Role: Conductor
+```
+- Si no se envía el header, el backend asume el rol primario (`rol` o `roles[0]`).
+- Si se envía un rol que no corresponde a la cuenta del usuario:
   - **Código:** `403 Forbidden`
-  - **Cuerpo de Respuesta:**
-    ```json
-    {
-      "message": "Acceso denegado: No cuentas con los permisos necesarios para realizar esta acción."
-    }
-    ```
+  - **Cuerpo:** `{ "message": "El rol activo no corresponde a tu cuenta.", "code": "INVALID_ACTIVE_ROLE" }`
+
+### 2.2. Control de Acceso Basado en Roles (RBAC - `roleMiddleware`)
+Para rutas con roles requeridos:
+- Si el usuario no ha iniciado sesión o el token es inválido: `401 Unauthorized`.
+- Si el usuario cuenta con el rol requerido en su cuenta pero no está activo en `X-Active-Role`:
+  - **Código:** `403 Forbidden`
+  - **Cuerpo:** `{ "message": "Cambia a modo <Rol> para realizar esta acción.", "code": "ROLE_NOT_ACTIVE", "requiredRole": "<Rol>" }`
+- Si el usuario no posee el rol en su cuenta:
+  - **Código:** `403 Forbidden`
+  - **Cuerpo:** `{ "message": "Acceso denegado: No cuentas con los permisos necesarios para realizar esta acción." }`
 
 ---
 
-## 📡 3. Especificación de Endpoints
+## 📡 3. Especificación Detallada de Endpoints
 
 ---
 
 ### 3.1. Health Check
-Verifica que el servidor backend esté encendido y operativo.
+Verifica que el backend esté operativo.
 
 - **Método:** `GET`
 - **Ruta:** `/health`
 - **Acceso:** Público
-- **Headers:** Ninguno requerido
 
 #### Respuestas
 **`200 OK`**
@@ -83,507 +102,660 @@ Verifica que el servidor backend esté encendido y operativo.
 
 ---
 
-### 3.2. Registro de Usuario
-Crea una nueva cuenta de usuario en el sistema.
+### 3.2. Módulo de Usuarios y Autenticación (`/users`)
 
-- **Método:** `POST`
-- **Ruta:** `/users/register`
+#### 3.2.1. Registro de Usuario (`POST /users/register`)
 - **Acceso:** Público
-- **Headers:** `Content-Type: application/json`
+- **Body (JSON):**
+  | Campo | Tipo | Requerido | Reglas |
+  |---|---|---|---|
+  | `name` / `nombre` | string | Sí | Mínimo 2 caracteres. Se divide automáticamente en nombre y apellido si viene completo. |
+  | `apellido` | string | Opcional | Mínimo 2 caracteres (si se envía por separado). |
+  | `email` / `correo` | string | Sí | Dominio institucional educativo (`.edu.mx`, `.edu`, `.mx`). |
+  | `password` | string | Sí | Mínimo 8 caracteres, al menos 1 mayúscula, 1 número y 1 carácter especial. |
+  | `telefono` | string | Opcional | Entre 10 y 15 dígitos numéricos. |
+  | `campus_id` | number | Opcional | ID numérico del campus universitario. |
 
-#### Cuerpo de la Petición (`Request Body`)
-| Campo | Tipo | Requerido | Descripción / Reglas |
-| :--- | :--- | :--- | :--- |
-| `name` | `string` | **Sí** | Nombre completo (mínimo 2 caracteres). El backend separa automáticamente en nombre y apellido. |
-| `email` | `string` | **Sí** | Correo institucional con formato válido. |
-| `password` | `string` | **Sí** | Contraseña (mínimo 8 caracteres). |
-| `telefono` | `string` | *Opcional* | Número de teléfono (entre 7 y 20 caracteres numéricos/guiones). |
-| `rol_id` | `number` | *Opcional* | Por defecto `1` (*Pasajero*). |
-| `campus_id` | `number` | *Opcional* | Por defecto `1` (*Campus Arteaga*). |
-
-##### Ejemplo de Payload:
+**Ejemplo de Request:**
 ```json
 {
   "name": "Juan Perez",
   "email": "juan.perez@uadec.edu.mx",
-  "password": "Password123",
-  "telefono": "8441234567"
+  "password": "Password123!",
+  "telefono": "8441234567",
+  "campus_id": 1
 }
 ```
 
-#### Respuestas
-
-**`201 Created` - Usuario creado exitosamente**
-```json
-{
-  "message": "Usuario registrado exitosamente.",
-  "user": {
-    "id": 1,
-    "nombre": "Juan",
-    "apellido": "Perez",
-    "correo": "juan.perez@uadec.edu.mx",
-    "telefono": "8441234567",
-    "roles": [
-      "Pasajero"
-    ],
-    "rol": "Pasajero",
-    "rol_id": 1,
-    "campus_id": 1,
-    "fecha_registro": "2026-09-07T21:40:00.000Z"
-  }
-}
-```
-
-**`400 Bad Request` - Error de validación de datos**
-```json
-{
-  "message": "El nombre completo es requerido (mínimo 2 caracteres)."
-}
-```
-*(Posibles mensajes: `"El correo electrónico es requerido."`, `"El formato del correo electrónico no es válido."`, `"La contraseña debe tener al menos 8 caracteres."`, `"El teléfono debe ser un formato válido (entre 7 y 20 dígitos numéricos)."`)*
-
-**`409 Conflict` - Correo duplicado**
-```json
-{
-  "message": "El correo institucional ya se encuentra registrado"
-}
-```
-
-**`500 Internal Server Error` - Error inesperado del servidor**
-```json
-{
-  "message": "Error interno del servidor al registrar el usuario."
-}
-```
-
----
-
-### 3.3. Inicio de Sesión (Login)
-Autentica al usuario y devuelve el token de sesión JWT junto con sus datos de perfil.
-
-- **Método:** `POST`
-- **Ruta:** `/users/login`
-- **Acceso:** Público
-- **Headers:** `Content-Type: application/json`
-
-#### Cuerpo de la Petición (`Request Body`)
-| Campo | Tipo | Requerido | Descripción |
-| :--- | :--- | :--- | :--- |
-| `email` | `string` | **Sí** | Correo institucional registrado. |
-| `password` | `string` | **Sí** | Contraseña del usuario. |
-
-##### Ejemplo de Payload:
-```json
-{
-  "email": "juan.perez@uadec.edu.mx",
-  "password": "Password123"
-}
-```
-
-#### Respuestas
-
-**`200 OK` - Autenticación exitosa**
-```json
-{
-  "message": "Inicio de sesión exitoso.",
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiY29ycmVvIjoianVhbi5wZXJlei... ",
-  "user": {
-    "id": 1,
-    "nombre": "Juan",
-    "apellido": "Perez",
-    "correo": "juan.perez@uadec.edu.mx",
-    "telefono": "8441234567",
-    "roles": [
-      "Pasajero"
-    ],
-    "rol": "Pasajero",
-    "campus": "Campus Arteaga",
-    "universidad": "Universidad Autónoma de Coahuila"
-  }
-}
-```
-
-**`400 Bad Request` - Faltan credenciales**
-```json
-{
-  "message": "El correo electrónico y la contraseña son requeridos."
-}
-```
-
-**`401 Unauthorized` - Credenciales incorrectas**
-```json
-{
-  "message": "Credenciales incorrectas"
-}
-```
-
-**`500 Internal Server Error`**
-```json
-{
-  "message": "Error interno del servidor al iniciar sesión."
-}
-```
-
----
-
-### 3.4. Obtener Perfil Autenticado
-Obtiene la información actualizada del usuario autenticado a partir del token JWT.
-
-- **Método:** `GET`
-- **Ruta:** `/users/me`
-- **Acceso:** Privado (Protegido con JWT)
-- **Headers Requeridos:**
-  ```http
-  Authorization: Bearer <token>
-  ```
-
-#### Respuestas
-
-**`200 OK` - Perfil obtenido**
-```json
-{
-  "user": {
-    "id": 1,
-    "nombre": "Juan",
-    "apellido": "Perez",
-    "correo": "juan.perez@uadec.edu.mx",
-    "telefono": "8441234567",
-    "roles": [
-      "Pasajero"
-    ],
-    "rol": "Pasajero",
-    "campus": "Campus Arteaga",
-    "universidad": "Universidad Autónoma de Coahuila",
-    "fecha_registro": "2026-09-07T21:40:00.000Z"
-  }
-}
-```
-
-**`401 Unauthorized` - Token ausente o inválido**
-```json
-{
-  "message": "Acceso no autorizado: Token no proporcionado."
-}
-```
-*O si el token ya expiró:*
-```json
-{
-  "message": "La sesión ha expirado. Por favor inicia sesión nuevamente."
-}
-```
-
-**`404 Not Found` - Usuario no existe en la base de datos**
-```json
-{
-  "message": "Usuario no encontrado"
-}
-```
-
----
-
-### 3.5. Consultar Viajes Disponibles
-Obtiene el listado de viajes programados o activos con cupo disponible que aún no han salido.
-
-- **Método:** `GET`
-- **Ruta:** `/api/trips`
-- **Acceso:** Privado (Requiere JWT)
-- **Headers Requeridos:**
-  ```http
-  Authorization: Bearer <token>
-  ```
-
-#### Parámetros de Consulta (`Query Parameters`)
-| Parámetro | Tipo | Requerido | Descripción / Formato |
-| :--- | :--- | :--- | :--- |
-| `origen` | `string` | *Opcional* | Búsqueda parcial por lugar de salida. |
-| `destino` | `string` | *Opcional* | Búsqueda parcial por lugar de destino. |
-| `fecha` | `string` | *Opcional* | Fecha exacta de salida en formato `YYYY-MM-DD`. Si el formato es inválido, retorna código `400`. |
-
-#### Reglas de Negocio
-1. Solo retorna viajes cuyo estado sea `'activo'` o `'programado'`.
-2. Solo retorna viajes con cupo disponible mayor a 0 (`cupo_disponible > 0`).
-3. Excluye estrictamente viajes en el pasado (`fecha_salida >= GETDATE()`).
-4. Retorna compatibilidad de nombres: `cupo_disponible` (para componentes Frontend) y `asientos_disponibles`.
-5. Incluye datos completos del conductor (`conductor`, `conductor_id`, `conductor_telefono`) y del vehículo (`marca`, `modelo`, `color`, `placa`).
-6. Ordenamiento cronológico ascendente por `fecha_salida`.
-
-#### Respuestas
-
-**`200 OK` - Listado obtenido**
-```json
-{
-  "trips": [
-    {
+**Respuestas:**
+- **`201 Created`**:
+  ```json
+  {
+    "message": "Usuario registrado exitosamente.",
+    "user": {
       "id": 1,
-      "origen": "Campus Arteaga",
-      "destino": "Zona Centro Saltillo",
-      "fecha_salida": "2026-09-22T16:00:00.000Z",
+      "nombre": "Juan",
+      "apellido": "Perez",
+      "correo": "juan.perez@uadec.edu.mx",
+      "telefono": "8441234567",
+      "roles": ["Pasajero"],
+      "rol": "Pasajero",
+      "campus_id": 1
+    }
+  }
+  ```
+- **`400 Bad Request`**: Datos inválidos o faltantes (`El nombre es requerido`, `El correo debe ser institucional...`, `La contraseña debe tener...`).
+- **`409 Conflict`**: `"El correo institucional ya se encuentra registrado"`
+- **`500 Internal Server Error`**: `"Error interno del servidor al registrar el usuario."`
+
+---
+
+#### 3.2.2. Inicio de Sesión (`POST /users/login`)
+- **Acceso:** Público
+- **Body (JSON):**
+  ```json
+  {
+    "email": "juan.perez@uadec.edu.mx",
+    "password": "Password123!"
+  }
+  ```
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "message": "Inicio de sesión exitoso.",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": 1,
+      "nombre": "Juan",
+      "apellido": "Perez",
+      "correo": "juan.perez@uadec.edu.mx",
+      "telefono": "8441234567",
+      "roles": ["Pasajero"],
+      "rol": "Pasajero",
+      "campus": "Campus Arteaga",
+      "universidad": "Universidad Autónoma de Coahuila"
+    }
+  }
+  ```
+- **`400 Bad Request`**: `"El correo electrónico y la contraseña son requeridos."`
+- **`401 Unauthorized`**: `"Credenciales incorrectas"`
+- **`500 Internal Server Error`**: `"Error interno del servidor al iniciar sesión."`
+
+---
+
+#### 3.2.3. Perfil de Usuario Autenticado (`GET /users/me`)
+- **Acceso:** Privado (`Authorization: Bearer <token>`)
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "user": {
+      "id": 1,
+      "nombre": "Juan",
+      "apellido": "Perez",
+      "correo": "juan.perez@uadec.edu.mx",
+      "telefono": "8441234567",
+      "roles": ["Pasajero"],
+      "rol": "Pasajero",
+      "campus": "Campus Arteaga",
+      "campus_id": 1,
+      "universidad": "Universidad Autónoma de Coahuila"
+    }
+  }
+  ```
+- **`401 Unauthorized`**: `"Acceso no autorizado: Token no proporcionado."` o expirado.
+- **`404 Not Found`**: `"Usuario no encontrado"`
+
+---
+
+#### 3.2.4. Actualizar Perfil (`PATCH /users/me`)
+- **Acceso:** Privado (`Authorization: Bearer <token>`)
+- **Body (JSON):**
+  ```json
+  {
+    "nombre": "Juan Carlos",
+    "apellido": "Perez",
+    "telefono": "8449876543",
+    "campus_id": 1
+  }
+  ```
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "message": "Perfil actualizado correctamente.",
+    "user": {
+      "id": 1,
+      "nombre": "Juan Carlos",
+      "apellido": "Perez",
+      "correo": "juan.perez@uadec.edu.mx",
+      "telefono": "8449876543",
+      "campus_id": 1
+    }
+  }
+  ```
+- **`400 Bad Request`**: Error en formato de nombre, apellido, teléfono o campus.
+- **`401 Unauthorized`**: Token no válido o ausente.
+
+---
+
+#### 3.2.5. Catálogo de Campus (`GET /users/campuses`)
+- **Acceso:** Privado (`Authorization: Bearer <token>`)
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "campuses": [
+      { "id": 1, "nombre": "Campus Arteaga", "ciudad": "Arteaga" },
+      { "id": 2, "nombre": "Campus Poniente", "ciudad": "Saltillo" }
+    ]
+  }
+  ```
+
+---
+
+### 3.3. Módulo de Vehículos (`/api/vehicles`)
+
+Todos los endpoints requieren `Authorization: Bearer <token>`.
+
+#### 3.3.1. Registrar Vehículo (`POST /api/vehicles`)
+Registra un nuevo vehículo y, en caso de que el usuario no cuente con el rol `Conductor`, se le asigna automáticamente y se retorna una nueva sesión con el token actualizado.
+
+- **Body (JSON):**
+  | Campo | Tipo | Requerido | Reglas |
+  |---|---|---|---|
+  | `marca` | string | Sí | Mínimo 2 caracteres. |
+  | `modelo` | string | Sí | Mínimo 1 carácter. |
+  | `anio` | number | Sí | Entero (año del vehículo). |
+  | `color` | string | Sí | Mínimo 2 caracteres. |
+  | `placa` | string | Sí | Única en el sistema. |
+  | `asientos_disponibles` | number | Sí | Entero positivo. |
+
+**Ejemplo de Request:**
+```json
+{
+  "marca": "Nissan",
+  "modelo": "Versa",
+  "anio": 2022,
+  "color": "Blanco",
+  "placa": "SAL-102",
+  "asientos_disponibles": 4
+}
+```
+
+**Respuestas:**
+- **`201 Created` (Si el usuario ya era conductor):**
+  ```json
+  {
+    "message": "Vehículo registrado exitosamente.",
+    "vehicle": {
+      "id": 1,
+      "usuario_id": 1,
+      "marca": "Nissan",
+      "modelo": "Versa",
+      "anio": 2022,
+      "color": "Blanco",
+      "placa": "SAL-102",
+      "asientos_disponibles": 4,
+      "activo": true
+    }
+  }
+  ```
+- **`201 Created` (Si se le asignó rol Conductor automáticamente):**
+  ```json
+  {
+    "message": "Vehículo registrado exitosamente. Ahora también eres Conductor.",
+    "vehicle": { ... },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": { ... },
+    "rolAgregado": "Conductor"
+  }
+  ```
+- **`400 Bad Request`**: Datos inválidos en marca, modelo, año, color, placa o asientos.
+- **`409 Conflict`**: `"La placa ya está registrada"`
+
+---
+
+#### 3.3.2. Listar Mis Vehículos (`GET /api/vehicles/user`)
+Retorna los vehículos pertenecientes al usuario autenticado.
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "vehicles": [
+      {
+        "id": 1,
+        "usuario_id": 1,
+        "marca": "Nissan",
+        "modelo": "Versa",
+        "anio": 2022,
+        "color": "Blanco",
+        "placa": "SAL-102",
+        "asientos_disponibles": 4,
+        "activo": true
+      }
+    ]
+  }
+  ```
+
+---
+
+#### 3.3.3. Obtener Vehículo por ID (`GET /api/vehicles/:id`)
+**Respuestas:**
+- **`200 OK`**: `{ "vehicle": { "id": 1, ... } }`
+- **`400 Bad Request`**: `"El ID debe ser un número entero."`
+- **`404 Not Found`**: `"Vehículo no encontrado."`
+
+---
+
+#### 3.3.4. Actualizar Vehículo (`PUT /api/vehicles/:id`)
+Permite al dueño del vehículo modificar sus datos.
+
+**Respuestas:**
+- **`200 OK`**: `{ "message": "Vehículo actualizado exitosamente.", "vehicle": { ... } }`
+- **`403 Forbidden`**: `"No tienes permiso para modificar este vehículo"`
+- **`404 Not Found`**: `"Vehículo no encontrado"`
+- **`409 Conflict`**: `"La placa ya está registrada por otro vehículo"`
+
+---
+
+#### 3.3.5. Cambiar Estado Activo/Inactivo (`PATCH /api/vehicles/:id/status`)
+- **Body (JSON):**
+  ```json
+  { "activo": false }
+  ```
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "message": "Estado del vehículo actualizado exitosamente.",
+    "vehicle": { "id": 1, "activo": false }
+  }
+  ```
+- **`400 Bad Request`**: `"El campo activo es obligatorio y debe ser true o false."`
+- **`403 Forbidden`**: `"No tienes permiso para modificar este vehículo"`
+
+---
+
+### 3.4. Módulo de Viajes (`/api/trips`)
+
+#### 3.4.1. Publicar Viaje (`POST /api/trips`)
+- **Acceso:** Privado (`Authorization: Bearer <token>`, requiere rol `Conductor` en `X-Active-Role` o principal).
+- **Body (JSON):**
+  | Campo | Tipo | Requerido | Descripción |
+  |---|---|---|---|
+  | `vehiculo_id` | number | Sí | ID del vehículo propio (debe estar activo). |
+  | `origen` | string | Sí | Dirección / campus de origen. |
+  | `destino` | string | Sí | Dirección / campus de destino. |
+  | `fecha_salida` | string | Sí | Fecha y hora ISO (o combinar `fecha` y `hora`). |
+  | `cupo_disponible` | number | Sí | Cupo de asientos disponibles (no puede superar la capacidad del auto). |
+  | `costo_por_pasajero` | number | Sí | Tarifa por pasajero (>= 0). |
+
+**Ejemplo de Request:**
+```json
+{
+  "vehiculo_id": 1,
+  "origen": "Campus Poniente",
+  "destino": "Rectoría UAdeC",
+  "fecha_salida": "2026-10-15T08:00:00.000Z",
+  "cupo_disponible": 3,
+  "costo_por_pasajero": 25.00
+}
+```
+
+**Respuestas:**
+- **`201 Created`**:
+  ```json
+  {
+    "message": "Viaje publicado correctamente.",
+    "trip": {
+      "id": 10,
+      "conductor_id": 1,
+      "vehiculo_id": 1,
+      "origen": "Campus Poniente",
+      "destino": "Rectoría UAdeC",
+      "fecha_salida": "2026-10-15T08:00:00.000Z",
       "cupo_disponible": 3,
       "asientos_disponibles": 3,
       "costo_por_pasajero": 25.00,
-      "estado": "activo",
-      "conductor": "Carlos Mendoza",
-      "conductor_id": 2,
+      "estado": "programado",
+      "conductor": "Juan Perez",
       "conductor_telefono": "8441234567",
       "marca": "Nissan",
       "modelo": "Versa",
-      "color": "Gris",
-      "placa": "ABC-123"
+      "color": "Blanco",
+      "placa": "SAL-102"
     }
-  ]
-}
-```
-
-**`400 Bad Request` - Formato de fecha incorrecto**
-```json
-{
-  "message": "El formato de fecha debe ser YYYY-MM-DD."
-}
-```
-
-**`401 Unauthorized` - Token no enviado o expirado**
-```json
-{
-  "message": "Acceso no autorizado: Token no proporcionado."
-}
-```
-
----
-
-### 3.6. Reservar Asiento en Viaje
-Permite a un usuario con rol `Pasajero` solicitar y reservar un lugar en un viaje disponible.
-
-- **Método:** `POST`
-- **Ruta:** `/api/trips/:id/book`
-- **Acceso:** Privado (Requiere JWT y rol `Pasajero` validado por `roleMiddleware`)
-- **Headers Requeridos:**
-  ```http
-  Authorization: Bearer <token>
+  }
   ```
-- **Parámetros de Ruta (`URL Params`):**
-  - `id`: ID numérico entero positivo del viaje.
-
-#### Reglas de Negocio
-1. **Control de Acceso (RBAC):** Requiere rol `Pasajero`. Si el usuario carece de dicho rol, responde `403 Forbidden`.
-2. **Prohibición de Auto-reserva:** El conductor del viaje no puede reservar su propio viaje (responde `400 Bad Request`).
-3. **Viajes Pasados:** No se pueden reservar viajes con `fecha_salida` anterior a la fecha y hora actual (responde `400 Bad Request`).
-4. **Estado:** Solo viajes en estado `'activo'` o `'programado'` pueden ser reservados (responde `400 Bad Request`).
-5. **No Duplicidad:** Un pasajero no puede reservar el mismo viaje más de una vez mientras tenga una solicitud activa (responde `409 Conflict`).
-6. **Descuento Atómico y Registro:** Ejecuta una transacción SQL para descontar 1 asiento en `Viajes` y registrar la solicitud en `SolicitudesViaje` con estado `'pendiente'`.
-7. **Cupo Agotado:** Si el cupo se agota, responde `409 Conflict`.
-
-#### Respuestas
-
-**`201 Created` - Reserva exitosa**
-```json
-{
-  "message": "Reserva realizada correctamente.",
-  "booking": {
-    "id": 12,
-    "viaje_id": 1,
-    "pasajero_id": 3,
-    "estado": "pendiente",
-    "fecha_solicitud": "2026-09-21T19:30:00.000Z",
-    "asientos_restantes": 2
-  }
-}
-```
-
-**`400 Bad Request` - ID inválido, viaje expirado o auto-reserva**
-```json
-{
-  "message": "El ID del viaje debe ser un número entero positivo."
-}
-```
-*O si el conductor intenta reservar su propio viaje:*
-```json
-{
-  "message": "No puedes reservar tu propio viaje como conductor."
-}
-```
-*O si la fecha del viaje ya transcurrió:*
-```json
-{
-  "message": "No es posible reservar un viaje cuya fecha u hora ya ha transcurrido."
-}
-```
-
-**`401 Unauthorized` - Token inválido o no enviado**
-```json
-{
-  "message": "Acceso no autorizado: Token no proporcionado."
-}
-```
-
-**`403 Forbidden` - Rol insuficiente**
-```json
-{
-  "message": "Acceso denegado: No cuentas con los permisos necesarios para realizar esta acción."
-}
-```
-
-**`404 Not Found` - El viaje no existe**
-```json
-{
-  "message": "El viaje solicitado no existe."
-}
-```
-
-**`409 Conflict` - Sin cupo o reservación duplicada**
-```json
-{
-  "message": "El cupo para este viaje se encuentra agotado."
-}
-```
-*O si el pasajero ya tiene reservación activa en este viaje:*
-```json
-{
-  "message": "Ya tienes una reservación activa para este viaje."
-}
-```
+- **`400 Bad Request`**: Datos incompletos, vehículo inactivo o fecha de salida en el pasado.
+- **`403 Forbidden`**: No cuenta con rol Conductor (`ROLE_NOT_ACTIVE`).
 
 ---
 
-## 💻 4. Guía y Código de Ejemplo para Frontend (React / Fetch)
+#### 3.4.2. Listar Viajes Publicados por Conductor (`GET /api/trips/driver`)
+- **Acceso:** Privado (`Conductor`).
 
-Para facilitarle la vida al equipo de Frontend, pueden crear un archivo de servicio centralizado en `src/services/authService.js` o `src/lib/api.js`:
-
-```javascript
-// src/services/authService.js
-const API_URL = "http://localhost:3000";
-
-export const authService = {
-  // 1. Registro
-  async register({ name, email, password, telefono }) {
-    const res = await fetch(`${API_URL}/users/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, telefono }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Error al registrarse");
-    return data;
-  },
-
-  // 2. Login
-  async login({ email, password }) {
-    const res = await fetch(`${API_URL}/users/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Error al iniciar sesión");
-
-    // Guardar token y usuario en localStorage
-    if (data.token) {
-      localStorage.setItem("uniride_token", data.token);
-      localStorage.setItem("uniride_user", JSON.stringify(data.user));
-    }
-    return data;
-  },
-
-  // 3. Obtener Usuario Actual (/users/me)
-  async getMe() {
-    const token = localStorage.getItem("uniride_token");
-    if (!token) throw new Error("No hay sesión activa");
-
-    const res = await fetch(`${API_URL}/users/me`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      // Si expiró el token, limpiar sesión
-      if (res.status === 401) {
-        localStorage.removeItem("uniride_token");
-        localStorage.removeItem("uniride_user");
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "trips": [
+      {
+        "id": 10,
+        "origen": "Campus Poniente",
+        "destino": "Rectoría UAdeC",
+        "fecha_salida": "2026-10-15T08:00:00.000Z",
+        "cupo_disponible": 3,
+        "asientos_disponibles": 3,
+        "costo_por_pasajero": 25.00,
+        "estado": "programado",
+        "usuarios_separaron_asiento": 1,
+        "vehiculo_marca": "Nissan",
+        "vehiculo_modelo": "Versa",
+        "vehiculo_placa": "SAL-102",
+        "vehiculo_activo": true
       }
-      throw new Error(data.message || "Error al obtener perfil");
-    }
-    return data.user;
-  },
-
-  // 4. Cerrar Sesión
-  logout() {
-    localStorage.removeItem("uniride_token");
-    localStorage.removeItem("uniride_user");
+    ]
   }
-};
-
-// src/services/tripService.js
-export const tripService = {
-  // 1. Consultar viajes disponibles con filtros
-  async getAvailableTrips({ origen = "", destino = "", fecha = "" } = {}) {
-    const token = localStorage.getItem("uniride_token");
-    const params = new URLSearchParams();
-    if (origen) params.append("origen", origen);
-    if (destino) params.append("destino", destino);
-    if (fecha) params.append("fecha", fecha);
-
-    const query = params.toString() ? `?${params.toString()}` : "";
-    const res = await fetch(`${API_URL}/api/trips${query}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Error al cargar viajes");
-    return data.trips;
-  },
-
-  // 2. Reservar asiento en un viaje
-  async bookTrip(tripId) {
-    const token = localStorage.getItem("uniride_token");
-    const res = await fetch(`${API_URL}/api/trips/${tripId}/book`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Error al reservar el viaje");
-    return data;
-  }
-};
-```
+  ```
 
 ---
 
-## 🧪 5. Ejemplos Rápidos con cURL para Pruebas
+#### 3.4.3. Buscar Viajes Disponibles (`GET /api/trips`)
+- **Acceso:** Privado (cualquier usuario autenticado).
+- **Query Params:**
+  - `origen` (opcional): Filtro parcial de origen.
+  - `destino` (opcional): Filtro parcial de destino.
+  - `fecha` (opcional): Fecha en formato `YYYY-MM-DD`.
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "trips": [
+      {
+        "id": 10,
+        "origen": "Campus Poniente",
+        "destino": "Rectoría UAdeC",
+        "fecha_salida": "2026-10-15T08:00:00.000Z",
+        "cupo_disponible": 3,
+        "asientos_disponibles": 3,
+        "costo_por_pasajero": 25.00,
+        "estado": "activo",
+        "conductor": "Juan Perez",
+        "conductor_id": 1,
+        "conductor_telefono": "8441234567",
+        "marca": "Nissan",
+        "modelo": "Versa",
+        "color": "Blanco",
+        "placa": "SAL-102"
+      }
+    ]
+  }
+  ```
+- **`400 Bad Request`**: `"El formato de fecha debe ser YYYY-MM-DD."`
+
+---
+
+#### 3.4.4. Reservar Asiento en Viaje (`POST /api/trips/:id/book`)
+Permite a un usuario con rol `Pasajero` solicitar un asiento en un viaje.
+> **Regla de Negocio:** La solicitud se crea con estado `pendiente`. **El cupo disponible NO se descuenta** al reservar; se descuenta únicamente cuando el conductor confirma y acepta la solicitud (`PATCH /api/reservations/:id`).
+
+- **Acceso:** Privado (`Pasajero`).
+- **Parámetros de Ruta:** `id` (entero positivo, ID del viaje).
+
+**Respuestas:**
+- **`201 Created`**:
+  ```json
+  {
+    "message": "Reserva realizada correctamente.",
+    "booking": {
+      "id": 15,
+      "viaje_id": 10,
+      "pasajero_id": 2,
+      "estado": "pendiente",
+      "fecha_solicitud": "2026-10-07T12:00:00.000Z",
+      "asientos_restantes": 3
+    }
+  }
+  ```
+- **`400 Bad Request`**:
+  - `"El ID del viaje debe ser un número entero positivo."`
+  - `"No puedes reservar tu propio viaje como conductor."`
+  - `"No es posible reservar un viaje cuya fecha u hora ya ha transcurrido."`
+- **`404 Not Found`**: `"El viaje solicitado no existe."`
+- **`409 Conflict`**:
+  - `"El cupo para este viaje se encuentra agotado."`
+  - `"Ya tienes una reservación activa para este viaje."`
+
+---
+
+#### 3.4.5. Mis Reservaciones de Viaje (`GET /api/trips/reservations`)
+Permite a un pasajero consultar todas sus reservaciones realizadas.
+*(Disponible también en el alias `GET /api/reservations`)*
+
+- **Acceso:** Privado.
+- **Query Params:**
+  - `order` (opcional): `'asc'` (por defecto, próximos primero) o `'desc'`.
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "reservations": [
+      {
+        "id": 15,
+        "viaje_id": 10,
+        "pasajero_id": 2,
+        "estado": "pendiente",
+        "fecha_solicitud": "2026-10-07T12:00:00.000Z",
+        "origen": "Campus Poniente",
+        "destino": "Rectoría UAdeC",
+        "fecha_salida": "2026-10-15T08:00:00.000Z",
+        "cupo_disponible": 3,
+        "asientos_disponibles": 3,
+        "costo_por_pasajero": 25.00,
+        "viaje_estado": "programado",
+        "conductor_id": 1,
+        "conductor_nombre": "Juan Perez",
+        "conductor_telefono": "8441234567",
+        "vehiculo_id": 1,
+        "vehiculo_marca": "Nissan",
+        "vehiculo_modelo": "Versa",
+        "vehiculo_color": "Blanco",
+        "vehiculo_placa": "SAL-102"
+      }
+    ]
+  }
+  ```
+
+---
+
+### 3.5. Módulo de Reservaciones (`/api/reservations`)
+
+#### 3.5.1. Aceptar o Rechazar Solicitud de Reserva (`PATCH /api/reservations/:id`)
+El conductor dueño del viaje acepta o rechaza la solicitud de un pasajero.
+
+- **Acceso:** Privado (Solo el conductor dueño del viaje: `Viajes.conductor_id = req.user.id`).
+- **Parámetros de Ruta:** `id` (ID de la solicitud en `SolicitudesViaje`).
+- **Body (JSON):**
+  ```json
+  { "estado": "aceptada" }
+  ```
+  *(Valores válidos: `"aceptada"` o `"rechazada"`)*
+
+**Reglas de Negocio:**
+- Al pasar a `aceptada`: Se descuenta 1 de `Viajes.cupo_disponible` de manera atómica con bloqueo transaccional.
+- Al pasar a `rechazada`: No modifica el cupo.
+- Solo pueden responderse solicitudes en estado inicial `pendiente`.
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "message": "Solicitud aceptada correctamente.",
+    "reservation": {
+      "id": 15,
+      "viaje_id": 10,
+      "pasajero_id": 2,
+      "estado": "aceptada",
+      "asientos_restantes": 2
+    }
+  }
+  ```
+- **`400 Bad Request`**:
+  - `"El ID de la solicitud debe ser un número entero positivo."`
+  - `"El estado debe ser 'aceptada' o 'rechazada'."`
+  - `"El viaje ya no admite solicitudes."`
+- **`403 Forbidden`**: `"Solo el conductor dueño del viaje puede gestionar esta solicitud."`
+- **`404 Not Found`**: `"La solicitud no existe."`
+- **`409 Conflict`**:
+  - `"La solicitud ya fue resuelta (estado actual: aceptada)."`
+  - `"No hay cupo disponible en este viaje."`
+
+---
+
+#### 3.5.2. Cancelar Reservación (`PATCH /api/reservations/:id/cancel`)
+Permite al pasajero titular o al conductor cancelar una reservación.
+
+- **Acceso:** Privado (Pasajero titular de la reserva O Conductor dueño del viaje).
+- **Parámetros de Ruta:** `id` (ID de la solicitud en `SolicitudesViaje`).
+
+**Reglas de Negocio:**
+- Si la reservación estaba en estado `aceptada`: **restituye 1 asiento** en `Viajes.cupo_disponible` (`+1`).
+- Si estaba en estado `pendiente`: cambia a `cancelada` sin modificar cupo.
+- Bloquea la cancelación si el viaje ya inició o su fecha de salida ya transcurrió.
+- Rechaza con `409 Conflict` si ya estaba previamente `cancelada` o `rechazada`.
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "message": "Reservación cancelada correctamente.",
+    "reservation": {
+      "id": 15,
+      "viaje_id": 10,
+      "pasajero_id": 2,
+      "estado": "cancelada",
+      "cancelado_por": "pasajero",
+      "asientos_restantes": 3
+    }
+  }
+  ```
+- **`400 Bad Request`**:
+  - `"El ID de la reservación debe ser un número entero positivo."`
+  - `"El tiempo límite para cancelar la reservación ha expirado o el viaje ya inició."`
+  - `"El viaje ya no está disponible para cancelaciones."`
+- **`403 Forbidden`**: `"No tienes permisos para cancelar esta reservación."`
+- **`404 Not Found`**: `"La reservación no existe."`
+- **`409 Conflict`**:
+  - `"La reservación ya se encuentra cancelada."`
+  - `"No se puede cancelar una reservación rechazada."`
+
+---
+
+### 3.6. Módulo de Notificaciones (`/api/notifications`)
+
+#### 3.6.1. Listar Notificaciones (`GET /api/notifications`)
+Consulta el historial de notificaciones generadas para el usuario autenticado (ej. solicitudes recibidas, confirmaciones, cancelaciones).
+
+- **Acceso:** Privado (`Authorization: Bearer <token>`).
+- **Query Params:**
+  - `noLeidas` (opcional): Si es `true`, filtra únicamente notificaciones con `leida = 0`.
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "notifications": [
+      {
+        "id": 1,
+        "usuario_id": 2,
+        "solicitud_id": 15,
+        "viaje_id": 10,
+        "tipo": "SOLICITUD_ACEPTADA",
+        "titulo": "¡Tu solicitud de viaje fue aceptada!",
+        "mensaje": "El conductor aceptó tu reservación para el viaje a Rectoría UAdeC.",
+        "leida": false,
+        "fecha_creacion": "2026-10-07T12:05:00.000Z"
+      }
+    ]
+  }
+  ```
+
+---
+
+## 📊 4. Matriz de Códigos de Estado HTTP
+
+| Código | Significado | Escenario Típico en UniRide |
+|---|---|---|
+| **200 OK** | Éxito en consulta o actualización | GET exitoso, PATCH/PUT aplicado correctamente. |
+| **201 Created** | Recurso creado exitosamente | Usuario registrado, viaje publicado, vehículo registrado, reserva creada. |
+| **400 Bad Request** | Datos faltantes o formato inválido | Fechas mal formateadas, email no institucional, ID no entero positivo. |
+| **401 Unauthorized** | Autenticación ausente o inválida | Token no enviado, token expirado o firma incorrecta. |
+| **403 Forbidden** | Permisos insuficientes | Rol activo incorrecto, intentar modificar vehículo o viaje ajeno. |
+| **404 Not Found** | Recurso no encontrado | ID de viaje, vehículo, usuario o reserva inexistente. |
+| **409 Conflict** | Conflicto con estado del recurso | Correo duplicado, placa repetida, viaje sin cupo, reserva duplicada o ya resuelta. |
+| **500 Internal Error** | Error no controlado en el servidor | Falla en base de datos o excepción no capturada. |
+
+---
+
+## 🧪 5. Ejemplos Rápidos con cURL
 
 ```bash
-# Health Check
+# 1. Health Check
 curl -X GET http://localhost:3000/health
 
-# Registro
-curl -X POST http://localhost:3000/users/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Carlos Lopez","email":"carlos@uadec.edu.mx","password":"Password123","telefono":"8441112233"}'
-
-# Login
+# 2. Login
 curl -X POST http://localhost:3000/users/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"carlos@uadec.edu.mx","password":"Password123"}'
+  -d '{"email":"luis.martinez@uadec.edu.mx","password":"Demo1234!"}'
 
-# Obtener Perfil (Reemplazar <TOKEN>)
-curl -X GET http://localhost:3000/users/me \
+# 3. Registrar Vehículo
+curl -X POST http://localhost:3000/api/vehicles \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"marca":"Nissan","modelo":"Versa","anio":2022,"color":"Rojo","placa":"ABC-999","asientos_disponibles":4}'
+
+# 4. Publicar Viaje (Conductor)
+curl -X POST http://localhost:3000/api/trips \
+  -H "Authorization: Bearer <TOKEN_CONDUCTOR>" \
+  -H "X-Active-Role: Conductor" \
+  -H "Content-Type: application/json" \
+  -d '{"vehiculo_id":1,"origen":"Campus Poniente","destino":"Rectoría","fecha_salida":"2026-10-20T08:00:00.000Z","cupo_disponible":3,"costo_por_pasajero":20}'
+
+# 5. Buscar Viajes Disponibles
+curl -X GET "http://localhost:3000/api/trips?origen=Poniente" \
   -H "Authorization: Bearer <TOKEN>"
 
-# Consultar Viajes Disponibles (Reemplazar <TOKEN>)
-curl -X GET "http://localhost:3000/api/trips?origen=Arteaga&destino=Centro&fecha=2026-09-22" \
-  -H "Authorization: Bearer <TOKEN>"
-
-# Reservar Asiento en Viaje ID 1 (Reemplazar <TOKEN_PASAJERO>)
+# 6. Reservar Asiento en Viaje ID 1 (Pasajero)
 curl -X POST http://localhost:3000/api/trips/1/book \
+  -H "Authorization: Bearer <TOKEN_PASAJERO>" \
+  -H "X-Active-Role: Pasajero"
+
+# 7. Consultar Mis Reservaciones
+curl -X GET http://localhost:3000/api/trips/reservations \
   -H "Authorization: Bearer <TOKEN_PASAJERO>"
+
+# 8. Conductor Acepta Reservación ID 2
+curl -X PATCH http://localhost:3000/api/reservations/2 \
+  -H "Authorization: Bearer <TOKEN_CONDUCTOR>" \
+  -H "Content-Type: application/json" \
+  -d '{"estado":"aceptada"}'
+
+# 9. Cancelar Reservación ID 2
+curl -X PATCH http://localhost:3000/api/reservations/2/cancel \
+  -H "Authorization: Bearer <TOKEN_PASAJERO>"
+
+# 10. Consultar Notificaciones
+curl -X GET http://localhost:3000/api/notifications \
+  -H "Authorization: Bearer <TOKEN>"
 ```
