@@ -34,7 +34,7 @@ describe("apiRequest y token expirado", () => {
       "Pasajero"
     );
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
 
@@ -87,7 +87,7 @@ describe("apiRequest y token expirado", () => {
       listener
     );
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
 
