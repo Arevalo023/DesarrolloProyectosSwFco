@@ -5,7 +5,6 @@ import AlertBanner from "@/components/ui/alert-banner";
 import { useState } from "react";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
-import "../styles/Home.css";
 
 import {
   Search,
@@ -15,7 +14,9 @@ import {
   MapPin,
   CalendarDays,
   UserRound,
-  Bell,
+  Clock3,
+  X,
+  ChevronDown,
 } from "lucide-react";
 
 import heroImage from "@/assets/hero.png";
@@ -29,8 +30,7 @@ function Home({
   onVehiculos,
   onPublish,
   onMisViajes,
-  onNotificaciones,
-  onVerViaje,
+  onMisReservaciones,
   user,
   rolActivo,
   onCambiarRol,
@@ -38,14 +38,36 @@ function Home({
   const [menuPerfil, setMenuPerfil] = useState(false);
   const [confirmarCierreSesion, setConfirmarCierreSesion] = useState(false);
 
+  // ============================================================
+  // FILTROS
+  // ============================================================
+
   const [filters, setFilters] = useState({
     origen: "",
     destino: "",
     fecha: "",
+    horaDesde: "",
+    horaHasta: "",
   });
+
+  // ============================================================
+  // VIAJES
+  // ============================================================
 
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [bookingId, setBookingId] = useState(null);
+
+  // Cantidad de resultados mostrados inicialmente.
+  const [visibleCount, setVisibleCount] = useState(6);
+
+  // Permite saber si el usuario ya realizó una búsqueda.
+  const [hasSearched, setHasSearched] = useState(false);
+
+  // ============================================================
+  // MENSAJES
+  // ============================================================
+
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -58,7 +80,7 @@ function Home({
   const tieneRol = (rol) =>
     userRoles.some((r) => mismoRol(r, rol));
 
-  // Si aún no hay rol activo guardado, se usa el principal
+  // Si aún no hay rol activo guardado, se usa el principal.
   const rolEnUso = rolActivo || user?.rol || userRoles[0] || "";
 
   const modoConductor = mismoRol(rolEnUso, "Conductor");
@@ -97,45 +119,333 @@ function Home({
   };
 
   // ============================================================
+  // CONVERTIR HORA HH:MM A MINUTOS
+  // ============================================================
+
+  const horaEnMinutos = (hora) => {
+    if (!hora) return null;
+
+    const [horas, minutos] = hora.split(":").map(Number);
+
+    if (
+      Number.isNaN(horas) ||
+      Number.isNaN(minutos)
+    ) {
+      return null;
+    }
+
+    return horas * 60 + minutos;
+  };
+
+  // ============================================================
+  // OBTENER HORA DE UN VIAJE
+  // ============================================================
+
+  const viajeEnMinutos = (fechaSalida) => {
+    if (!fechaSalida) return null;
+
+    const fecha = new Date(fechaSalida);
+
+    if (Number.isNaN(fecha.getTime())) {
+      return null;
+    }
+
+    return (
+      fecha.getHours() * 60 +
+      fecha.getMinutes()
+    );
+  };
+
+  // ============================================================
+  // VALIDAR HORARIO
+  // ============================================================
+
+  const rangoHorarioValido = () => {
+    const desde = horaEnMinutos(filters.horaDesde);
+    const hasta = horaEnMinutos(filters.horaHasta);
+
+    if (
+      desde !== null &&
+      hasta !== null &&
+      desde > hasta
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
+  // ============================================================
   // BUSCAR VIAJES
   // ============================================================
 
-  const buscarViajes = async (event) => {
-    event.preventDefault();
+  const buscarViajes = async (
+    event,
+    filtrosActuales = filters
+  ) => {
+    event?.preventDefault();
+
+    const desde = horaEnMinutos(
+      filtrosActuales.horaDesde
+    );
+
+    const hasta = horaEnMinutos(
+      filtrosActuales.horaHasta
+    );
+
+    if (
+      desde !== null &&
+      hasta !== null &&
+      desde > hasta
+    ) {
+      setError(
+        "La hora inicial no puede ser posterior a la hora final."
+      );
+      setMessage("");
+      return;
+    }
 
     setLoading(true);
     setError("");
     setMessage("");
+    setVisibleCount(6);
 
     try {
-      const query = new URLSearchParams(
-        Object.entries(filters).filter(
-          ([, value]) => value
-        )
-      );
+      /*
+       * IMPORTANTE:
+       * El backend solamente acepta:
+       * - origen
+       * - destino
+       * - fecha
+       *
+       * Las horas se filtran posteriormente
+       * en el frontend.
+       */
+
+      const queryParams = new URLSearchParams();
+
+      if (filtrosActuales.origen) {
+        queryParams.set(
+          "origen",
+          filtrosActuales.origen
+        );
+      }
+
+      if (filtrosActuales.destino) {
+        queryParams.set(
+          "destino",
+          filtrosActuales.destino
+        );
+      }
+
+      if (filtrosActuales.fecha) {
+        queryParams.set(
+          "fecha",
+          filtrosActuales.fecha
+        );
+      }
+
+      const query = queryParams.toString();
 
       const data = await apiRequest(
-        `/api/trips?${query.toString()}`
+        query
+          ? `/api/trips?${query}`
+          : "/api/trips"
       );
 
       setTrips(data.trips || []);
-
-      if (!data.trips || data.trips.length === 0) {
-        setMessage(
-          "No se encontraron viajes con los filtros seleccionados."
-        );
-      }
+      setHasSearched(true);
     } catch (requestError) {
-      setTrips([]);
-
       setError(
         requestError.message ||
-          "No se pudieron obtener los viajes."
+          "No se pudieron cargar los viajes."
       );
+
+      setTrips([]);
+      setHasSearched(true);
     } finally {
       setLoading(false);
     }
   };
+
+  // ============================================================
+  // LIMPIAR FILTROS
+  // ============================================================
+
+  const limpiarFiltros = async () => {
+    const filtrosVacios = {
+      origen: "",
+      destino: "",
+      fecha: "",
+      horaDesde: "",
+      horaHasta: "",
+    };
+
+    setFilters(filtrosVacios);
+    setVisibleCount(6);
+    setError("");
+    setMessage("");
+
+    /*
+     * Volvemos a consultar todos los viajes disponibles
+     * después de limpiar.
+     */
+    await buscarViajes(
+      undefined,
+      filtrosVacios
+    );
+  };
+
+  // ============================================================
+  // FILTRAR VIAJES POR HORARIO
+  // ============================================================
+
+  const tripsFiltrados = trips.filter((trip) => {
+    const horaViaje = viajeEnMinutos(
+      trip.fecha_salida
+    );
+
+    if (horaViaje === null) {
+      return false;
+    }
+
+    const desde = horaEnMinutos(
+      filters.horaDesde
+    );
+
+    const hasta = horaEnMinutos(
+      filters.horaHasta
+    );
+
+    if (
+      desde !== null &&
+      horaViaje < desde
+    ) {
+      return false;
+    }
+
+    if (
+      hasta !== null &&
+      horaViaje > hasta
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // ============================================================
+  // PAGINACIÓN / CARGAR MÁS
+  // ============================================================
+
+  const tripsVisibles = tripsFiltrados.slice(
+    0,
+    visibleCount
+  );
+
+  const hayMasViajes =
+    visibleCount < tripsFiltrados.length;
+
+  const cargarMas = () => {
+    setVisibleCount((current) => current + 6);
+  };
+
+  // ============================================================
+  // RESERVAR VIAJE
+  // ============================================================
+
+  const reservarViaje = async (tripId) => {
+    setBookingId(tripId);
+    setError("");
+    setMessage("");
+
+    try {
+      const data = await apiRequest(
+        `/api/trips/${tripId}/book`,
+        {
+          method: "POST",
+        }
+      );
+
+      /*
+       * IMPORTANTE:
+       *
+       * La reserva se crea como "pendiente".
+       * El backend NO descuenta el cupo en este momento.
+       *
+       * El cupo se descuenta cuando el conductor
+       * acepta la reservación.
+       *
+       * Por eso NO modificamos cupo_disponible aquí.
+       */
+
+      setMessage(
+        data.message ||
+          "Solicitud de viaje enviada correctamente. Queda pendiente de aprobación."
+      );
+    } catch (requestError) {
+      setError(
+        requestError.message ||
+          "No se pudo reservar el viaje."
+      );
+    } finally {
+      setBookingId(null);
+    }
+  };
+
+  // ============================================================
+  // FORMATEAR FECHA
+  // ============================================================
+
+  const formatearFecha = (fecha) => {
+    if (!fecha) {
+      return "Fecha no disponible";
+    }
+
+    const date = new Date(fecha);
+
+    if (Number.isNaN(date.getTime())) {
+      return fecha;
+    }
+
+    return new Intl.DateTimeFormat(
+      "es-MX",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    ).format(date);
+  };
+
+  // ============================================================
+  // FORMATEAR HORA
+  // ============================================================
+
+  const formatearHora = (fecha) => {
+    if (!fecha) {
+      return "Hora no disponible";
+    }
+
+    const date = new Date(fecha);
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    return new Intl.DateTimeFormat(
+      "es-MX",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }
+    ).format(date);
+  };
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 text-slate-900">
@@ -145,7 +455,6 @@ function Home({
       ======================================================== */}
 
       <nav className="sticky top-0 z-40 order-0 w-full border-b bg-white">
-
         <div
           className="
             mx-auto
@@ -162,7 +471,6 @@ function Home({
           {/* LOGO */}
 
           <Logo />
-
 
           {/* NAVEGACIÓN CENTRAL */}
 
@@ -209,37 +517,55 @@ function Home({
 
           </div>
 
-
           {/* PERFIL Y CERRAR SESIÓN */}
 
           <div className="flex items-center gap-2">
 
-            {/* ==================================================
-                MODO (ROL ACTIVO)
-                Con varios roles se puede cambiar; con uno solo
-                se muestra como etiqueta fija.
-            ================================================== */}
+            {/* MODO */}
 
             {userRoles.length > 1 ? (
               <div
                 role="group"
                 aria-label="Modo de uso"
-                className="flex rounded-full border border-slate-200 bg-slate-100 p-1"
+                className="
+                  flex
+                  rounded-full
+                  border
+                  border-slate-200
+                  bg-slate-100
+                  p-1
+                "
               >
                 {userRoles.map((rol) => {
-                  const activo = mismoRol(rol, rolEnUso);
+                  const activo = mismoRol(
+                    rol,
+                    rolEnUso
+                  );
 
                   return (
                     <button
                       key={rol}
                       type="button"
                       aria-pressed={activo}
-                      onClick={() => cambiarModo(rol)}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-                        activo
-                          ? "bg-emerald-600 text-white shadow-sm"
-                          : "text-slate-600 hover:text-emerald-700"
-                      }`}
+                      onClick={() =>
+                        cambiarModo(rol)
+                      }
+                      className={`
+                        rounded-full
+                        px-3
+                        py-1
+                        text-xs
+                        font-semibold
+                        transition
+                        focus-visible:outline-none
+                        focus-visible:ring-2
+                        focus-visible:ring-emerald-500
+                        ${
+                          activo
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "text-slate-600 hover:text-emerald-700"
+                        }
+                      `}
                     >
                       {rol}
                     </button>
@@ -247,50 +573,22 @@ function Home({
                 })}
               </div>
             ) : rolEnUso ? (
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+              <span
+                className="
+                  rounded-full
+                  bg-emerald-50
+                  px-3
+                  py-1
+                  text-xs
+                  font-semibold
+                  text-emerald-700
+                "
+              >
                 {rolEnUso}
               </span>
             ) : null}
 
-            {/* NOTIFICACIONES */}
-            <button
-              type="button"
-              onClick={onNotificaciones}
-              className="
-                relative
-                flex
-                h-10
-                w-10
-                items-center
-                justify-center
-                rounded-full
-                text-slate-600
-                transition
-                hover:bg-emerald-50
-                hover:text-emerald-700
-              "
-              title="Notificaciones"
-              aria-label="Abrir notificaciones"
-            >
-              <Bell size={20} />
-
-              <span
-                className="
-                  absolute
-                  right-2
-                  top-2
-                  h-2
-                  w-2
-                  rounded-full
-                  bg-emerald-500
-                "
-                aria-hidden="true"
-              />
-            </button>
-
-            {/* ==================================================
-                BOTÓN DEL PERFIL + MENÚ
-            ================================================== */}
+            {/* PERFIL */}
 
             <div className="relative">
 
@@ -318,86 +616,132 @@ function Home({
                 <UserRound size={20} />
               </Button>
 
-
-              {/* =================================================
-                  MENÚ DEL PERFIL
-              ================================================= */}
+              {/* MENÚ DEL PERFIL */}
 
               <div
-                className={`absolute right-0 top-12 z-50 w-56 origin-top-right rounded-xl border bg-white p-2 shadow-lg transition-all duration-200 ease-out ${
-                  menuPerfil
-                    ? "pointer-events-auto scale-100 opacity-100"
-                    : "pointer-events-none scale-95 opacity-0"
-                }`}
+                className={`
+                  absolute
+                  right-0
+                  top-12
+                  z-50
+                  w-56
+                  origin-top-right
+                  rounded-xl
+                  border
+                  bg-white
+                  p-2
+                  shadow-lg
+                  transition-all
+                  duration-200
+                  ease-out
+                  ${
+                    menuPerfil
+                      ? "pointer-events-auto scale-100 opacity-100"
+                      : "pointer-events-none scale-95 opacity-0"
+                  }
+                `}
                 aria-hidden={!menuPerfil}
               >
-                  {/* VER MI PERFIL */}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuPerfil(false);
-                      onProfile();
-                    }}
-                    className="
-                      flex
-                      w-full
-                      items-center
-                      gap-3
-                      rounded-lg
-                      px-4
-                      py-3
-                      text-left
-                      text-sm
-                      text-slate-700
-                      hover:bg-emerald-50
-                      hover:text-emerald-700
-                    "
-                  >
-                    <UserRound size={18} />
+                {/* VER MI PERFIL */}
 
-                    <span>
-                      Ver mi perfil
-                    </span>
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuPerfil(false);
+                    onProfile?.();
+                  }}
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-lg
+                    px-4
+                    py-3
+                    text-left
+                    text-sm
+                    text-slate-700
+                    hover:bg-emerald-50
+                    hover:text-emerald-700
+                  "
+                >
+                  <UserRound size={18} />
 
+                  <span>
+                    Ver mi perfil
+                  </span>
+                </button>
 
-                  {/* VER MIS VEHÍCULOS */}
+                {/* VER MIS VEHÍCULOS */}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuPerfil(false);
-                      onVehiculos();
-                    }}
-                    className="
-                      flex
-                      w-full
-                      items-center
-                      gap-3
-                      rounded-lg
-                      px-4
-                      py-3
-                      text-left
-                      text-sm
-                      text-slate-700
-                      hover:bg-emerald-50
-                      hover:text-emerald-700
-                    "
-                  >
-                    <Car size={18} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuPerfil(false);
+                    onVehiculos?.();
+                  }}
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-lg
+                    px-4
+                    py-3
+                    text-left
+                    text-sm
+                    text-slate-700
+                    hover:bg-emerald-50
+                    hover:text-emerald-700
+                  "
+                >
+                  <Car size={18} />
 
-                    <span>
-                      Ver mis vehículos
-                    </span>
-                  </button>
+                  <span>
+                    Ver mis vehículos
+                  </span>
+                </button>
 
-                  {modoConductor && (
+                {/* MIS VIAJES */}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuPerfil(false);
+                    onMisViajes?.();
+                  }}
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-lg
+                    px-4
+                    py-3
+                    text-left
+                    text-sm
+                    text-slate-700
+                    hover:bg-emerald-50
+                    hover:text-emerald-700
+                  "
+                >
+                  <ClipboardList size={18} />
+
+                  <span>
+                    Mis viajes
+                  </span>
+                </button>
+
+                {/* MIS RESERVACIONES */}
+
+                {modoPasajero &&
+                  onMisReservaciones && (
                     <button
                       type="button"
                       onClick={() => {
                         setMenuPerfil(false);
-                        onMisViajes();
+                        onMisReservaciones();
                       }}
                       className="
                         flex
@@ -417,57 +761,56 @@ function Home({
                       <ClipboardList size={18} />
 
                       <span>
-                        Mis viajes
+                        Mis reservaciones
                       </span>
                     </button>
                   )}
 
+                {/* SEPARADOR */}
 
-                  {/* SEPARADOR */}
+                <div className="my-1 border-t" />
 
-                  <div className="my-1 border-t" />
+                {/* CERRAR SESIÓN */}
 
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuPerfil(false);
+                    setConfirmarCierreSesion(true);
+                  }}
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-lg
+                    px-4
+                    py-3
+                    text-left
+                    text-sm
+                    text-red-600
+                    hover:bg-red-50
+                  "
+                >
+                  <LogOut size={18} />
 
-                  {/* CERRAR SESIÓN */}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuPerfil(false);
-                      setConfirmarCierreSesion(true);
-                    }}
-                    className="
-                      flex
-                      w-full
-                      items-center
-                      gap-3
-                      rounded-lg
-                      px-4
-                      py-3
-                      text-left
-                      text-sm
-                      text-red-600
-                      hover:bg-red-50
-                    "
-                  >
-                    <LogOut size={18} />
-
-                    <span>
-                      Cerrar sesión
-                    </span>
-                  </button>
+                  <span>
+                    Cerrar sesión
+                  </span>
+                </button>
 
               </div>
 
             </div>
-
 
             {/* BOTÓN CERRAR SESIÓN */}
 
             <Button
               type="button"
               variant="outline"
-              onClick={() => setConfirmarCierreSesion(true)}
+              onClick={() =>
+                setConfirmarCierreSesion(true)
+              }
               className="flex items-center gap-2"
             >
               <LogOut size={16} />
@@ -480,9 +823,7 @@ function Home({
           </div>
 
         </div>
-
       </nav>
-
 
       {/* ========================================================
           BIENVENIDA
@@ -492,7 +833,6 @@ function Home({
         id="inicio"
         className="order-1 border-b bg-white"
       >
-
         <div
           className="
             mx-auto
@@ -523,7 +863,6 @@ function Home({
               MOVILIDAD UNIVERSITARIA
             </p>
 
-
             <h2
               className="
                 text-4xl
@@ -544,7 +883,6 @@ function Home({
               </span>
             </h2>
 
-
             <p
               className="
                 mt-6
@@ -559,7 +897,6 @@ function Home({
               estudiantes de manera sencilla, económica y
               segura.
             </p>
-
 
             <Button
               onClick={handleBuscar}
@@ -580,7 +917,6 @@ function Home({
 
           </div>
 
-
           {/* IMAGEN */}
 
           <div className="flex justify-center">
@@ -598,9 +934,7 @@ function Home({
           </div>
 
         </div>
-
       </section>
-
 
       {/* ========================================================
           BUSCAR VIAJE
@@ -610,7 +944,6 @@ function Home({
         id="buscar"
         className="order-3 px-6 py-20"
       >
-
         <div className="mx-auto max-w-6xl">
 
           {/* TÍTULO */}
@@ -644,7 +977,6 @@ function Home({
 
           </div>
 
-
           {/* FORMULARIO */}
 
           <Card className="shadow-lg">
@@ -653,7 +985,7 @@ function Home({
 
               <form
                 onSubmit={buscarViajes}
-                className="grid gap-5 md:grid-cols-4"
+                className="grid gap-5 md:grid-cols-2 lg:grid-cols-4"
               >
 
                 {/* ORIGEN */}
@@ -690,7 +1022,6 @@ function Home({
 
                 </div>
 
-
                 {/* DESTINO */}
 
                 <div className="space-y-2">
@@ -725,7 +1056,6 @@ function Home({
 
                 </div>
 
-
                 {/* FECHA */}
 
                 <div className="space-y-2">
@@ -759,15 +1089,81 @@ function Home({
 
                 </div>
 
+                {/* HORA DESDE */}
 
-                {/* BOTÓN */}
+                <div className="space-y-2">
 
-                <div className="flex items-end">
+                  <label
+                    htmlFor="horaDesde"
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      text-sm
+                      font-semibold
+                      text-slate-600
+                    "
+                  >
+                    <Clock3
+                      size={16}
+                      className="text-emerald-600"
+                    />
+
+                    Hora desde
+                  </label>
+
+                  <Input
+                    id="horaDesde"
+                    name="horaDesde"
+                    type="time"
+                    value={filters.horaDesde}
+                    onChange={actualizarFiltro}
+                  />
+
+                </div>
+
+                {/* HORA HASTA */}
+
+                <div className="space-y-2">
+
+                  <label
+                    htmlFor="horaHasta"
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      text-sm
+                      font-semibold
+                      text-slate-600
+                    "
+                  >
+                    <Clock3
+                      size={16}
+                      className="text-emerald-600"
+                    />
+
+                    Hora hasta
+                  </label>
+
+                  <Input
+                    id="horaHasta"
+                    name="horaHasta"
+                    type="time"
+                    value={filters.horaHasta}
+                    onChange={actualizarFiltro}
+                  />
+
+                </div>
+
+                {/* BOTONES */}
+
+                <div className="flex items-end gap-3 lg:col-span-3">
 
                   <Button
                     type="submit"
+                    disabled={loading}
                     className="
-                      w-full
+                      flex-1
                       bg-emerald-600
                       text-white
                       hover:bg-emerald-700
@@ -780,127 +1176,384 @@ function Home({
                       : "Buscar viaje"}
                   </Button>
 
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={limpiarFiltros}
+                    disabled={loading}
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      border-slate-300
+                      text-slate-600
+                      hover:bg-slate-50
+                    "
+                  >
+                    <X size={17} />
+
+                    Limpiar
+                  </Button>
+
                 </div>
 
               </form>
 
+              {/* AYUDA DEL FILTRO DE HORARIO */}
 
-              {error && <div className="mt-4"><AlertBanner type="error" message={error} /></div>}
+              {(filters.horaDesde ||
+                filters.horaHasta) && (
+                <div className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                  <Clock3 size={16} />
 
-              {message && <div className="mt-4"><AlertBanner type="success" message={message} /></div>}
+                  <span>
+                    Mostrando viajes dentro del horario seleccionado.
+                  </span>
+                </div>
+              )}
+
+              {error && (
+                <div className="mt-4">
+                  <AlertBanner
+                    type="error"
+                    message={error}
+                  />
+                </div>
+              )}
+
+              {message && (
+                <div className="mt-4">
+                  <AlertBanner
+                    type="success"
+                    message={message}
+                  />
+                </div>
+              )}
 
             </CardContent>
 
           </Card>
 
+          {/* ====================================================
+              RESULTADOS
+          ==================================================== */}
 
-          {/* RESULTADOS */}
+          {loading ? (
+            <div className="mt-8 rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
 
-          {trips.length > 0 && (
-            <div className="viajes-resultados">
+              <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-600" />
 
-              {trips.map((trip) => (
+              <p className="text-sm text-slate-500">
+                Buscando viajes disponibles...
+              </p>
 
-                <Card
-                  key={trip.id}
-                  className="viaje-resultado-card"
+            </div>
+          ) : hasSearched &&
+            tripsFiltrados.length === 0 ? (
+
+            /* ==================================================
+               ESTADO SIN RESULTADOS
+            ================================================== */
+
+            <Card className="mt-8">
+
+              <CardContent className="p-10 text-center">
+
+                <div
+                  className="
+                    mx-auto
+                    mb-5
+                    flex
+                    h-14
+                    w-14
+                    items-center
+                    justify-center
+                    rounded-full
+                    bg-slate-100
+                    text-slate-500
+                  "
                 >
-                  <CardContent className="p-6">
-                    <div className="viaje-resultado-layout">
-                      <div className="viaje-resultado-info">
-                        <div className="viaje-resultado-header">
-                          <div>
-                            <h3 className="viaje-resultado-ruta">
-                              {trip.origen} → {trip.destino}
-                            </h3>
+                  <Search size={25} />
+                </div>
 
-                            <p className="viaje-resultado-fecha">
-                              {new Date(trip.fecha_salida).toLocaleString(
-                                "es-MX",
-                                {
-                                  day: "2-digit",
-                                  month: "long",
-                                  year: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
+                <h3 className="text-lg font-semibold text-slate-900">
+                  No encontramos viajes
+                </h3>
+
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                  No hay viajes que coincidan con los filtros seleccionados.
+                  Intenta cambiar la fecha, ruta u horario.
+                </p>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={limpiarFiltros}
+                  className="mt-5"
+                >
+                  <X size={17} />
+
+                  Limpiar filtros
+                </Button>
+
+              </CardContent>
+
+            </Card>
+
+          ) : tripsFiltrados.length > 0 ? (
+
+            <div className="mt-8">
+
+              {/* CONTADOR */}
+
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+
+                <p className="text-sm text-slate-500">
+                  {tripsFiltrados.length === 1
+                    ? "1 viaje encontrado"
+                    : `${tripsFiltrados.length} viajes encontrados`}
+                </p>
+
+                {(filters.horaDesde ||
+                  filters.horaHasta) && (
+                  <p className="text-sm text-slate-500">
+                    Horario:
+                    {" "}
+                    {filters.horaDesde || "00:00"}
+                    {" - "}
+                    {filters.horaHasta || "23:59"}
+                  </p>
+                )}
+
+              </div>
+
+              {/* TARJETAS */}
+
+              <div className="grid gap-4 md:grid-cols-2">
+
+                {tripsVisibles.map((trip) => (
+
+                  <Card
+                    key={trip.id}
+                    className="transition-shadow hover:shadow-md"
+                  >
+
+                    <CardContent
+                      className="
+                        flex
+                        flex-col
+                        gap-4
+                        p-5
+                      "
+                    >
+
+                      <div
+                        className="
+                          flex
+                          items-start
+                          justify-between
+                          gap-4
+                        "
+                      >
+
+                        <div>
+
+                          <h3 className="font-semibold text-slate-900">
+                            {trip.origen}
+                            {" → "}
+                            {trip.destino}
+                          </h3>
+
+                          <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-500">
+
+                            <span className="flex items-center gap-1.5">
+                              <CalendarDays
+                                size={15}
+                                className="text-emerald-600"
+                              />
+
+                              {formatearFecha(
+                                trip.fecha_salida
                               )}
-                            </p>
+                            </span>
+
+                            <span className="flex items-center gap-1.5">
+                              <Clock3
+                                size={15}
+                                className="text-emerald-600"
+                              />
+
+                              {formatearHora(
+                                trip.fecha_salida
+                              )}
+                            </span>
+
                           </div>
 
-                          <span className="viaje-resultado-precio">
-                            ${trip.costo_por_pasajero}
-                          </span>
                         </div>
 
-                        <div className="viaje-resultado-datos">
-                          <div className="viaje-dato">
-                            <span className="viaje-dato-label">
-                              Conductor
-                            </span>
+                        <span className="whitespace-nowrap font-semibold text-emerald-700">
+                          $
+                          {Number(
+                            trip.costo_por_pasajero ?? 0
+                          ).toFixed(2)}
+                        </span>
 
-                            <strong>{trip.conductor}</strong>
-                          </div>
-
-                          <div className="viaje-dato">
-                            <span className="viaje-dato-label">
-                              Vehículo
-                            </span>
-
-                            <strong>
-                              {trip.marca} {trip.modelo}
-                            </strong>
-                          </div>
-
-                          <div className="viaje-dato">
-                            <span className="viaje-dato-label">
-                              Lugares disponibles
-                            </span>
-
-                            <strong>
-                              {trip.cupo_disponible}
-                            </strong>
-                          </div>
-                        </div>
                       </div>
 
-                      <div className="viaje-resultado-accion">
+                      {/* CONDUCTOR */}
+
+                      <p className="text-sm text-slate-600">
+                        Conduce{" "}
+                        {trip.conductor ||
+                          trip.conductor_nombre ||
+                          "Conductor"}{" "}
+                        ·{" "}
+                        {trip.marca ||
+                          trip.vehiculo_marca ||
+                          "Vehículo"}{" "}
+                        {trip.modelo ||
+                          trip.vehiculo_modelo ||
+                          ""}
+                      </p>
+
+                      {/* ASIENTOS + ACCIÓN */}
+
+                      <div
+                        className="
+                          flex
+                          flex-col
+                          gap-3
+                          border-t
+                          pt-4
+                          sm:flex-row
+                          sm:items-center
+                          sm:justify-between
+                        "
+                      >
+
+                        <span className="text-sm text-slate-500">
+                          {Number(
+                            trip.cupo_disponible ??
+                              trip.asientos_disponibles ??
+                              0
+                          )}{" "}
+                          {Number(
+                            trip.cupo_disponible ??
+                              trip.asientos_disponibles ??
+                              0
+                          ) === 1
+                            ? "asiento disponible"
+                            : "asientos disponibles"}
+                        </span>
+
                         {modoPasajero ? (
+
                           <Button
                             type="button"
-                            onClick={() => onVerViaje?.(trip)}
-                            className="viaje-ver-button"
+                            onClick={() =>
+                              reservarViaje(
+                                trip.id
+                              )
+                            }
+                            disabled={
+                              bookingId ===
+                              trip.id ||
+                              Number(
+                                trip.cupo_disponible ??
+                                  trip.asientos_disponibles ??
+                                  0
+                              ) <= 0
+                            }
+                            className="
+                              bg-emerald-600
+                              text-white
+                              hover:bg-emerald-700
+                            "
                           >
-                            Ver viaje
+                            {bookingId === trip.id
+                              ? "Solicitando..."
+                              : "Tomar viaje"}
                           </Button>
+
                         ) : tieneRol("Pasajero") ? (
+
                           <Button
                             type="button"
                             variant="outline"
-                            onClick={() => cambiarModo("Pasajero")}
-                            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                            onClick={() =>
+                              cambiarModo(
+                                "Pasajero"
+                              )
+                            }
+                            className="
+                              border-emerald-200
+                              text-emerald-700
+                              hover:bg-emerald-50
+                            "
                           >
                             Cambiar a modo Pasajero
                           </Button>
+
                         ) : (
+
                           <span className="text-sm text-slate-500">
                             Solo pasajeros pueden reservar
                           </span>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
 
-              ))}
+                        )}
+
+                      </div>
+
+                    </CardContent>
+
+                  </Card>
+
+                ))}
+
+              </div>
+
+              {/* CARGAR MÁS */}
+
+              {hayMasViajes && (
+
+                <div className="mt-8 flex justify-center">
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={cargarMas}
+                    className="
+                      min-w-44
+                      border-emerald-200
+                      text-emerald-700
+                      hover:bg-emerald-50
+                    "
+                  >
+                    <ChevronDown size={18} />
+
+                    Cargar más
+                  </Button>
+
+                </div>
+
+              )}
+
+              {/* FIN DE RESULTADOS */}
+
+              {!hayMasViajes &&
+                tripsFiltrados.length > 6 && (
+                  <p className="mt-6 text-center text-sm text-slate-400">
+                    Has llegado al final de los resultados.
+                  </p>
+                )}
 
             </div>
-          )}
+
+          ) : null}
 
         </div>
-
       </section>
-
 
       {/* ========================================================
           ACCIONES PRINCIPALES
@@ -943,7 +1596,6 @@ function Home({
 
           </div>
 
-
           <div className="grid gap-6 md:grid-cols-3">
 
             {/* BUSCAR VIAJE */}
@@ -979,7 +1631,7 @@ function Home({
 
                 <p className="mt-3 text-sm leading-6 text-slate-500">
                   Encuentra viajes disponibles de acuerdo con
-                  tu origen y destino.
+                  tu origen, destino y horario.
                 </p>
 
                 <Button
@@ -1000,112 +1652,118 @@ function Home({
 
             </Card>
 
-
             {/* PUBLICAR VIAJE */}
 
             <Card className="transition-shadow hover:shadow-lg">
 
-                <CardContent className="p-6">
+              <CardContent className="p-6">
 
-                  <div
-                    className="
-                      mb-5
-                      flex
-                      h-12
-                      w-12
-                      items-center
-                      justify-center
-                      rounded-lg
-                      bg-emerald-50
-                      text-emerald-600
-                    "
-                  >
-                    <Car size={23} />
-                  </div>
+                <div
+                  className="
+                    mb-5
+                    flex
+                    h-12
+                    w-12
+                    items-center
+                    justify-center
+                    rounded-lg
+                    bg-emerald-50
+                    text-emerald-600
+                  "
+                >
+                  <Car size={23} />
+                </div>
 
-                  <h3
-                    className="text-lg font-semibold"
-                    style={{
-                      color: "#0f172a",
-                    }}
-                  >
-                    Publicar un viaje
-                  </h3>
+                <h3
+                  className="text-lg font-semibold"
+                  style={{
+                    color: "#0f172a",
+                  }}
+                >
+                  Publicar un viaje
+                </h3>
 
-                  {canPublish ? (
-                    <>
-                      <p className="mt-3 text-sm leading-6 text-slate-500">
-                        Comparte tu ruta y permite que otros
-                        estudiantes se unan.
-                      </p>
+                {canPublish ? (
 
-                      <Button
-                        variant="ghost"
-                        onClick={onPublish}
-                        className="
-                          mt-5
-                          px-0
-                          text-emerald-600
-                          hover:bg-transparent
-                          hover:text-emerald-700
-                        "
-                      >
-                        Publicar viaje →
-                      </Button>
-                    </>
-                  ) : tieneRol("Conductor") ? (
-                    <>
-                      <p className="mt-3 text-sm leading-6 text-slate-500">
-                        Estás en modo Pasajero. Cambia a modo Conductor
-                        para publicar viajes.
-                      </p>
+                  <>
+                    <p className="mt-3 text-sm leading-6 text-slate-500">
+                      Comparte tu ruta y permite que otros
+                      estudiantes se unan.
+                    </p>
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => cambiarModo("Conductor")}
-                        className="
-                          mt-5
-                          px-0
-                          text-emerald-600
-                          hover:bg-transparent
-                          hover:text-emerald-700
-                        "
-                      >
-                        Cambiar a modo Conductor →
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="mt-3 text-sm leading-6 text-slate-500">
-                        Añade un vehículo para poder publicar viajes...
-                      </p>
+                    <Button
+                      variant="ghost"
+                      onClick={onPublish}
+                      className="
+                        mt-5
+                        px-0
+                        text-emerald-600
+                        hover:bg-transparent
+                        hover:text-emerald-700
+                      "
+                    >
+                      Publicar viaje →
+                    </Button>
+                  </>
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={onVehiculos}
-                        className="
-                          mt-5
-                          px-0
-                          text-emerald-600
-                          hover:bg-transparent
-                          hover:text-emerald-700
-                        "
-                      >
-                        Ir a mis vehículos →
-                      </Button>
-                    </>
-                  )}
+                ) : tieneRol("Conductor") ? (
 
-                </CardContent>
+                  <>
+                    <p className="mt-3 text-sm leading-6 text-slate-500">
+                      Estás en modo Pasajero. Cambia a modo Conductor
+                      para publicar viajes.
+                    </p>
 
-              </Card>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() =>
+                        cambiarModo("Conductor")
+                      }
+                      className="
+                        mt-5
+                        px-0
+                        text-emerald-600
+                        hover:bg-transparent
+                        hover:text-emerald-700
+                      "
+                    >
+                      Cambiar a modo Conductor →
+                    </Button>
+                  </>
 
+                ) : (
+
+                  <>
+                    <p className="mt-3 text-sm leading-6 text-slate-500">
+                      Añade un vehículo para poder publicar viajes...
+                    </p>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={onVehiculos}
+                      className="
+                        mt-5
+                        px-0
+                        text-emerald-600
+                        hover:bg-transparent
+                        hover:text-emerald-700
+                      "
+                    >
+                      Ir a mis vehículos →
+                    </Button>
+                  </>
+
+                )}
+
+              </CardContent>
+
+            </Card>
 
             {/* MIS VIAJES */}
 
-            {modoConductor && <Card className="transition-shadow hover:shadow-lg">
+            <Card className="transition-shadow hover:shadow-lg">
 
               <CardContent className="p-6">
 
@@ -1155,7 +1813,7 @@ function Home({
 
               </CardContent>
 
-            </Card>}
+            </Card>
 
           </div>
 
@@ -1163,29 +1821,83 @@ function Home({
 
       </section>
 
+      {/* ========================================================
+          MODAL CERRAR SESIÓN
+      ======================================================== */}
+
       {confirmarCierreSesion && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
+
+        <div
+          className="
+            fixed
+            inset-0
+            z-[60]
+            flex
+            items-center
+            justify-center
+            bg-slate-900/40
+            p-4
+            backdrop-blur-sm
+          "
+        >
+
+          <div
+            className="
+              w-full
+              max-w-md
+              rounded-2xl
+              border
+              border-slate-200
+              bg-white
+              p-6
+              shadow-2xl
+            "
+          >
+
+            <div
+              className="
+                mb-4
+                flex
+                h-12
+                w-12
+                items-center
+                justify-center
+                rounded-full
+                bg-red-100
+                text-red-600
+              "
+            >
               <LogOut size={22} />
             </div>
 
-            <h3 className="text-xl font-bold text-slate-900">Cerrar sesión</h3>
+            <h3 className="text-xl font-bold text-slate-900">
+              Cerrar sesión
+            </h3>
+
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              ¿Seguro que deseas salir de tu sesión actual? Tendrás que iniciar sesión de nuevo para continuar.
+              ¿Seguro que deseas salir de tu sesión actual?
+              Tendrás que iniciar sesión de nuevo para continuar.
             </p>
 
             <div className="mt-6 flex justify-end gap-3">
+
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setConfirmarCierreSesion(false)}
+                onClick={() =>
+                  setConfirmarCierreSesion(false)
+                }
               >
                 Cancelar
               </Button>
+
               <Button
                 type="button"
-                className="bg-red-600 text-white hover:bg-red-700"
+                className="
+                  bg-red-600
+                  text-white
+                  hover:bg-red-700
+                "
                 onClick={() => {
                   setConfirmarCierreSesion(false);
                   onLogout();
@@ -1193,9 +1905,13 @@ function Home({
               >
                 Cerrar sesión
               </Button>
+
             </div>
+
           </div>
+
         </div>
+
       )}
 
       {/* ========================================================
@@ -1258,7 +1974,6 @@ function Home({
 
           </div>
 
-
           <div className="space-y-4">
 
             <div
@@ -1281,7 +1996,6 @@ function Home({
               </span>
             </div>
 
-
             <div
               className="
                 flex
@@ -1301,7 +2015,6 @@ function Home({
                 Encuentra compañeros
               </span>
             </div>
-
 
             <div
               className="
@@ -1329,8 +2042,9 @@ function Home({
 
       </section>
 
-
-      {/* FOOTER */}
+      {/* ========================================================
+          FOOTER
+      ======================================================== */}
 
       <div className="order-5">
         <Footer />

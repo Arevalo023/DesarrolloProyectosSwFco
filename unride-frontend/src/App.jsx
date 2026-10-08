@@ -9,6 +9,7 @@ import PublicarViaje from "./pages/PublicarViaje";
 import MisViajes from "./pages/MisViajes";
 import ResumenReserva from "./pages/ResumenReserva";
 import Notificaciones from "./pages/Notificaciones";
+import MisReservaciones from "./pages/MisReservaciones";
 
 import {
   cerrarSesion,
@@ -28,9 +29,8 @@ function App() {
   // ============================================================
 
   const [pantalla, setPantalla] = useState(() =>
-    obtenerToken() && obtenerUsuario() ? "home" : "login"
+  obtenerToken() && obtenerUsuario() ? "home" : "login"
   );
-
   const [usuario, setUsuario] = useState(() => obtenerUsuario());
 
   const [viajeSeleccionado, setViajeSeleccionado] = useState(null);
@@ -228,6 +228,10 @@ function App() {
           setPantalla("mis-viajes");
         }}
 
+        onMisReservaciones={() => {
+          setPantalla("mis-reservaciones")
+        }}
+
         onNotificaciones={() => {
           setPantalla("notificaciones");
         }}
@@ -276,6 +280,18 @@ function App() {
       />
     );
   }
+
+  // ============================================================
+  // MIS RESERVACIONES
+  // ============================================================
+  if (pantalla === "mis-reservaciones") {
+  return (
+    <MisReservaciones
+      user={usuario}
+      onBack={() => setPantalla("home")}
+    />
+  );
+}
 
   // ============================================================
   // NOTIFICACIONES
