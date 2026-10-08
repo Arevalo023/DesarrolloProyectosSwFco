@@ -20,6 +20,12 @@ router.get(
 );
 router.get("/reservations", authMiddleware.verifyToken, tripController.listReservations);
 router.get("/", authMiddleware.verifyToken, tripController.listAvailable);
+router.patch(
+	"/:id/cancel",
+	authMiddleware.verifyToken,
+	roleMiddleware(["Conductor"]),
+	tripController.cancel
+);
 router.post("/:id/book", authMiddleware.verifyToken, roleMiddleware(["Pasajero"]), tripController.book);
 
 module.exports = router;

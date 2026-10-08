@@ -15,6 +15,7 @@ import {
   CalendarDays,
   UserRound,
   Clock3,
+  Users,
   X,
   ChevronDown,
 } from "lucide-react";
@@ -45,9 +46,11 @@ function Home({
   const [filters, setFilters] = useState({
     origen: "",
     destino: "",
-    fecha: "",
+    fechaInicio: "",
+    fechaFin: "",
     horaDesde: "",
     horaHasta: "",
+    cupoMinimo: "",
   });
 
   // ============================================================
@@ -138,44 +141,6 @@ function Home({
   };
 
   // ============================================================
-  // OBTENER HORA DE UN VIAJE
-  // ============================================================
-
-  const viajeEnMinutos = (fechaSalida) => {
-    if (!fechaSalida) return null;
-
-    const fecha = new Date(fechaSalida);
-
-    if (Number.isNaN(fecha.getTime())) {
-      return null;
-    }
-
-    return (
-      fecha.getHours() * 60 +
-      fecha.getMinutes()
-    );
-  };
-
-  // ============================================================
-  // VALIDAR HORARIO
-  // ============================================================
-
-  const rangoHorarioValido = () => {
-    const desde = horaEnMinutos(filters.horaDesde);
-    const hasta = horaEnMinutos(filters.horaHasta);
-
-    if (
-      desde !== null &&
-      hasta !== null &&
-      desde > hasta
-    ) {
-      return false;
-    }
-
-    return true;
-  };
-
-  // ============================================================
   // BUSCAR VIAJES
   // ============================================================
 
@@ -194,6 +159,18 @@ function Home({
     );
 
     if (
+      filtrosActuales.fechaInicio &&
+      filtrosActuales.fechaFin &&
+      filtrosActuales.fechaInicio > filtrosActuales.fechaFin
+    ) {
+      setError(
+        "La fecha inicial no puede ser posterior a la fecha final."
+      );
+      setMessage("");
+      return;
+    }
+
+    if (
       desde !== null &&
       hasta !== null &&
       desde > hasta
@@ -205,23 +182,21 @@ function Home({
       return;
     }
 
+    if (
+      filtrosActuales.cupoMinimo &&
+      (!Number.isInteger(Number(filtrosActuales.cupoMinimo)) || Number(filtrosActuales.cupoMinimo) < 1)
+    ) {
+      setError("El cupo mínimo debe ser un número entero mayor que cero.");
+      setMessage("");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setMessage("");
     setVisibleCount(6);
 
     try {
-      /*
-       * IMPORTANTE:
-       * El backend solamente acepta:
-       * - origen
-       * - destino
-       * - fecha
-       *
-       * Las horas se filtran posteriormente
-       * en el frontend.
-       */
-
       const queryParams = new URLSearchParams();
 
       if (filtrosActuales.origen) {
@@ -238,10 +213,38 @@ function Home({
         );
       }
 
-      if (filtrosActuales.fecha) {
+      if (filtrosActuales.fechaInicio) {
         queryParams.set(
-          "fecha",
-          filtrosActuales.fecha
+          "fecha_inicio",
+          filtrosActuales.fechaInicio
+        );
+      }
+
+      if (filtrosActuales.fechaFin) {
+        queryParams.set(
+          "fecha_fin",
+          filtrosActuales.fechaFin
+        );
+      }
+
+      if (filtrosActuales.horaDesde) {
+        queryParams.set(
+          "hora_desde",
+          filtrosActuales.horaDesde
+        );
+      }
+
+      if (filtrosActuales.horaHasta) {
+        queryParams.set(
+          "hora_hasta",
+          filtrosActuales.horaHasta
+        );
+      }
+
+      if (filtrosActuales.cupoMinimo) {
+        queryParams.set(
+          "cupo_minimo",
+          filtrosActuales.cupoMinimo
         );
       }
 
@@ -276,9 +279,11 @@ function Home({
     const filtrosVacios = {
       origen: "",
       destino: "",
-      fecha: "",
+      fechaInicio: "",
+      fechaFin: "",
       horaDesde: "",
       horaHasta: "",
+      cupoMinimo: "",
     };
 
     setFilters(filtrosVacios);
@@ -296,43 +301,7 @@ function Home({
     );
   };
 
-  // ============================================================
-  // FILTRAR VIAJES POR HORARIO
-  // ============================================================
-
-  const tripsFiltrados = trips.filter((trip) => {
-    const horaViaje = viajeEnMinutos(
-      trip.fecha_salida
-    );
-
-    if (horaViaje === null) {
-      return false;
-    }
-
-    const desde = horaEnMinutos(
-      filters.horaDesde
-    );
-
-    const hasta = horaEnMinutos(
-      filters.horaHasta
-    );
-
-    if (
-      desde !== null &&
-      horaViaje < desde
-    ) {
-      return false;
-    }
-
-    if (
-      hasta !== null &&
-      horaViaje > hasta
-    ) {
-      return false;
-    }
-
-    return true;
-  });
+  const tripsFiltrados = trips;
 
   // ============================================================
   // PAGINACIÓN / CARGAR MÁS
@@ -1056,12 +1025,12 @@ function Home({
 
                 </div>
 
-                {/* FECHA */}
+                {/* FECHA DESDE */}
 
                 <div className="space-y-2">
 
                   <label
-                    htmlFor="fecha"
+                    htmlFor="fechaInicio"
                     className="
                       flex
                       items-center
@@ -1076,14 +1045,38 @@ function Home({
                       className="text-emerald-600"
                     />
 
-                    Fecha
+                    Fecha desde
                   </label>
 
                   <Input
-                    id="fecha"
-                    name="fecha"
+                    id="fechaInicio"
+                    name="fechaInicio"
                     type="date"
-                    value={filters.fecha}
+                    max={filters.fechaFin || undefined}
+                    value={filters.fechaInicio}
+                    onChange={actualizarFiltro}
+                  />
+
+                </div>
+
+                {/* FECHA HASTA */}
+
+                <div className="space-y-2">
+
+                  <label
+                    htmlFor="fechaFin"
+                    className="flex items-center gap-2 text-sm font-semibold text-slate-600"
+                  >
+                    <CalendarDays size={16} className="text-emerald-600" />
+                    Fecha hasta
+                  </label>
+
+                  <Input
+                    id="fechaFin"
+                    name="fechaFin"
+                    type="date"
+                    min={filters.fechaInicio || undefined}
+                    value={filters.fechaFin}
                     onChange={actualizarFiltro}
                   />
 
@@ -1150,6 +1143,32 @@ function Home({
                     name="horaHasta"
                     type="time"
                     value={filters.horaHasta}
+                    onChange={actualizarFiltro}
+                  />
+
+                </div>
+
+                {/* CUPO MÍNIMO */}
+
+                <div className="space-y-2">
+
+                  <label
+                    htmlFor="cupoMinimo"
+                    className="flex items-center gap-2 text-sm font-semibold text-slate-600"
+                  >
+                    <Users size={16} className="text-emerald-600" />
+                    Cupo mínimo
+                  </label>
+
+                  <Input
+                    id="cupoMinimo"
+                    name="cupoMinimo"
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="numeric"
+                    placeholder="Cualquier cupo"
+                    value={filters.cupoMinimo}
                     onChange={actualizarFiltro}
                   />
 
@@ -1282,7 +1301,7 @@ function Home({
 
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
                   No hay viajes que coincidan con los filtros seleccionados.
-                  Intenta cambiar la fecha, ruta u horario.
+                  Intenta cambiar la ruta, las fechas, el horario o el cupo mínimo.
                 </p>
 
                 <Button

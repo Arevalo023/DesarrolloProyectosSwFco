@@ -224,4 +224,23 @@ describe("Flujo funcional E2E: Ciclo completo de viaje e integridad de base de d
     expect(res.status).toBe(409);
     expect(res.body.message).toMatch(/ya se encuentra cancelada/);
   });
+
+  test("9. Un viaje cancelado por su conductor deja de aparecer en la búsqueda", async () => {
+    const cancellation = await request(app)
+      .patch(`/api/trips/${tripId}/cancel`)
+      .set("Authorization", `Bearer ${tokenFor(ctx.driverId, "Conductor")}`)
+      .set("X-Active-Role", "Conductor")
+      .send({ motivo_cancelacion: "Cambio de planes" });
+
+    expect(cancellation.status).toBe(200);
+    expect(cancellation.body.trip.estado).toBe("cancelado");
+    expect(cancellation.body.trip.motivo_cancelacion).toBe("Cambio de planes");
+
+    const search = await request(app)
+      .get("/api/trips?origen=Arteaga")
+      .set("Authorization", `Bearer ${tokenFor(ctx.passengerId, "Pasajero")}`);
+
+    expect(search.status).toBe(200);
+    expect(search.body.trips.some((trip) => trip.id === tripId)).toBe(false);
+  });
 });
