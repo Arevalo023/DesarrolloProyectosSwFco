@@ -1,1000 +1,679 @@
 import { useEffect, useState } from "react";
-
 import {
   ArrowLeft,
   CalendarDays,
   Car,
+  Check,
   Clock3,
   MapPin,
-  Users,
-  Plus,
-  LoaderCircle,
-  Check,
-  X,
   UserRound,
+  X,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
 
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
-
-import AlertBanner from "@/components/ui/alert-banner";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
-
 import { apiRequest } from "@/services/api";
 
+function MisViajes({ onBack }) {
+  const [viajes, setViajes] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
 
-// ============================================================
-// ESTADO DEL VIAJE
-// ============================================================
+  const [viajeSeleccionado, setViajeSeleccionado] = useState(null);
+  const [motivoCancelacion, setMotivoCancelacion] = useState("");
 
-const mapEstado = (estado) => {
-  const valor = String(
-    estado || "programado"
-  )
-    .trim()
-    .toLowerCase();
-
-  const estados = {
-    programado: {
-      label: "Programado",
-      className:
-        "bg-sky-100 text-sky-700",
-    },
-
-    "en curso": {
-      label: "En curso",
-      className:
-        "bg-amber-100 text-amber-700",
-    },
-
-    finalizado: {
-      label: "Finalizado",
-      className:
-        "bg-emerald-100 text-emerald-700",
-    },
-  };
-
-  return (
-    estados[valor] || {
-      label: "Programado",
-      className:
-        "bg-sky-100 text-sky-700",
-    }
-  );
-};
-
-
-// ============================================================
-// FECHA
-// ============================================================
-
-const formatFecha = (fecha) => {
-  if (!fecha) {
-    return "Sin fecha";
-  }
-
-  const date = new Date(fecha);
-
-  if (Number.isNaN(date.getTime())) {
-    return fecha;
-  }
-
-  return new Intl.DateTimeFormat(
-    "es-MX",
-    {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    }
-  ).format(date);
-};
-
-
-// ============================================================
-// HORA
-// ============================================================
-
-const formatHora = (fecha) => {
-  if (!fecha) {
-    return "Sin hora";
-  }
-
-  const date = new Date(fecha);
-
-  if (Number.isNaN(date.getTime())) {
-    return fecha;
-  }
-
-  return new Intl.DateTimeFormat(
-    "es-MX",
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }
-  ).format(date);
-};
-
-
-export default function MisViajes({
-  onBackHome,
-  onPublicarViaje,
-  onResponderSolicitud,
-}) {
-
-  // ============================================================
-  // ESTADOS
-  // ============================================================
-
-  const [viajes, setViajes] =
-    useState([]);
-
-  const [cargando, setCargando] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
-
-  const [
-    procesandoSolicitud,
-    setProcesandoSolicitud,
-  ] = useState(null);
-
-  const [
-    mensajeSolicitud,
-    setMensajeSolicitud,
-  ] = useState("");
-
-
-  // ============================================================
-  // CARGAR VIAJES REALES
-  // ============================================================
+  const [procesandoSolicitud, setProcesandoSolicitud] = useState(null);
 
   useEffect(() => {
-    let cancelado = false;
-
-    const cargarViajes = async () => {
-      try {
-        setCargando(true);
-        setError("");
-
-        const data =
-          await apiRequest(
-            "/api/trips/driver"
-          );
-
-        if (cancelado) {
-          return;
-        }
-
-        setViajes(
-          data.trips || []
-        );
-
-      } catch (requestError) {
-        if (cancelado) {
-          return;
-        }
-
-        setViajes([]);
-
-        setError(
-          requestError.message ||
-            "No se pudieron cargar tus viajes."
-        );
-
-      } finally {
-        if (!cancelado) {
-          setCargando(false);
-        }
-      }
-    };
-
     cargarViajes();
-
-    return () => {
-      cancelado = true;
-    };
   }, []);
 
-
-  // ============================================================
-  // CONTAR PENDIENTES
-  // ============================================================
-
-  const contarPendientes = (
-    solicitudes = []
-  ) => {
-    return solicitudes.filter(
-      (solicitud) =>
-        solicitud.estado ===
-        "pendiente"
-    ).length;
-  };
-
-
-  // ============================================================
-  // CLASE ESTADO SOLICITUD
-  // ============================================================
-
-  const claseEstadoSolicitud = (
-    estado
-  ) => {
-    if (estado === "aceptada") {
-      return (
-        "bg-emerald-100 text-emerald-700"
-      );
-    }
-
-    if (estado === "rechazada") {
-      return (
-        "bg-red-100 text-red-700"
-      );
-    }
-
-    return (
-      "bg-amber-100 text-amber-700"
-    );
-  };
-
-
-  // ============================================================
-  // TEXTO ESTADO SOLICITUD
-  // ============================================================
-
-  const textoEstadoSolicitud = (
-    estado
-  ) => {
-    if (estado === "aceptada") {
-      return "Aceptada";
-    }
-
-    if (estado === "rechazada") {
-      return "Rechazada";
-    }
-
-    return "Pendiente";
-  };
-
-
-  // ============================================================
-  // RESPONDER SOLICITUD
-  // ============================================================
-
-  const responderSolicitud = async (
-    viajeId,
-    solicitudId,
-    nuevoEstado
-  ) => {
-    if (procesandoSolicitud) {
-      return;
-    }
-
-    if (!onResponderSolicitud) {
-      setError(
-        "La gestión de solicitudes todavía no está disponible en el backend."
-      );
-
-      return;
-    }
-
-    setProcesandoSolicitud(
-      solicitudId
-    );
-
+  const cargarViajes = async () => {
+    setCargando(true);
     setError("");
-    setMensajeSolicitud("");
 
     try {
-      const resultado =
-        await onResponderSolicitud({
-          viajeId,
-          solicitudId,
-          estado: nuevoEstado,
-        });
+      const respuesta = await apiRequest("/api/trips/driver");
 
+      const datos = Array.isArray(respuesta)
+        ? respuesta
+        : respuesta?.trips || respuesta?.viajes || [];
 
-      // ========================================================
-      // ACTUALIZAR FRONTEND CON RESPUESTA REAL
-      // ========================================================
+      setViajes(datos);
+    } catch (err) {
+      console.error("Error al cargar mis viajes:", err);
 
-      setViajes((actuales) =>
-        actuales.map((viaje) => {
+      setError(
+        err?.message ||
+          "No fue posible cargar tus viajes publicados."
+      );
+    } finally {
+      setCargando(false);
+    }
+  };
 
-          if (viaje.id !== viajeId) {
+  const mapEstado = (estado) => {
+    switch (String(estado || "").toLowerCase()) {
+      case "programado":
+        return {
+          texto: "Programado",
+          clase: "bg-blue-50 text-blue-700",
+        };
+
+      case "en curso":
+      case "encurso":
+        return {
+          texto: "En curso",
+          clase: "bg-yellow-50 text-yellow-700",
+        };
+
+      case "finalizado":
+        return {
+          texto: "Finalizado",
+          clase: "bg-green-50 text-green-700",
+        };
+
+      case "cancelado":
+      case "cancelada":
+        return {
+          texto: "Cancelado",
+          clase: "bg-red-50 text-red-700",
+        };
+
+      default:
+        return {
+          texto: estado || "Programado",
+          clase: "bg-slate-100 text-slate-600",
+        };
+    }
+  };
+
+  const obtenerIdViaje = (viaje) => {
+    return viaje?.id ?? viaje?.trip_id ?? viaje?.viaje_id;
+  };
+
+  const obtenerSolicitudes = (viaje) => {
+    return (
+      viaje?.reservations ||
+      viaje?.reservaciones ||
+      viaje?.solicitudes ||
+      viaje?.requests ||
+      []
+    );
+  };
+
+  const esViajeCancelado = (viaje) => {
+    const estado = String(
+      viaje?.estado || viaje?.status || ""
+    ).toLowerCase();
+
+    return estado === "cancelado" || estado === "cancelada";
+  };
+
+  const esViajeFinalizado = (viaje) => {
+    const estado = String(
+      viaje?.estado || viaje?.status || ""
+    ).toLowerCase();
+
+    return estado === "finalizado";
+  };
+
+  const puedeCancelarViaje = (viaje) => {
+    return (
+      !esViajeCancelado(viaje) &&
+      !esViajeFinalizado(viaje)
+    );
+  };
+
+  const abrirModalCancelacion = (viaje) => {
+    setViajeSeleccionado(viaje);
+    setMotivoCancelacion("");
+  };
+
+  const cerrarModalCancelacion = () => {
+    setViajeSeleccionado(null);
+    setMotivoCancelacion("");
+  };
+
+  const cancelarViaje = () => {
+    if (!viajeSeleccionado) return;
+
+    const idViaje = obtenerIdViaje(viajeSeleccionado);
+
+    setViajes((viajesActuales) =>
+      viajesActuales.map((viaje) => {
+        if (obtenerIdViaje(viaje) !== idViaje) {
+          return viaje;
+        }
+
+        return {
+          ...viaje,
+          estado: "cancelado",
+          status: "cancelado",
+          motivo_cancelacion:
+            motivoCancelacion.trim() || null,
+        };
+      })
+    );
+
+    cerrarModalCancelacion();
+  };
+
+  const responderSolicitud = async (
+    solicitud,
+    nuevoEstado
+  ) => {
+    if (!solicitud?.id) return;
+
+    setProcesandoSolicitud(solicitud.id);
+
+    try {
+      await apiRequest(
+        `/api/reservations/${solicitud.id}`,
+        {
+          method: "PATCH",
+          body: {
+            estado: nuevoEstado,
+          },
+        }
+      );
+
+      setViajes((viajesActuales) =>
+        viajesActuales.map((viaje) => {
+          const solicitudes = obtenerSolicitudes(viaje);
+
+          const tieneSolicitud = solicitudes.some(
+            (item) => item.id === solicitud.id
+          );
+
+          if (!tieneSolicitud) {
             return viaje;
           }
 
-          const solicitudes =
-            (
-              viaje.solicitudes || []
-            ).map((solicitud) =>
-              solicitud.id ===
-              solicitudId
+          const solicitudesActualizadas = solicitudes.map(
+            (item) =>
+              item.id === solicitud.id
                 ? {
-                    ...solicitud,
-                    estado:
-                      nuevoEstado,
+                    ...item,
+                    estado: nuevoEstado,
                   }
-                : solicitud
-            );
-
+                : item
+          );
 
           return {
             ...viaje,
-
-            solicitudes,
-
-            cupo_disponible:
-              resultado?.cupo_disponible ??
-              viaje.cupo_disponible,
-
-            usuarios_separaron_asiento:
-              resultado
-                ?.usuarios_separaron_asiento ??
-              viaje
-                .usuarios_separaron_asiento,
+            reservations: solicitudesActualizadas,
+            reservaciones: solicitudesActualizadas,
+            solicitudes: solicitudesActualizadas,
           };
         })
       );
-
-
-      setMensajeSolicitud(
-        resultado?.message ||
-          (nuevoEstado ===
-          "aceptada"
-            ? "Solicitud aceptada correctamente."
-            : "Solicitud rechazada correctamente.")
+    } catch (err) {
+      console.error(
+        "Error al actualizar solicitud:",
+        err
       );
 
-    } catch (requestError) {
       setError(
-        requestError.message ||
+        err?.message ||
           "No fue posible actualizar la solicitud."
       );
-
     } finally {
       setProcesandoSolicitud(null);
     }
   };
 
+  const formatearFecha = (fecha) => {
+    if (!fecha) return "Fecha no disponible";
 
-  // ============================================================
-  // INTERFAZ
-  // ============================================================
+    const partes = String(fecha).split("-");
+
+    if (partes.length !== 3) {
+      return fecha;
+    }
+
+    const [year, month, day] = partes;
+
+    const fechaLocal = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day)
+    );
+
+    return fechaLocal.toLocaleDateString("es-MX", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const obtenerNombrePasajero = (solicitud) => {
+    return (
+      solicitud?.pasajero_nombre ||
+      solicitud?.usuario_nombre ||
+      solicitud?.nombre_pasajero ||
+      solicitud?.nombre ||
+      "Pasajero"
+    );
+  };
+
+  const obtenerEstadoSolicitud = (estado) => {
+    switch (
+      String(estado || "").toLowerCase()
+    ) {
+      case "aceptada":
+        return {
+          texto: "Aceptada",
+          clase: "bg-green-50 text-green-700",
+        };
+
+      case "rechazada":
+        return {
+          texto: "Rechazada",
+          clase: "bg-red-50 text-red-700",
+        };
+
+      case "cancelada":
+        return {
+          texto: "Cancelada",
+          clase: "bg-slate-100 text-slate-600",
+        };
+
+      default:
+        return {
+          texto: "Pendiente",
+          clase: "bg-yellow-50 text-yellow-700",
+        };
+    }
+  };
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
 
-      {/* ====================================================== */}
-      {/* NAVBAR                                                 */}
-      {/* ====================================================== */}
+      {/* NAVBAR */}
+      <nav className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
 
-      <nav className="border-b border-slate-200 bg-white">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-2 text-slate-600 transition hover:text-slate-900"
+          >
+            <ArrowLeft size={20} />
 
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-4">
+            <span className="hidden sm:inline">
+              Regresar
+            </span>
+          </button>
 
           <Logo />
 
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onBackHome}
-            className="
-              flex
-              items-center
-              gap-2
-              border-slate-300
-              text-slate-700
-              hover:border-emerald-500
-              hover:bg-emerald-50
-              hover:text-emerald-700
-            "
-          >
-            <ArrowLeft size={17} />
-
-            Volver al inicio
-          </Button>
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <Car size={18} />
+            <span className="hidden sm:inline">
+              Mis viajes publicados
+            </span>
+          </div>
 
         </div>
-
       </nav>
 
+      {/* CONTENIDO */}
+      <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
 
-      {/* ====================================================== */}
-      {/* CONTENIDO                                              */}
-      {/* ====================================================== */}
+        {/* ENCABEZADO */}
+        <div className="mb-8">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-indigo-600">
+            UniRide
+          </p>
 
-      <main className="flex-1">
+          <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">
+            Mis Viajes Publicados
+          </h1>
 
-        <div className="mx-auto w-full max-w-6xl px-6 py-10 md:py-14">
+          <p className="mt-2 max-w-2xl text-slate-600">
+            Consulta tus viajes publicados y administra
+            las solicitudes de los pasajeros.
+          </p>
+        </div>
 
+        {/* ERROR */}
+        {error && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+            <AlertTriangle
+              size={20}
+              className="mt-0.5 shrink-0"
+            />
 
-          {/* ================================================== */}
-          {/* ENCABEZADO                                        */}
-          {/* ================================================== */}
+            <div>
+              <p className="font-semibold">
+                Ocurrió un problema
+              </p>
 
-          <section className="mb-8">
+              <p className="mt-1 text-sm">
+                {error}
+              </p>
+            </div>
+          </div>
+        )}
 
-            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        {/* CARGANDO */}
+        {cargando ? (
+          <Card className="border-slate-200 bg-white">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
 
-              <div className="max-w-2xl">
+              <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
 
-                <div className="mb-3 flex items-center gap-2 text-emerald-700">
+              <h2 className="font-semibold text-slate-800">
+                Cargando tus viajes...
+              </h2>
 
-                  <Car size={22} />
+              <p className="mt-2 text-sm text-slate-500">
+                Estamos consultando tus viajes publicados.
+              </p>
 
-                  <span className="text-sm font-bold tracking-widest">
-                    MIS VIAJES
-                  </span>
+            </CardContent>
+          </Card>
+        ) : viajes.length === 0 ? (
 
-                </div>
+          /* ESTADO VACÍO */
+          <Card className="border-dashed bg-white">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
 
-
-                <h1
-                  className="m-0 text-3xl font-bold tracking-tight md:text-4xl"
-                  style={{
-                    color: "#0f172a",
-                    opacity: 1,
-                  }}
-                >
-                  Viajes publicados
-                </h1>
-
-
-                <p
-                  className="mt-3 text-base leading-7"
-                  style={{
-                    color: "#475569",
-                    opacity: 1,
-                  }}
-                >
-                  Consulta tus viajes y administra
-                  las solicitudes de los pasajeros.
-                </p>
-
+              <div className="mb-4 rounded-full bg-slate-100 p-4">
+                <Car
+                  size={32}
+                  className="text-slate-400"
+                />
               </div>
 
+              <h2 className="text-lg font-semibold text-slate-800">
+                No tienes viajes publicados
+              </h2>
 
-              {onPublicarViaje && (
-                <Button
-                  type="button"
-                  onClick={
-                    onPublicarViaje
-                  }
-                  className="
-                    flex
-                    items-center
-                    gap-2
-                    bg-emerald-600
-                    text-white
-                    hover:bg-emerald-700
-                  "
+              <p className="mt-2 max-w-md text-sm text-slate-500">
+                Cuando publiques un viaje, aparecerá
+                aquí para que puedas administrarlo.
+              </p>
+
+            </CardContent>
+          </Card>
+
+        ) : (
+
+          /* LISTA DE VIAJES */
+          <div className="grid gap-6 lg:grid-cols-2">
+
+            {viajes.map((viaje) => {
+              const idViaje = obtenerIdViaje(viaje);
+              const estado = mapEstado(
+                viaje?.estado || viaje?.status
+              );
+
+              const cancelado =
+                esViajeCancelado(viaje);
+
+              const solicitudes =
+                obtenerSolicitudes(viaje);
+
+              const origen =
+                viaje?.origen ||
+                viaje?.origin ||
+                "Origen no disponible";
+
+              const destino =
+                viaje?.destino ||
+                viaje?.destination ||
+                "Destino no disponible";
+
+              const fecha =
+                viaje?.fecha_salida ||
+                viaje?.fecha ||
+                viaje?.departure_date;
+
+              const hora =
+                viaje?.hora_salida ||
+                viaje?.hora ||
+                viaje?.departure_time ||
+                "";
+
+              const cupoDisponible =
+                viaje?.cupo_disponible ??
+                viaje?.cupos_disponibles ??
+                viaje?.available_seats ??
+                viaje?.cupo ??
+                0;
+
+              return (
+                <Card
+                  key={idViaje}
+                  className={`overflow-hidden border-slate-200 bg-white shadow-sm ${
+                    cancelado ? "opacity-90" : ""
+                  }`}
                 >
-                  <Plus size={18} />
+                  <CardContent className="p-0">
 
-                  Publicar viaje
-                </Button>
-              )}
-
-            </div>
-
-          </section>
-
-
-          {/* ================================================== */}
-          {/* MENSAJES                                           */}
-          {/* ================================================== */}
-
-          {error && (
-            <div className="mb-6">
-
-              <AlertBanner
-                type="error"
-                message={error}
-              />
-
-            </div>
-          )}
-
-
-          {mensajeSolicitud && (
-            <div className="mb-6">
-
-              <AlertBanner
-                type="success"
-                message={
-                  mensajeSolicitud
-                }
-              />
-
-            </div>
-          )}
-
-
-          {/* ================================================== */}
-          {/* CARGANDO                                           */}
-          {/* ================================================== */}
-
-          {cargando ? (
-
-            <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm">
-
-              <CardContent className="flex flex-col items-center justify-center px-6 py-16 text-center">
-
-                <LoaderCircle
-                  size={34}
-                  className="mb-4 animate-spin text-emerald-600"
-                />
-
-                <h2
-                  className="m-0 text-lg font-bold"
-                  style={{
-                    color: "#0f172a",
-                  }}
-                >
-                  Cargando tus viajes
-                </h2>
-
-                <p className="mt-2 text-sm text-slate-500">
-                  Estamos consultando tus viajes publicados.
-                </p>
-
-              </CardContent>
-
-            </Card>
-
-
-          ) : viajes.length === 0 ? (
-
-            /* ================================================= */
-            /* ESTADO VACÍO                                     */
-            /* ================================================= */
-
-            <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm">
-
-              <CardContent className="flex flex-col items-center justify-center px-6 py-16 text-center md:py-20">
-
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-
-                  <Car size={36} />
-
-                </div>
-
-
-                <h2
-                  className="mb-0 mt-6 text-2xl font-bold"
-                  style={{
-                    color: "#0f172a",
-                    opacity: 1,
-                  }}
-                >
-                  Aún no has publicado viajes
-                </h2>
-
-
-                <p className="mt-3 max-w-md text-sm leading-6 text-slate-500">
-                  Cuando publiques tu primer viaje,
-                  aparecerá aquí para que puedas
-                  consultar su información y
-                  administrar sus solicitudes.
-                </p>
-
-
-                {onPublicarViaje && (
-                  <Button
-                    type="button"
-                    onClick={
-                      onPublicarViaje
-                    }
-                    className="
-                      mt-7
-                      flex
-                      items-center
-                      gap-2
-                      bg-emerald-600
-                      text-white
-                      hover:bg-emerald-700
-                    "
-                  >
-                    <Plus size={18} />
-
-                    Publicar mi primer viaje
-                  </Button>
-                )}
-
-              </CardContent>
-
-            </Card>
-
-
-          ) : (
-
-            /* ================================================= */
-            /* LISTA DE VIAJES                                  */
-            /* ================================================= */
-
-            <div className="grid gap-6">
-
-              {viajes.map(
-                (viaje) => {
-
-                  const estado =
-                    mapEstado(
-                      viaje.estado
-                    );
-
-                  const solicitudesViaje =
-                    viaje.solicitudes || [];
-
-                  const pendientes =
-                    contarPendientes(
-                      solicitudesViaje
-                    );
-
-
-                  return (
-                    <Card
-                      key={viaje.id}
-                      className="
-                        overflow-hidden
-                        rounded-2xl
-                        border-slate-200
-                        bg-white
-                        shadow-sm
-                        transition
-                        duration-200
-                        hover:-translate-y-0.5
-                        hover:shadow-md
-                      "
+                    {/* ENCABEZADO DE VIAJE */}
+                    <div
+                      className={`flex items-start justify-between gap-4 border-b px-5 py-5 ${
+                        cancelado
+                          ? "bg-red-50/50"
+                          : "bg-white"
+                      }`}
                     >
 
-                      <CardContent className="p-0">
+                      <div className="flex items-center gap-3">
 
+                        <div
+                          className={`rounded-xl p-3 ${
+                            cancelado
+                              ? "bg-red-100"
+                              : "bg-indigo-50"
+                          }`}
+                        >
+                          {cancelado ? (
+                            <XCircle
+                              size={22}
+                              className="text-red-600"
+                            />
+                          ) : (
+                            <Car
+                              size={22}
+                              className="text-indigo-600"
+                            />
+                          )}
+                        </div>
 
-                        {/* ===================================== */}
-                        {/* CABECERA                              */}
-                        {/* ===================================== */}
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                            Viaje #{idViaje}
+                          </p>
 
-                        <div className="border-b border-slate-100 bg-white px-6 py-5">
+                          <h2 className="font-semibold text-slate-900">
+                            {origen} → {destino}
+                          </h2>
+                        </div>
 
-                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${estado.clase}`}
+                      >
+                        {estado.texto}
+                      </span>
+
+                    </div>
+
+                    {/* INFORMACIÓN DEL VIAJE */}
+                    <div className="px-5 py-5">
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+
+                        <div className="flex gap-3">
+                          <MapPin
+                            size={20}
+                            className="mt-0.5 shrink-0 text-emerald-600"
+                          />
+
+                          <div>
+                            <p className="text-xs text-slate-400">
+                              Origen
+                            </p>
+
+                            <p className="font-semibold">
+                              {origen}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          <MapPin
+                            size={20}
+                            className="mt-0.5 shrink-0 text-rose-500"
+                          />
+
+                          <div>
+                            <p className="text-xs text-slate-400">
+                              Destino
+                            </p>
+
+                            <p className="font-semibold">
+                              {destino}
+                            </p>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* FECHA / HORA / CUPO */}
+                      <div className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-3">
+
+                        <div className="flex items-center gap-3">
+                          <CalendarDays
+                            size={19}
+                            className="text-indigo-500"
+                          />
+
+                          <div>
+                            <p className="text-xs text-slate-400">
+                              Fecha
+                            </p>
+
+                            <p className="text-sm font-medium capitalize">
+                              {formatearFecha(fecha)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <Clock3
+                            size={19}
+                            className="text-indigo-500"
+                          />
+
+                          <div>
+                            <p className="text-xs text-slate-400">
+                              Hora
+                            </p>
+
+                            <p className="text-sm font-medium">
+                              {hora || "No disponible"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <UserRound
+                            size={19}
+                            className="text-indigo-500"
+                          />
+
+                          <div>
+                            <p className="text-xs text-slate-400">
+                              Cupos disponibles
+                            </p>
+
+                            <p className="text-sm font-medium">
+                              {cupoDisponible}
+                            </p>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* VIAJE CANCELADO */}
+                      {cancelado && (
+                        <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
+
+                          <div className="flex gap-3">
+
+                            <XCircle
+                              size={20}
+                              className="mt-0.5 shrink-0 text-red-600"
+                            />
 
                             <div>
-
-                              <div className="mb-3 flex flex-wrap items-center gap-2">
-
-                                <span
-                                  className={`
-                                    rounded-full
-                                    px-3
-                                    py-1
-                                    text-xs
-                                    font-semibold
-                                    ${estado.className}
-                                  `}
-                                >
-                                  {estado.label}
-                                </span>
-
-
-                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-
-                                  {viaje.vehiculo_marca ||
-                                    "Vehículo"}{" "}
-
-                                  {viaje.vehiculo_modelo ||
-                                    ""}
-
-                                </span>
-
-                              </div>
-
-
-                              <div className="flex items-start gap-3">
-
-                                <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-
-                                  <MapPin size={18} />
-
-                                </div>
-
-
-                                <div>
-
-                                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                                    Ruta
-                                  </p>
-
-
-                                  <h2
-                                    className="mb-0 mt-1 text-lg font-bold md:text-xl"
-                                    style={{
-                                      color:
-                                        "#0f172a",
-                                    }}
-                                  >
-                                    {viaje.origen}
-
-                                    <span className="mx-2 text-emerald-500">
-                                      →
-                                    </span>
-
-                                    {viaje.destino}
-                                  </h2>
-
-                                </div>
-
-                              </div>
-
-                            </div>
-
-
-                            <div className="rounded-xl bg-emerald-50 px-4 py-3 text-left md:text-right">
-
-                              <p className="text-xs font-medium text-emerald-700">
-                                Precio por pasajero
+                              <p className="font-semibold text-red-800">
+                                Viaje cancelado
                               </p>
 
-
-                              <p className="mt-1 text-2xl font-bold text-emerald-700">
-
-                                $
-                                {Number(
-                                  viaje.costo_por_pasajero ??
-                                    0
-                                ).toFixed(2)}
-
-                              </p>
-
-                            </div>
-
-                          </div>
-
-                        </div>
-
-
-                        {/* ===================================== */}
-                        {/* DATOS                                 */}
-                        {/* ===================================== */}
-
-                        <div className="grid gap-4 px-6 py-5 sm:grid-cols-2 lg:grid-cols-4">
-
-                          <div className="rounded-xl bg-slate-50 p-4">
-
-                            <div className="mb-2 flex items-center gap-2 text-slate-500">
-
-                              <CalendarDays
-                                size={16}
-                                className="text-emerald-600"
-                              />
-
-                              <span className="text-xs font-medium">
-                                Fecha
-                              </span>
-
-                            </div>
-
-                            <p className="text-sm font-semibold text-slate-900">
-                              {formatFecha(
-                                viaje.fecha_salida
-                              )}
-                            </p>
-
-                          </div>
-
-
-                          <div className="rounded-xl bg-slate-50 p-4">
-
-                            <div className="mb-2 flex items-center gap-2 text-slate-500">
-
-                              <Clock3
-                                size={16}
-                                className="text-emerald-600"
-                              />
-
-                              <span className="text-xs font-medium">
-                                Hora
-                              </span>
-
-                            </div>
-
-                            <p className="text-sm font-semibold text-slate-900">
-                              {formatHora(
-                                viaje.fecha_salida
-                              )}
-                            </p>
-
-                          </div>
-
-
-                          <div className="rounded-xl bg-slate-50 p-4">
-
-                            <div className="mb-2 flex items-center gap-2 text-slate-500">
-
-                              <Users
-                                size={16}
-                                className="text-emerald-600"
-                              />
-
-                              <span className="text-xs font-medium">
-                                Asientos libres
-                              </span>
-
-                            </div>
-
-                            <p className="text-sm font-semibold text-slate-900">
-                              {viaje.cupo_disponible ??
-                                0}
-                            </p>
-
-                          </div>
-
-
-                          <div className="rounded-xl bg-slate-50 p-4">
-
-                            <div className="mb-2 flex items-center gap-2 text-slate-500">
-
-                              <Users
-                                size={16}
-                                className="text-violet-600"
-                              />
-
-                              <span className="text-xs font-medium">
-                                Reservados
-                              </span>
-
-                            </div>
-
-                            <p className="text-sm font-semibold text-slate-900">
-                              {Number(
-                                viaje.usuarios_separaron_asiento ??
-                                  0
-                              )}
-                            </p>
-
-                          </div>
-
-                        </div>
-
-
-                        {/* ===================================== */}
-                        {/* VEHÍCULO                              */}
-                        {/* ===================================== */}
-
-                        <div className="border-t border-slate-100 bg-slate-50 px-6 py-4">
-
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-                            <div className="flex items-center gap-3">
-
-                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-emerald-700 shadow-sm">
-
-                                <Car size={19} />
-
-                              </div>
-
-
-                              <div>
-
-                                <p className="text-xs text-slate-500">
-                                  Vehículo
+                              {viaje?.motivo_cancelacion && (
+                                <p className="mt-1 text-sm text-red-700">
+                                  Motivo:{" "}
+                                  {viaje.motivo_cancelacion}
                                 </p>
+                              )}
 
-                                <p className="text-sm font-semibold text-slate-900">
-
-                                  {viaje.vehiculo_marca ||
-                                    "Marca no disponible"}{" "}
-
-                                  {viaje.vehiculo_modelo ||
-                                    ""}
-
+                              {!viaje?.motivo_cancelacion && (
+                                <p className="mt-1 text-sm text-red-700">
+                                  Este viaje ya no está disponible
+                                  para nuevas solicitudes.
                                 </p>
-
-                              </div>
-
-                            </div>
-
-
-                            <div>
-
-                              <p className="text-xs text-slate-500">
-                                Placas
-                              </p>
-
-                              <p className="text-sm font-semibold uppercase text-slate-900">
-
-                                {viaje.vehiculo_placa ||
-                                  "No disponible"}
-
-                              </p>
-
+                              )}
                             </div>
 
                           </div>
 
                         </div>
+                      )}
 
+                      {/* SOLICITUDES */}
+                      {!cancelado && (
+                        <div className="mt-6 border-t pt-5">
 
-                        {/* ===================================== */}
-                        {/* SOLICITUDES                           */}
-                        {/* ===================================== */}
-
-                        <div className="border-t border-slate-200 bg-white px-6 py-6">
-
-                          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="mb-4 flex items-center justify-between">
 
                             <div>
+                              <h3 className="font-semibold text-slate-900">
+                                Solicitudes recibidas
+                              </h3>
 
-                              <div className="flex items-center gap-2">
-
-                                <Users
-                                  size={19}
-                                  className="text-emerald-600"
-                                />
-
-                                <h3
-                                  className="text-base font-bold"
-                                  style={{
-                                    color:
-                                      "#0f172a",
-                                  }}
-                                >
-                                  Solicitudes de pasajeros
-                                </h3>
-
-                              </div>
-
-                              <p className="mt-1 text-sm text-slate-500">
-                                Acepta o rechaza las solicitudes interesadas en este viaje.
+                              <p className="text-sm text-slate-500">
+                                {solicitudes.length} solicitud
+                                {solicitudes.length !== 1
+                                  ? "es"
+                                  : ""}
                               </p>
-
                             </div>
-
-
-                            <span
-                              className={`
-                                inline-flex
-                                w-fit
-                                rounded-full
-                                px-3
-                                py-1
-                                text-xs
-                                font-semibold
-
-                                ${
-                                  pendientes > 0
-                                    ? "bg-amber-100 text-amber-700"
-                                    : "bg-slate-100 text-slate-600"
-                                }
-                              `}
-                            >
-                              {pendientes}{" "}
-
-                              {pendientes === 1
-                                ? "pendiente"
-                                : "pendientes"}
-                            </span>
 
                           </div>
 
+                          {solicitudes.length === 0 ? (
 
-                          {solicitudesViaje.length ===
-                          0 ? (
+                            <div className="rounded-xl bg-slate-50 p-5 text-center">
 
-                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-7 text-center">
-
-                              <Users
-                                size={26}
-                                className="mx-auto mb-3 text-slate-400"
+                              <UserRound
+                                size={25}
+                                className="mx-auto mb-2 text-slate-400"
                               />
 
                               <p className="text-sm font-medium text-slate-600">
-                                No hay solicitudes para este viaje.
+                                No hay solicitudes todavía
                               </p>
 
                             </div>
@@ -1003,201 +682,304 @@ export default function MisViajes({
 
                             <div className="space-y-3">
 
-                              {solicitudesViaje.map(
-                                (
-                                  solicitud
-                                ) => (
+                              {solicitudes.map(
+                                (solicitud) => {
+                                  const estadoSolicitud =
+                                    obtenerEstadoSolicitud(
+                                      solicitud?.estado
+                                    );
 
-                                  <div
-                                    key={
-                                      solicitud.id
-                                    }
-                                    className="
-                                      flex
-                                      flex-col
-                                      gap-4
-                                      rounded-xl
-                                      border
-                                      border-slate-200
-                                      bg-slate-50
-                                      p-4
-                                      sm:flex-row
-                                      sm:items-center
-                                      sm:justify-between
-                                    "
-                                  >
+                                  const solicitudResuelta =
+                                    ["aceptada", "rechazada", "cancelada"].includes(
+                                      String(
+                                        solicitud?.estado || ""
+                                      ).toLowerCase()
+                                    );
 
-                                    {/* PASAJERO */}
+                                  return (
+                                    <div
+                                      key={
+                                        solicitud.id
+                                      }
+                                      className="rounded-xl border border-slate-200 p-4"
+                                    >
 
-                                    <div className="flex items-center gap-3">
+                                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-                                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-white text-emerald-700 shadow-sm">
+                                        <div className="flex items-center gap-3">
 
-                                        <UserRound
-                                          size={20}
-                                        />
+                                          <div className="rounded-full bg-slate-100 p-2">
+                                            <UserRound
+                                              size={19}
+                                              className="text-slate-600"
+                                            />
+                                          </div>
 
-                                      </div>
+                                          <div>
+                                            <p className="font-semibold text-slate-800">
+                                              {obtenerNombrePasajero(
+                                                solicitud
+                                              )}
+                                            </p>
 
+                                            <span
+                                              className={`inline-flex mt-1 rounded-full px-2.5 py-1 text-xs font-semibold ${estadoSolicitud.clase}`}
+                                            >
+                                              {
+                                                estadoSolicitud.texto
+                                              }
+                                            </span>
+                                          </div>
 
-                                      <div>
+                                        </div>
 
-                                        <p className="font-semibold text-slate-900">
+                                        {/* ACCIONES DE SOLICITUD */}
+                                        {!solicitudResuelta && (
+                                          <div className="flex gap-2">
 
-                                          {solicitud.nombre ||
-                                            solicitud.pasajero ||
-                                            "Pasajero"}
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              disabled={
+                                                procesandoSolicitud ===
+                                                solicitud.id
+                                              }
+                                              onClick={() =>
+                                                responderSolicitud(
+                                                  solicitud,
+                                                  "rechazada"
+                                                )
+                                              }
+                                              variant="outline"
+                                              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                            >
+                                              <X
+                                                size={16}
+                                              />
+                                              Rechazar
+                                            </Button>
 
-                                        </p>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              disabled={
+                                                procesandoSolicitud ===
+                                                solicitud.id
+                                              }
+                                              onClick={() =>
+                                                responderSolicitud(
+                                                  solicitud,
+                                                  "aceptada"
+                                                )
+                                              }
+                                              className="bg-green-600 text-white hover:bg-green-700"
+                                            >
+                                              <Check
+                                                size={16}
+                                              />
+                                              Aceptar
+                                            </Button>
 
-
-                                        <span
-                                          className={`
-                                            mt-1
-                                            inline-flex
-                                            rounded-full
-                                            px-2.5
-                                            py-1
-                                            text-xs
-                                            font-semibold
-
-                                            ${claseEstadoSolicitud(
-                                              solicitud.estado
-                                            )}
-                                          `}
-                                        >
-                                          {textoEstadoSolicitud(
-                                            solicitud.estado
-                                          )}
-                                        </span>
+                                          </div>
+                                        )}
 
                                       </div>
 
                                     </div>
-
-
-                                    {/* BOTONES */}
-
-                                    {solicitud.estado ===
-                                      "pendiente" && (
-
-                                      <div className="flex flex-col gap-2 sm:flex-row">
-
-                                        <Button
-                                          type="button"
-                                          disabled={
-                                            procesandoSolicitud ===
-                                              solicitud.id ||
-                                            Number(
-                                              viaje.cupo_disponible ||
-                                                0
-                                            ) <= 0
-                                          }
-                                          onClick={() =>
-                                            responderSolicitud(
-                                              viaje.id,
-                                              solicitud.id,
-                                              "aceptada"
-                                            )
-                                          }
-                                          className="
-                                            flex
-                                            items-center
-                                            justify-center
-                                            gap-2
-                                            bg-emerald-600
-                                            text-white
-                                            hover:bg-emerald-700
-                                          "
-                                        >
-
-                                          {procesandoSolicitud ===
-                                          solicitud.id ? (
-
-                                            <LoaderCircle
-                                              size={17}
-                                              className="animate-spin"
-                                            />
-
-                                          ) : (
-
-                                            <Check
-                                              size={17}
-                                            />
-
-                                          )}
-
-                                          {procesandoSolicitud ===
-                                          solicitud.id
-                                            ? "Procesando..."
-                                            : "Aceptar"}
-
-                                        </Button>
-
-
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          disabled={
-                                            procesandoSolicitud ===
-                                            solicitud.id
-                                          }
-                                          onClick={() =>
-                                            responderSolicitud(
-                                              viaje.id,
-                                              solicitud.id,
-                                              "rechazada"
-                                            )
-                                          }
-                                          className="
-                                            flex
-                                            items-center
-                                            justify-center
-                                            gap-2
-                                            border-red-200
-                                            text-red-600
-                                            hover:bg-red-50
-                                          "
-                                        >
-
-                                          <X size={17} />
-
-                                          Rechazar
-
-                                        </Button>
-
-                                      </div>
-
-                                    )}
-
-                                  </div>
-
-                                )
+                                  );
+                                }
                               )}
 
                             </div>
-
                           )}
 
                         </div>
+                      )}
 
-                      </CardContent>
+                      {/* ACCIONES DEL VIAJE */}
+                      <div className="mt-6 flex flex-col gap-3 border-t pt-5">
 
-                    </Card>
-                  );
-                }
-              )}
+                        {puedeCancelarViaje(viaje) ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                              abrirModalCancelacion(
+                                viaje
+                              )
+                            }
+                            className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                          >
+                            <XCircle size={17} />
+                            Cancelar viaje
+                          </Button>
+                        ) : cancelado ? (
+                          <div className="rounded-xl bg-slate-50 p-3 text-center text-sm font-medium text-slate-500">
+                            Este viaje está cancelado y ya no tiene
+                            acciones disponibles.
+                          </div>
+                        ) : (
+                          <div className="rounded-xl bg-slate-50 p-3 text-center text-sm font-medium text-slate-500">
+                            Este viaje ya finalizó.
+                          </div>
+                        )}
 
-            </div>
+                      </div>
 
-          )}
+                    </div>
 
-        </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+
+          </div>
+        )}
 
       </main>
 
       <Footer />
 
+      {/* MODAL CANCELAR VIAJE */}
+      {viajeSeleccionado && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+
+            {/* ENCABEZADO */}
+            <div className="mb-5 flex items-start justify-between gap-4">
+
+              <div>
+
+                <div className="mb-3 inline-flex rounded-full bg-red-50 p-3">
+                  <AlertTriangle
+                    size={24}
+                    className="text-red-600"
+                  />
+                </div>
+
+                <h2 className="text-xl font-bold text-slate-900">
+                  Cancelar viaje
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  ¿Estás segura de que deseas cancelar este
+                  viaje? Esta acción cambiará su estado a
+                  Cancelado.
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={cerrarModalCancelacion}
+                className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={20} />
+              </button>
+
+            </div>
+
+            {/* RESUMEN DEL VIAJE */}
+            <div className="rounded-xl bg-slate-50 p-4">
+
+              <p className="font-semibold text-slate-800">
+                {viajeSeleccionado?.origen ||
+                  viajeSeleccionado?.origin ||
+                  "Origen"}{" "}
+                →{" "}
+                {viajeSeleccionado?.destino ||
+                  viajeSeleccionado?.destination ||
+                  "Destino"}
+              </p>
+
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+
+                <span className="flex items-center gap-1.5">
+                  <CalendarDays size={15} />
+
+                  {formatearFecha(
+                    viajeSeleccionado?.fecha_salida ||
+                      viajeSeleccionado?.fecha ||
+                      viajeSeleccionado?.departure_date
+                  )}
+                </span>
+
+                <span className="flex items-center gap-1.5">
+                  <Clock3 size={15} />
+
+                  {viajeSeleccionado?.hora_salida ||
+                    viajeSeleccionado?.hora ||
+                    viajeSeleccionado?.departure_time ||
+                    "Hora no disponible"}
+                </span>
+
+              </div>
+
+            </div>
+
+            {/* MOTIVO */}
+            <div className="mt-5">
+
+              <label
+                htmlFor="motivo-cancelacion"
+                className="mb-2 block text-sm font-semibold text-slate-700"
+              >
+                Motivo de cancelación
+                <span className="ml-1 font-normal text-slate-400">
+                  (opcional)
+                </span>
+              </label>
+
+              <textarea
+                id="motivo-cancelacion"
+                value={motivoCancelacion}
+                onChange={(event) =>
+                  setMotivoCancelacion(
+                    event.target.value
+                  )
+                }
+                placeholder="Escribe el motivo de la cancelación..."
+                rows={4}
+                maxLength={250}
+                className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              />
+
+              <p className="mt-1 text-right text-xs text-slate-400">
+                {motivoCancelacion.length}/250
+              </p>
+
+            </div>
+
+            {/* BOTONES */}
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={cerrarModalCancelacion}
+              >
+                Mantener viaje
+              </Button>
+
+              <Button
+                type="button"
+                onClick={cancelarViaje}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                <XCircle size={17} />
+                Sí, cancelar viaje
+              </Button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 }
+
+export default MisViajes;
