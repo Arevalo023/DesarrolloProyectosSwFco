@@ -114,4 +114,65 @@ describe("apiRequest y token expirado", () => {
       listener
     );
   });
+
+  test("adjunta el token y el rol activo en peticiones protegidas", async () => {
+    localStorage.setItem("token", "token-valido");
+    localStorage.setItem("rolActivo", "Conductor");
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ trips: [] }),
+    });
+
+    await apiRequest("/api/trips/driver");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/trips/driver",
+      expect.objectContaining({
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer token-valido",
+          "X-Active-Role": "Conductor",
+        },
+      })
+    );
+  });
+
+  test("no adjunta credenciales en peticiones públicas", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ token: "token-nuevo" }),
+    });
+
+    await apiRequest("/users/login", {
+      method: "POST",
+      body: { email: "user@uadec.edu.mx", password: "password" },
+      auth: false,
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/users/login",
+      expect.objectContaining({
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+  });
+
+  test.each([
+    [403, "No autorizado"],
+    [500, "Error interno"],
+  ])("expone errores HTTP %s del backend", async (status, message) => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status,
+      json: async () => ({ message }),
+    });
+
+    await expect(apiRequest("/api/trips")).rejects.toMatchObject({
+      message,
+      status,
+    });
+  });
 });
