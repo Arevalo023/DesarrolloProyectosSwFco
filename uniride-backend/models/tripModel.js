@@ -8,14 +8,24 @@ const tripModel = {
    * @param {string} [filters.origen]
    * @param {string} [filters.destino]
    * @param {string} [filters.fecha] - Formato YYYY-MM-DD
+   * @param {string} [filters.fechaInicio] - Fecha inicial inclusiva, formato YYYY-MM-DD
+   * @param {string} [filters.fechaFin] - Fecha final inclusiva, formato YYYY-MM-DD
+  * @param {string} [filters.horaDesde] - Hora inicial inclusiva, formato HH:MM
+  * @param {string} [filters.horaHasta] - Hora final inclusiva, formato HH:MM
+   * @param {number} [filters.cupoMinimo]
    * @returns {Promise<Array>}
    */
-  async findAvailable({ origen, destino, fecha }) {
+  async findAvailable({ origen, destino, fecha, fechaInicio, fechaFin, horaDesde, horaHasta, cupoMinimo }) {
     const pool = await poolPromise;
     const request = pool.request()
       .input("origen", sql.VarChar(255), origen ? `%${origen}%` : null)
       .input("destino", sql.VarChar(255), destino ? `%${destino}%` : null)
-      .input("fecha", sql.Date, fecha || null);
+      .input("fecha", sql.Date, fecha || null)
+      .input("fecha_inicio", sql.Date, fechaInicio || null)
+      .input("fecha_fin", sql.Date, fechaFin || null)
+      .input("hora_desde", sql.Time, horaDesde || null)
+      .input("hora_hasta", sql.Time, horaHasta || null)
+      .input("cupo_minimo", sql.Int, cupoMinimo ?? null);
 
     const result = await request.query(`
       SELECT TOP (10) v.id, v.origen, v.destino, v.fecha_salida,
@@ -35,6 +45,11 @@ const tripModel = {
         AND (@origen IS NULL OR v.origen LIKE @origen)
         AND (@destino IS NULL OR v.destino LIKE @destino)
         AND (@fecha IS NULL OR CAST(v.fecha_salida AS DATE) = @fecha)
+        AND (@fecha_inicio IS NULL OR v.fecha_salida >= @fecha_inicio)
+        AND (@fecha_fin IS NULL OR v.fecha_salida < DATEADD(day, 1, @fecha_fin))
+        AND (@hora_desde IS NULL OR CONVERT(time, v.fecha_salida) >= @hora_desde)
+        AND (@hora_hasta IS NULL OR CONVERT(time, v.fecha_salida) <= @hora_hasta)
+        AND (@cupo_minimo IS NULL OR v.cupo_disponible >= @cupo_minimo)
       ORDER BY v.fecha_salida ASC
     `);
     return result.recordset;
@@ -119,7 +134,7 @@ const tripModel = {
         SELECT v.id, v.conductor_id, v.vehiculo_id, v.origen, v.destino,
                v.fecha_salida, v.cupo_disponible,
                v.cupo_disponible AS asientos_disponibles,
-               v.costo_por_pasajero, v.estado,
+               v.costo_por_pasajero, v.estado, v.motivo_cancelacion,
                COALESCE((
                  SELECT COUNT(*)
                  FROM SolicitudesViaje sv
@@ -140,6 +155,25 @@ const tripModel = {
       `);
 
     return result.recordset;
+  },
+
+  async cancel(id, conductorId, motivoCancelacion) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("id", sql.Int, id)
+      .input("conductor_id", sql.Int, conductorId)
+      .input("motivo_cancelacion", sql.VarChar(250), motivoCancelacion)
+      .query(`
+        UPDATE Viajes
+        SET estado = 'cancelado', motivo_cancelacion = @motivo_cancelacion
+        OUTPUT INSERTED.id, INSERTED.estado, INSERTED.motivo_cancelacion
+        WHERE id = @id
+          AND conductor_id = @conductor_id
+          AND LOWER(estado) IN ('activo', 'programado')
+          AND fecha_salida > GETDATE()
+      `);
+
+    return result.recordset[0] || null;
   },
 
   /**

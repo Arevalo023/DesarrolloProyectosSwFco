@@ -475,6 +475,11 @@ Permite al dueño del vehículo modificar sus datos.
   - `origen` (opcional): Filtro parcial de origen.
   - `destino` (opcional): Filtro parcial de destino.
   - `fecha` (opcional): Fecha en formato `YYYY-MM-DD`.
+  - `fecha_inicio` (opcional): Inicio inclusivo del rango, en formato `YYYY-MM-DD`.
+  - `fecha_fin` (opcional): Fin inclusivo del rango, en formato `YYYY-MM-DD`.
+  - `hora_desde` (opcional): Hora inicial inclusiva, formato `HH:MM`.
+  - `hora_hasta` (opcional): Hora final inclusiva, formato `HH:MM`.
+  - `cupo_minimo` (opcional): Número entero mínimo de asientos disponibles (mayor o igual a cero).
 
 **Respuestas:**
 - **`200 OK`**:
@@ -502,10 +507,22 @@ Permite al dueño del vehículo modificar sus datos.
   }
   ```
 - **`400 Bad Request`**: `"El formato de fecha debe ser YYYY-MM-DD."`
+- **`400 Bad Request`**: Si la fecha u hora no tiene el formato indicado, un rango está invertido, el cupo mínimo no es entero no negativo o un filtro se repite.
+- Cuando no existan viajes que coincidan, responde `200 OK` con `{ "trips": [] }`.
 
 ---
 
-#### 3.4.4. Reservar Asiento en Viaje (`POST /api/trips/:id/book`)
+#### 3.4.4. Cancelar Viaje Publicado (`PATCH /api/trips/:id/cancel`)
+- **Acceso:** Privado (`Conductor`), solo el dueño del viaje.
+- **Body opcional:** `motivo_cancelacion` (máximo 250 caracteres).
+- Solo se pueden cancelar viajes activos/programados cuya salida aún no haya ocurrido.
+- **`200 OK`**: El viaje queda con estado `cancelado`; ya no aparece en `GET /api/trips`.
+- **`404 Not Found`**: El viaje no existe, no pertenece al conductor o no puede cancelarse.
+- **`400 Bad Request`**: ID inválido o motivo mayor a 250 caracteres.
+
+---
+
+#### 3.4.5. Reservar Asiento en Viaje (`POST /api/trips/:id/book`)
 Permite a un usuario con rol `Pasajero` solicitar un asiento en un viaje.
 > **Regla de Negocio:** La solicitud se crea con estado `pendiente`. **El cupo disponible NO se descuenta** al reservar; se descuenta únicamente cuando el conductor confirma y acepta la solicitud (`PATCH /api/reservations/:id`).
 

@@ -125,8 +125,15 @@ BEGIN
         fecha_salida DATETIME NOT NULL,
         cupo_disponible INT NOT NULL,
         costo_por_pasajero DECIMAL(10,2) NOT NULL,
-        estado VARCHAR(30) DEFAULT 'activo'
+        estado VARCHAR(30) DEFAULT 'activo',
+        motivo_cancelacion VARCHAR(250) NULL
     );
+END
+GO
+
+IF COL_LENGTH('dbo.Viajes', 'motivo_cancelacion') IS NULL
+BEGIN
+    ALTER TABLE dbo.Viajes ADD motivo_cancelacion VARCHAR(250) NULL;
 END
 GO
 

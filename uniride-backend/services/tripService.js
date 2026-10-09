@@ -98,6 +98,10 @@ const tripService = {
     return trips.map(addVehicleData);
   },
 
+  cancel(tripId, conductorId, motivoCancelacion) {
+    return tripModel.cancel(tripId, conductorId, motivoCancelacion);
+  },
+
   listAvailable(filters) {
     return tripModel.findAvailable(filters);
   },

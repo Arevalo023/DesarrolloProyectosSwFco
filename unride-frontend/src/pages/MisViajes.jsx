@@ -18,7 +18,7 @@ import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
 import { apiRequest } from "@/services/api";
 
-function MisViajes({ onBack }) {
+function MisViajes({ onBackHome }) {
   const [viajes, setViajes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -27,6 +27,7 @@ function MisViajes({ onBack }) {
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
 
   const [procesandoSolicitud, setProcesandoSolicitud] = useState(null);
+  const [cancelandoViaje, setCancelandoViaje] = useState(false);
 
   useEffect(() => {
     cargarViajes();
@@ -139,28 +140,40 @@ function MisViajes({ onBack }) {
     setMotivoCancelacion("");
   };
 
-  const cancelarViaje = () => {
+  const cancelarViaje = async () => {
     if (!viajeSeleccionado) return;
 
     const idViaje = obtenerIdViaje(viajeSeleccionado);
 
-    setViajes((viajesActuales) =>
-      viajesActuales.map((viaje) => {
-        if (obtenerIdViaje(viaje) !== idViaje) {
-          return viaje;
-        }
+    setCancelandoViaje(true);
+    setError("");
 
-        return {
-          ...viaje,
-          estado: "cancelado",
-          status: "cancelado",
-          motivo_cancelacion:
-            motivoCancelacion.trim() || null,
-        };
-      })
-    );
+    try {
+      const respuesta = await apiRequest(`/api/trips/${idViaje}/cancel`, {
+        method: "PATCH",
+        body: {
+          motivo_cancelacion: motivoCancelacion.trim() || null,
+        },
+      });
 
-    cerrarModalCancelacion();
+      setViajes((viajesActuales) =>
+        viajesActuales.map((viaje) =>
+          obtenerIdViaje(viaje) === idViaje
+            ? {
+                ...viaje,
+                ...respuesta.trip,
+                estado: "cancelado",
+                motivo_cancelacion: respuesta.trip?.motivo_cancelacion || null,
+              }
+            : viaje
+        )
+      );
+      cerrarModalCancelacion();
+    } catch (requestError) {
+      setError(requestError.message || "No se pudo cancelar el viaje.");
+    } finally {
+      setCancelandoViaje(false);
+    }
   };
 
   const responderSolicitud = async (
@@ -301,7 +314,7 @@ function MisViajes({ onBack }) {
 
           <button
             type="button"
-            onClick={onBack}
+            onClick={onBackHome}
             className="flex items-center gap-2 text-slate-600 transition hover:text-slate-900"
           >
             <ArrowLeft size={20} />
@@ -873,6 +886,7 @@ function MisViajes({ onBack }) {
               <button
                 type="button"
                 onClick={cerrarModalCancelacion}
+                disabled={cancelandoViaje}
                 className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               >
                 <X size={20} />
@@ -958,6 +972,7 @@ function MisViajes({ onBack }) {
                 type="button"
                 variant="outline"
                 onClick={cerrarModalCancelacion}
+                disabled={cancelandoViaje}
               >
                 Mantener viaje
               </Button>
@@ -965,10 +980,11 @@ function MisViajes({ onBack }) {
               <Button
                 type="button"
                 onClick={cancelarViaje}
+                disabled={cancelandoViaje}
                 className="bg-red-600 text-white hover:bg-red-700"
               >
                 <XCircle size={17} />
-                Sí, cancelar viaje
+                {cancelandoViaje ? "Cancelando..." : "Sí, cancelar viaje"}
               </Button>
 
             </div>
