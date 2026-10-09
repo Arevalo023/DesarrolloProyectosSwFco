@@ -239,6 +239,24 @@ const reservationModel = {
 
     return result.recordset;
   },
+
+  async findReceivedByDriver(driverId) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("driverId", sql.Int, driverId)
+      .query(`
+        SELECT sv.id, sv.viaje_id, sv.pasajero_id, sv.estado, sv.fecha_solicitud,
+               CONCAT(p.nombre, ' ', p.apellido) AS pasajero_nombre,
+               v.origen, v.destino, v.fecha_salida, v.estado AS viaje_estado
+        FROM SolicitudesViaje sv
+        INNER JOIN Viajes v ON v.id = sv.viaje_id
+        INNER JOIN Usuarios p ON p.id = sv.pasajero_id
+        WHERE v.conductor_id = @driverId
+        ORDER BY v.fecha_salida ASC, sv.fecha_solicitud ASC
+      `);
+
+    return result.recordset;
+  },
 };
 
 module.exports = reservationModel;

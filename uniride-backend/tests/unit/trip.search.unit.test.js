@@ -6,7 +6,6 @@ jest.mock("../../config/db", () => {
 
   return {
     sql: {
-        fecha: "2026-10-11",
       VarChar: jest.fn((length) => `VarChar(${length})`),
       Date: "Date",
       Time: "Time",
