@@ -55,6 +55,27 @@ describe('tripModel.findAvailable', () => {
     expect(db.requests[0].inputs.fecha.value).toBe('2026-12-01');
   });
 
+  test('asigna tipos SQL adecuados para rango de fechas, horas y cupo mínimo', async () => {
+    db.queueResult({ recordset: [] });
+
+    await tripModel.findAvailable({
+      origen: 'Campus',
+      destino: 'Centro',
+      fechaInicio: '2026-11-01',
+      fechaFin: '2026-11-05',
+      horaDesde: '07:00',
+      horaHasta: '10:00',
+      cupoMinimo: 3,
+    });
+
+    const { inputs } = db.requests[0];
+    expect(inputs.fecha_inicio).toEqual({ type: { name: 'Date' }, value: '2026-11-01' });
+    expect(inputs.fecha_fin).toEqual({ type: { name: 'Date' }, value: '2026-11-05' });
+    expect(inputs.hora_desde).toEqual({ type: { name: 'Time' }, value: '07:00' });
+    expect(inputs.hora_hasta).toEqual({ type: { name: 'Time' }, value: '10:00' });
+    expect(inputs.cupo_minimo).toEqual({ type: { name: 'Int' }, value: 3 });
+  });
+
   test('la consulta solo incluye viajes activos/programados, con cupo y a futuro', async () => {
     db.queueResult({ recordset: [] });
 
