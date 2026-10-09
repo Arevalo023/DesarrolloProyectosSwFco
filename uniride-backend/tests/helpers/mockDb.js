@@ -21,6 +21,7 @@ const sql = {
   Bit: { name: 'Bit' },
   Date: { name: 'Date' },
   DateTime: { name: 'DateTime' },
+  Time: { name: 'Time' },
 };
 
 const state = {

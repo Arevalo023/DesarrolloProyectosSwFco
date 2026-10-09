@@ -115,6 +115,57 @@ describe("GET /api/trips filtros", () => {
     expect(mockRequest.query.mock.calls[0][0]).toContain("CONVERT(time, v.fecha_salida) <= @hora_hasta");
     expect(mockRequest.query.mock.calls[0][0]).toContain("v.cupo_disponible >= @cupo_minimo");
   });
+
+  test("admite cupo_minimo igual a 0 y filtros parciales", async () => {
+    tripService.listAvailable.mockResolvedValue([]);
+    const req = {
+      query: {
+        origen: "Campus Poniente",
+        cupo_minimo: "0",
+      },
+    };
+    const res = createMockRes();
+
+    await tripController.listAvailable(req, res);
+
+    expect(tripService.listAvailable).toHaveBeenCalledWith({
+      origen: "Campus Poniente",
+      destino: null,
+      fecha: null,
+      fechaInicio: null,
+      fechaFin: null,
+      horaDesde: null,
+      horaHasta: null,
+      cupoMinimo: 0,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ trips: [] });
+  });
+
+  test("rechaza cupo_minimo negativo y valores no numéricos", async () => {
+    for (const invalidCupo of ["-1", "-5", "abc", "999999999999999999999"]) {
+      const res = createMockRes();
+      await tripController.listAvailable({ query: { cupo_minimo: invalidCupo } }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "El cupo mínimo debe ser un número entero mayor o igual a cero.",
+      });
+    }
+
+    expect(tripService.listAvailable).not.toHaveBeenCalled();
+  });
+
+  test("retorna 500 cuando el servicio falla", async () => {
+    tripService.listAvailable.mockRejectedValue(new Error("Database error"));
+    const res = createMockRes();
+
+    await tripController.listAvailable({ query: {} }, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "No se pudieron obtener los viajes.",
+    });
+  });
 });
 
 describe("PATCH /api/trips/:id/cancel", () => {
