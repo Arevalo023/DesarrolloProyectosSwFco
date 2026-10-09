@@ -18,6 +18,12 @@ router.get(
 	roleMiddleware(["Conductor"]),
 	tripController.listByDriver
 );
+router.get(
+	"/driver/requests",
+	authMiddleware.verifyToken,
+	roleMiddleware(["Conductor"]),
+	tripController.listReceivedRequests
+);
 router.get("/reservations", authMiddleware.verifyToken, tripController.listReservations);
 router.get("/", authMiddleware.verifyToken, tripController.listAvailable);
 router.patch(

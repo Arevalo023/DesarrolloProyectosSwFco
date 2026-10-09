@@ -101,6 +101,17 @@ const tripController = {
     }
   },
 
+  async listReceivedRequests(req, res) {
+    try {
+      const requests = await reservationService.listReceivedByDriver(req.user.id);
+      return res.status(200).json({ requests });
+    } catch (error) {
+      return res.status(error.statusCode || 500).json({
+        message: error.message || "No se pudieron obtener las solicitudes recibidas.",
+      });
+    }
+  },
+
   async listAvailable(req, res) {
     try {
       const {

@@ -38,13 +38,31 @@ function MisViajes({ onBackHome }) {
     setError("");
 
     try {
-      const respuesta = await apiRequest("/api/trips/driver");
+      const [respuesta, respuestaSolicitudes] = await Promise.all([
+        apiRequest("/api/trips/driver"),
+        apiRequest("/api/trips/driver/requests"),
+      ]);
 
       const datos = Array.isArray(respuesta)
         ? respuesta
         : respuesta?.trips || respuesta?.viajes || [];
+      const solicitudes = Array.isArray(respuestaSolicitudes?.requests)
+        ? respuestaSolicitudes.requests
+        : [];
+      const solicitudesPorViaje = new Map();
 
-      setViajes(datos);
+      solicitudes.forEach((solicitud) => {
+        const solicitudesDelViaje = solicitudesPorViaje.get(solicitud.viaje_id) || [];
+        solicitudesDelViaje.push(solicitud);
+        solicitudesPorViaje.set(solicitud.viaje_id, solicitudesDelViaje);
+      });
+
+      setViajes(
+        datos.map((viaje) => ({
+          ...viaje,
+          reservations: solicitudesPorViaje.get(viaje.id) || [],
+        }))
+      );
     } catch (err) {
       console.error("Error al cargar mis viajes:", err);
 

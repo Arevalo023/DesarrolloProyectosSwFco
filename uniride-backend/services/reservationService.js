@@ -45,6 +45,10 @@ const reservationService = {
     const sortOrder = String(order || "asc").trim().toLowerCase() === "desc" ? "desc" : "asc";
     return reservationModel.findByPassenger(passengerId, { order: sortOrder });
   },
+
+  listReceivedByDriver(driverId) {
+    return reservationModel.findReceivedByDriver(driverId);
+  },
 };
 
 module.exports = reservationService;

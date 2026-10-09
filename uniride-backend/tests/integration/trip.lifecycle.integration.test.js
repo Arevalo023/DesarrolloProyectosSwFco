@@ -129,6 +129,14 @@ describe("Flujo funcional E2E: Ciclo completo de viaje e integridad de base de d
     expect(found).toBeDefined();
     expect(found.origen).toContain("Campus Arteaga E2E");
     expect(found.cupo_disponible).toBe(2);
+
+    const incomingRequests = await request(app)
+      .get("/api/trips/driver/requests")
+      .set("Authorization", `Bearer ${tokenFor(ctx.driverId, "Conductor")}`)
+      .set("X-Active-Role", "Conductor");
+
+    expect(incomingRequests.status).toBe(200);
+    expect(incomingRequests.body.requests).toEqual([]);
   });
 
   test("3. Pasajero solicita una reserva (queda en estado 'pendiente' y NO reduce cupo anticipadamente)", async () => {
@@ -161,6 +169,29 @@ describe("Flujo funcional E2E: Ciclo completo de viaje e integridad de base de d
     expect(myRes.estado).toBe("pendiente");
     expect(myRes.origen).toContain("Campus Arteaga E2E");
     expect(myRes.conductor_id).toBe(ctx.driverId);
+
+    const incomingRequests = await request(app)
+      .get("/api/trips/driver/requests")
+      .set("Authorization", `Bearer ${tokenFor(ctx.driverId, "Conductor")}`)
+      .set("X-Active-Role", "Conductor");
+
+    expect(incomingRequests.status).toBe(200);
+    expect(incomingRequests.body.requests).toContainEqual(
+      expect.objectContaining({
+        id: reservationId,
+        viaje_id: tripId,
+        pasajero_id: ctx.passengerId,
+        pasajero_nombre: "passengerE2E E2E",
+        estado: "pendiente",
+      })
+    );
+
+    const forbiddenRequests = await request(app)
+      .get("/api/trips/driver/requests")
+      .set("Authorization", `Bearer ${tokenFor(ctx.passengerId, "Pasajero")}`)
+      .set("X-Active-Role", "Pasajero");
+
+    expect(forbiddenRequests.status).toBe(403);
   });
 
   test("5. Conductor acepta la solicitud -> cambia a 'aceptada' y descuenta 1 asiento atómicamente", async () => {

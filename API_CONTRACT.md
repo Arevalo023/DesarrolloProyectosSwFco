@@ -469,7 +469,34 @@ Permite al dueño del vehículo modificar sus datos.
 
 ---
 
-#### 3.4.3. Buscar Viajes Disponibles (`GET /api/trips`)
+#### 3.4.3. Listar Solicitudes Recibidas (`GET /api/trips/driver/requests`)
+- **Acceso:** Privado (`Conductor`). Solo devuelve solicitudes de viajes publicados por el conductor autenticado.
+- **Respuesta `200 OK`:**
+  ```json
+  {
+    "requests": [
+      {
+        "id": 25,
+        "viaje_id": 10,
+        "pasajero_id": 8,
+        "estado": "pendiente",
+        "fecha_solicitud": "2026-10-09T16:30:00.000Z",
+        "pasajero_nombre": "Ana López",
+        "origen": "Campus Poniente",
+        "destino": "Rectoría UAdeC",
+        "fecha_salida": "2026-10-15T08:00:00.000Z",
+        "viaje_estado": "programado"
+      }
+    ]
+  }
+  ```
+- Si no hay solicitudes, responde `200 OK` con `{ "requests": [] }`.
+- **`401 Unauthorized`**: Token ausente o inválido.
+- **`403 Forbidden`**: El usuario no tiene el rol activo de Conductor.
+
+---
+
+#### 3.4.4. Buscar Viajes Disponibles (`GET /api/trips`)
 - **Acceso:** Privado (cualquier usuario autenticado).
 - **Query Params:**
   - `origen` (opcional): Filtro parcial de origen.
@@ -512,7 +539,7 @@ Permite al dueño del vehículo modificar sus datos.
 
 ---
 
-#### 3.4.4. Cancelar Viaje Publicado (`PATCH /api/trips/:id/cancel`)
+#### 3.4.5. Cancelar Viaje Publicado (`PATCH /api/trips/:id/cancel`)
 - **Acceso:** Privado (`Conductor`), solo el dueño del viaje.
 - **Body opcional:** `motivo_cancelacion` (máximo 250 caracteres).
 - Solo se pueden cancelar viajes activos/programados cuya salida aún no haya ocurrido.
@@ -522,7 +549,7 @@ Permite al dueño del vehículo modificar sus datos.
 
 ---
 
-#### 3.4.5. Reservar Asiento en Viaje (`POST /api/trips/:id/book`)
+#### 3.4.6. Reservar Asiento en Viaje (`POST /api/trips/:id/book`)
 Permite a un usuario con rol `Pasajero` solicitar un asiento en un viaje.
 > **Regla de Negocio:** La solicitud se crea con estado `pendiente`. **El cupo disponible NO se descuenta** al reservar; se descuenta únicamente cuando el conductor confirma y acepta la solicitud (`PATCH /api/reservations/:id`).
 
@@ -555,7 +582,7 @@ Permite a un usuario con rol `Pasajero` solicitar un asiento en un viaje.
 
 ---
 
-#### 3.4.5. Mis Reservaciones de Viaje (`GET /api/trips/reservations`)
+#### 3.4.7. Mis Reservaciones de Viaje (`GET /api/trips/reservations`)
 Permite a un pasajero consultar todas sus reservaciones realizadas.
 *(Disponible también en el alias `GET /api/reservations`)*
 

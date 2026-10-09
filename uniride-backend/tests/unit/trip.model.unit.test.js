@@ -34,7 +34,16 @@ describe('tripModel.findAvailable', () => {
     await tripModel.findAvailable({});
 
     const values = db.valuesOf(db.requests[0]);
-    expect(values).toEqual({ origen: null, destino: null, fecha: null });
+    expect(values).toEqual({
+      origen: null,
+      destino: null,
+      fecha: null,
+      fecha_inicio: null,
+      fecha_fin: null,
+      hora_desde: null,
+      hora_hasta: null,
+      cupo_minimo: null,
+    });
     expect(db.requests[0].inputs.fecha.type).toEqual({ name: 'Date' });
   });
 
