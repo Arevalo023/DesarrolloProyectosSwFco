@@ -9,7 +9,7 @@ import PublicarViaje from "./pages/PublicarViaje";
 import MisViajes from "./pages/MisViajes";
 import ResumenReserva from "./pages/ResumenReserva";
 import Notificaciones from "./pages/Notificaciones";
-import MisReservaciones from "./pages/MisReservaciones";
+import MisSolicitudes from "./pages/MisReservaciones";
 
 import {
   cerrarSesion,
@@ -228,8 +228,8 @@ function App() {
           setPantalla("mis-viajes");
         }}
 
-        onMisReservaciones={() => {
-          setPantalla("mis-reservaciones")
+        onMisSolicitudes={() => {
+          setPantalla("mis-solicitudes")
         }}
 
         onNotificaciones={() => {
@@ -282,11 +282,11 @@ function App() {
   }
 
   // ============================================================
-  // MIS RESERVACIONES
+  // MIS SOLICITUDES
   // ============================================================
-  if (pantalla === "mis-reservaciones") {
+  if (pantalla === "mis-solicitudes") {
   return (
-    <MisReservaciones
+    <MisSolicitudes
       user={usuario}
       onBack={() => setPantalla("home")}
     />

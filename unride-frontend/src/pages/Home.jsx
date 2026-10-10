@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import AlertBanner from "@/components/ui/alert-banner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
 
@@ -31,7 +31,7 @@ function Home({
   onVehiculos,
   onPublish,
   onMisViajes,
-  onMisReservaciones,
+  onMisSolicitudes,
   user,
   rolActivo,
   onCambiarRol,
@@ -60,6 +60,11 @@ function Home({
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState(null);
+  const [activeTravelSummary, setActiveTravelSummary] = useState({
+    role: null,
+    items: [],
+    error: "",
+  });
 
   // Cantidad de resultados mostrados inicialmente.
   const [visibleCount, setVisibleCount] = useState(6);
@@ -92,6 +97,62 @@ function Home({
 
   const modoPasajero = mismoRol(rolEnUso, "Pasajero");
 
+  const summaryRole = modoPasajero
+    ? "Pasajero"
+    : modoConductor
+      ? "Conductor"
+      : null;
+
+  useEffect(() => {
+    if (!summaryRole) return undefined;
+
+    let cancelled = false;
+    const loadActiveTravel = async () => {
+      try {
+        const endpoint = summaryRole === "Pasajero"
+          ? "/api/trips/reservations"
+          : "/api/trips/driver";
+        const data = await apiRequest(endpoint);
+        const records = summaryRole === "Pasajero"
+          ? data.reservations || []
+          : data.trips || [];
+        const now = Date.now();
+        const activeItems = records.filter((item) => {
+          const state = String(
+            summaryRole === "Pasajero" ? item.estado : item.estado
+          ).toLowerCase();
+          const tripState = String(item.viaje_estado || item.estado || "").toLowerCase();
+          const departure = new Date(item.fecha_salida).getTime();
+          const upcoming = !Number.isFinite(departure) || departure >= now;
+
+          if (summaryRole === "Pasajero") {
+            return ["pendiente", "aceptada"].includes(state) &&
+              !["cancelado", "finalizado"].includes(tripState) && upcoming;
+          }
+
+          return ["activo", "programado"].includes(state) && upcoming;
+        });
+
+        if (!cancelled) {
+          setActiveTravelSummary({ role: summaryRole, items: activeItems, error: "" });
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setActiveTravelSummary({
+            role: summaryRole,
+            items: [],
+            error: requestError.message || "No se pudo cargar el resumen de tus viajes.",
+          });
+        }
+      }
+    };
+
+    void loadActiveTravel();
+    return () => {
+      cancelled = true;
+    };
+  }, [summaryRole]);
+
   const canPublish = modoConductor;
 
   const cambiarModo = (rol) => {
@@ -104,11 +165,19 @@ function Home({
   // BAJAR A LA SECCIÓN DE BÚSQUEDA
   // ============================================================
 
-  const handleBuscar = () => {
-    document.getElementById("buscar")?.scrollIntoView({
-      behavior: "smooth",
+  const scrollToSection = (sectionId) => {
+    const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
+      ? "auto"
+      : "smooth";
+    document.getElementById(sectionId)?.scrollIntoView({
+      behavior,
+      block: "start",
     });
   };
+
+  const handleBuscar = () => scrollToSection("buscar");
+
+  const irAResumenViajes = () => scrollToSection("resumen-viajes");
 
   // ============================================================
   // ACTUALIZAR FILTROS
@@ -390,6 +459,24 @@ function Home({
         data.message ||
           "Solicitud de viaje enviada correctamente. Queda pendiente de aprobación."
       );
+      const bookedTrip = trips.find((trip) => trip.id === tripId);
+      if (bookedTrip && data.booking) {
+        setActiveTravelSummary((current) => ({
+          role: "Pasajero",
+          error: "",
+          items: [
+            {
+              ...bookedTrip,
+              ...data.booking,
+              viaje_estado: bookedTrip.estado,
+              conductor_nombre: bookedTrip.conductor_nombre || bookedTrip.conductor,
+            },
+            ...(current.role === "Pasajero"
+              ? current.items.filter((item) => item.viaje_id !== tripId)
+              : []),
+          ],
+        }));
+      }
     } catch (requestError) {
       setError(
         requestError.message ||
@@ -494,7 +581,27 @@ function Home({
               "
             >
               Inicio
+
             </a>
+            {modoPasajero && onMisSolicitudes && (
+              <button
+                type="button"
+                onClick={irAResumenViajes}
+                className="text-sm font-medium text-slate-600 transition hover:text-emerald-600"
+              >
+                Mis reservaciones
+              </button>
+            )}
+
+            {modoConductor && onMisViajes && (
+              <button
+                type="button"
+                onClick={irAResumenViajes}
+                className="text-sm font-medium text-slate-600 transition hover:text-emerald-600"
+              >
+                Mis viajes
+              </button>
+            )}
 
             <a
               href="#buscar"
@@ -716,7 +823,7 @@ function Home({
                   type="button"
                   onClick={() => {
                     setMenuPerfil(false);
-                    onMisViajes?.();
+                    irAResumenViajes();
                   }}
                   className="
                     flex
@@ -740,15 +847,15 @@ function Home({
                   </span>
                 </button>
 
-                {/* MIS RESERVACIONES */}
+                {/* MIS SOLICITUDES */}
 
                 {modoPasajero &&
-                  onMisReservaciones && (
+                  onMisSolicitudes && (
                     <button
                       type="button"
                       onClick={() => {
                         setMenuPerfil(false);
-                        onMisReservaciones();
+                        irAResumenViajes();
                       }}
                       className="
                         flex
@@ -768,7 +875,7 @@ function Home({
                       <ClipboardList size={18} />
 
                       <span>
-                        Mis reservaciones
+                        Mis solicitudes
                       </span>
                     </button>
                   )}
@@ -942,6 +1049,137 @@ function Home({
 
         </div>
       </section>
+
+      {summaryRole && (
+        <section id="resumen-viajes" className="order-2 scroll-mt-24 border-t bg-slate-50 px-6 py-12">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="mb-1 text-sm font-semibold uppercase tracking-wider text-emerald-700">
+                  {summaryRole === "Pasajero" ? "Tus viajes" : "Tu actividad"}
+                </p>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  {summaryRole === "Pasajero" ? "Reservaciones activas" : "Mis viajes publicados"}
+                </h2>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={summaryRole === "Pasajero" ? onMisSolicitudes : onMisViajes}
+                className="self-start border-emerald-200 text-emerald-800 hover:bg-emerald-50 sm:self-auto"
+              >
+                {summaryRole === "Pasajero" ? "Ver Solicitudes" : "Administrar viajes"}
+              </Button>
+            </div>
+
+            {activeTravelSummary.role !== summaryRole ? (
+              <p role="status" className="py-8 text-center text-sm text-slate-500">
+                Cargando tus viajes...
+              </p>
+            ) : activeTravelSummary.error ? (
+              <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {activeTravelSummary.error}
+              </p>
+            ) : activeTravelSummary.items.length === 0 ? (
+              <Card className="border-dashed border-slate-300 bg-white shadow-none">
+                <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+                  <Car size={25} className="text-slate-400" />
+                  <p className="font-medium text-slate-700">
+                    {summaryRole === "Pasajero"
+                      ? "No tienes reservaciones activas"
+                      : "No tienes viajes próximos publicados"}
+                  </p>
+                  {summaryRole === "Pasajero" ? (
+                    <Button type="button" onClick={handleBuscar} className="bg-emerald-700 text-white hover:bg-emerald-800">
+                      Buscar viajes
+                    </Button>
+                  ) : (
+                    <Button type="button" onClick={onPublish} className="bg-emerald-700 text-white hover:bg-emerald-800">
+                      Publicar viaje
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {activeTravelSummary.items.map((item) => {
+                  const passengerView = summaryRole === "Pasajero";
+                  const state = item.estado;
+                  const accepted = state === "aceptada";
+                  const vehicleDescription = [
+                    item.vehiculo_marca || item.marca,
+                    item.vehiculo_modelo || item.modelo,
+                    item.vehiculo_color || item.color,
+                  ].filter(Boolean).join(" · ");
+                  const vehiclePlate = item.vehiculo_placa || item.placa;
+                  const departure = item.fecha_salida
+                    ? new Date(item.fecha_salida).toLocaleString("es-MX", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Fecha pendiente";
+
+                  return (
+                    <Card key={passengerView ? item.id : `trip-${item.id}`} className="overflow-hidden border-slate-200 bg-white shadow-sm">
+                      <CardContent className="p-0">
+                        <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="rounded-lg bg-emerald-50 p-2.5 text-emerald-800">
+                              <Car size={20} />
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                {passengerView ? "Reservación" : "Viaje propio"} #{passengerView ? item.id : item.id}
+                              </p>
+                              <p className="truncate font-semibold text-slate-900">
+                                {item.origen} → {item.destino}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            passengerView
+                              ? accepted ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-800"
+                              : "bg-blue-50 text-blue-700"
+                          }`}>
+                            {passengerView ? accepted ? "Aceptada" : "Pendiente" : "Programado"}
+                          </span>
+                        </div>
+                        <div className="grid gap-3 px-5 py-4 text-sm sm:grid-cols-2">
+                          <p className="flex items-center gap-2 text-slate-600">
+                            <CalendarDays size={17} className="shrink-0 text-emerald-700" />
+                            <span className="capitalize">{departure}</span>
+                          </p>
+                          {passengerView ? (
+                            <p className="flex items-center gap-2 text-slate-600">
+                              <UserRound size={17} className="shrink-0 text-emerald-700" />
+                              <span className="truncate">{item.conductor_nombre || "Conductor"}</span>
+                            </p>
+                          ) : (
+                            <p className="flex items-center gap-2 text-slate-600">
+                              <Users size={17} className="shrink-0 text-emerald-700" />
+                              {item.cupo_disponible ?? 0} lugares disponibles
+                            </p>
+                          )}
+                          <p className="flex items-center gap-2 text-slate-600 sm:col-span-2">
+                            <Car size={17} className="shrink-0 text-emerald-700" />
+                            <span>
+                              {vehicleDescription || "Vehículo no disponible"}
+                              {vehiclePlate ? ` · Placas ${vehiclePlate}` : ""}
+                            </span>
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ========================================================
           BUSCAR VIAJE

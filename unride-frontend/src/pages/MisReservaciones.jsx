@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -17,12 +17,36 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
+import { apiRequest } from "@/services/api";
 
-function MisReservaciones({ onBack, user }) {
+function MisSolicitudes({ onBack, user }) {
   const [reservaciones, setReservaciones] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+  const [cancelandoId, setCancelandoId] = useState(null);
 
   const [reservacionSeleccionada, setReservacionSeleccionada] =
     useState(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    apiRequest("/api/trips/reservations")
+      .then((data) => {
+        if (!cancelado) setReservaciones(data.reservations || []);
+      })
+      .catch((requestError) => {
+        if (!cancelado) {
+          setError(requestError.message || "No se pudieron cargar tus solicitudes.");
+        }
+      })
+      .finally(() => {
+        if (!cancelado) setCargando(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   const formatearFecha = (fecha) => {
     if (!fecha) return "";
@@ -90,21 +114,23 @@ function MisReservaciones({ onBack, user }) {
     setReservacionSeleccionada(null);
   };
 
-  const cancelarReservacion = () => {
+  const cancelarReservacion = async () => {
     if (!reservacionSeleccionada) return;
+    const id = reservacionSeleccionada.id;
 
-    setReservaciones((actuales) =>
-      actuales.map((reservacion) =>
-        reservacion.id === reservacionSeleccionada.id
-          ? {
-              ...reservacion,
-              estado: "cancelada",
-            }
-          : reservacion
-      )
-    );
-
-    setReservacionSeleccionada(null);
+    setCancelandoId(id);
+    setError("");
+    try {
+      await apiRequest(`/api/reservations/${id}/cancel`, { method: "PATCH" });
+      setReservaciones((actuales) => actuales.map((reservacion) =>
+        reservacion.id === id ? { ...reservacion, estado: "cancelada" } : reservacion
+      ));
+      setReservacionSeleccionada(null);
+    } catch (requestError) {
+      setError(requestError.message || "No se pudo cancelar la solicitud.");
+    } finally {
+      setCancelandoId(null);
+    }
   };
 
   const reservacionesActivas = reservaciones.filter(
@@ -157,14 +183,19 @@ function MisReservaciones({ onBack, user }) {
           </p>
 
           <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">
-            Mis Reservaciones
+            Mis Solicitudes
           </h1>
 
           <p className="mt-2 max-w-2xl text-slate-600">
-            Consulta tus solicitudes de viaje y administra el estado
-            de tus reservaciones.
+            Consulta tus solicitudes de viaje y revisa cuáles fueron confirmadas.
           </p>
         </div>
+
+        {error && (
+          <p role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
 
         {/* RESERVACIONES */}
         <section>
@@ -175,13 +206,17 @@ function MisReservaciones({ onBack, user }) {
             </h2>
 
             <p className="text-sm text-slate-500">
-              {reservacionesActivas.length} reservación
+              {reservacionesActivas.length} solicitud
               {reservacionesActivas.length !== 1 ? "es" : ""}
             </p>
           </div>
 
           {/* ESTADO VACÍO */}
-          {reservacionesActivas.length === 0 ? (
+          {cargando ? (
+            <p role="status" className="py-10 text-center text-sm text-slate-500">
+              Cargando tus solicitudes...
+            </p>
+          ) : reservacionesActivas.length === 0 ? (
             <Card className="border-dashed bg-white">
               <CardContent className="flex flex-col items-center justify-center py-16 text-center">
 
@@ -193,11 +228,11 @@ function MisReservaciones({ onBack, user }) {
                 </div>
 
                 <h3 className="text-lg font-semibold text-slate-800">
-                  No tienes reservaciones
+                  No tienes solicitudes
                 </h3>
 
                 <p className="mt-2 max-w-md text-sm text-slate-500">
-                  Cuando solicites un viaje, tus reservaciones
+                  Cuando solicites un viaje, tus solicitudes
                   aparecerán aquí.
                 </p>
 
@@ -232,7 +267,7 @@ function MisReservaciones({ onBack, user }) {
 
                           <div>
                             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                              Reservación #{reservacion.id}
+                              Solicitud #{reservacion.id}
                             </p>
 
                             <p className="font-semibold text-slate-900">
@@ -461,7 +496,7 @@ function MisReservaciones({ onBack, user }) {
                               className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
                             >
                               <X size={17} />
-                              Cancelar reservación
+                              Cancelar solicitud
                             </Button>
                           )}
 
@@ -485,11 +520,11 @@ function MisReservaciones({ onBack, user }) {
 
             <div className="mb-5">
               <h2 className="text-xl font-bold text-slate-900">
-                Reservaciones canceladas
+                Solicitudes canceladas
               </h2>
 
               <p className="text-sm text-slate-500">
-                Historial de reservaciones canceladas
+                Historial de solicitudes canceladas
               </p>
             </div>
 
@@ -506,7 +541,7 @@ function MisReservaciones({ onBack, user }) {
 
                       <div>
                         <p className="text-xs font-medium text-slate-400">
-                          Reservación #{reservacion.id}
+                          Solicitud #{reservacion.id}
                         </p>
 
                         <h3 className="mt-1 font-semibold text-slate-700">
@@ -569,12 +604,12 @@ function MisReservaciones({ onBack, user }) {
                 </div>
 
                 <h2 className="text-xl font-bold text-slate-900">
-                  Cancelar reservación
+                  Cancelar solicitud
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-500">
                   ¿Estás segura de que deseas cancelar esta
-                  reservación?
+                  solicitud?
                 </p>
 
               </div>
@@ -619,16 +654,18 @@ function MisReservaciones({ onBack, user }) {
                 type="button"
                 variant="outline"
                 onClick={cerrarModal}
+                disabled={cancelandoId === reservacionSeleccionada.id}
               >
-                Mantener reservación
+                Mantener solicitud
               </Button>
 
               <Button
                 type="button"
                 onClick={cancelarReservacion}
+                disabled={cancelandoId === reservacionSeleccionada.id}
                 className="bg-red-600 text-white hover:bg-red-700"
               >
-                Sí, cancelar
+                {cancelandoId === reservacionSeleccionada.id ? "Cancelando..." : "Sí, cancelar"}
               </Button>
 
             </div>
@@ -642,4 +679,4 @@ function MisReservaciones({ onBack, user }) {
   );
 }
 
-export default MisReservaciones;
+export default MisSolicitudes;
