@@ -30,50 +30,50 @@ function MisViajes({ onBackHome }) {
   const [cancelandoViaje, setCancelandoViaje] = useState(false);
 
   useEffect(() => {
-    cargarViajes();
+    let cancelado = false;
+
+    const cargarViajes = async () => {
+      try {
+        const [respuesta, respuestaSolicitudes] = await Promise.all([
+          apiRequest("/api/trips/driver"),
+          apiRequest("/api/trips/driver/requests"),
+        ]);
+
+        const datos = Array.isArray(respuesta)
+          ? respuesta
+          : respuesta?.trips || respuesta?.viajes || [];
+        const solicitudes = Array.isArray(respuestaSolicitudes?.requests)
+          ? respuestaSolicitudes.requests
+          : [];
+        const solicitudesPorViaje = new Map();
+
+        solicitudes.forEach((solicitud) => {
+          const solicitudesDelViaje = solicitudesPorViaje.get(solicitud.viaje_id) || [];
+          solicitudesDelViaje.push(solicitud);
+          solicitudesPorViaje.set(solicitud.viaje_id, solicitudesDelViaje);
+        });
+
+        if (!cancelado) {
+          setViajes(datos.map((viaje) => ({
+            ...viaje,
+            reservations: solicitudesPorViaje.get(viaje.id) || [],
+          })));
+        }
+      } catch (err) {
+        console.error("Error al cargar mis viajes:", err);
+        if (!cancelado) {
+          setError(err?.message || "No fue posible cargar tus viajes publicados.");
+        }
+      } finally {
+        if (!cancelado) setCargando(false);
+      }
+    };
+
+    void cargarViajes();
+    return () => {
+      cancelado = true;
+    };
   }, []);
-
-  const cargarViajes = async () => {
-    setCargando(true);
-    setError("");
-
-    try {
-      const [respuesta, respuestaSolicitudes] = await Promise.all([
-        apiRequest("/api/trips/driver"),
-        apiRequest("/api/trips/driver/requests"),
-      ]);
-
-      const datos = Array.isArray(respuesta)
-        ? respuesta
-        : respuesta?.trips || respuesta?.viajes || [];
-      const solicitudes = Array.isArray(respuestaSolicitudes?.requests)
-        ? respuestaSolicitudes.requests
-        : [];
-      const solicitudesPorViaje = new Map();
-
-      solicitudes.forEach((solicitud) => {
-        const solicitudesDelViaje = solicitudesPorViaje.get(solicitud.viaje_id) || [];
-        solicitudesDelViaje.push(solicitud);
-        solicitudesPorViaje.set(solicitud.viaje_id, solicitudesDelViaje);
-      });
-
-      setViajes(
-        datos.map((viaje) => ({
-          ...viaje,
-          reservations: solicitudesPorViaje.get(viaje.id) || [],
-        }))
-      );
-    } catch (err) {
-      console.error("Error al cargar mis viajes:", err);
-
-      setError(
-        err?.message ||
-          "No fue posible cargar tus viajes publicados."
-      );
-    } finally {
-      setCargando(false);
-    }
-  };
 
   const mapEstado = (estado) => {
     switch (String(estado || "").toLowerCase()) {

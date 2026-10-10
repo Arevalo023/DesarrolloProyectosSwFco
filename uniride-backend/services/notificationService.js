@@ -79,9 +79,28 @@ const notificationService = {
     });
   },
 
+  /** Viaje cancelado -> avisa a cada pasajero con una solicitud activa. */
+  async notifyTripCancelled(reservation, trip) {
+    return send({
+      usuarioId: reservation.pasajero_id,
+      reservation,
+      tipo: "viaje_cancelado",
+      titulo: "Viaje cancelado",
+      mensaje: `El conductor canceló el viaje de ${trip.origen} a ${trip.destino}.`,
+    });
+  },
+
   /** Notificaciones del usuario (más recientes primero). */
   getUserNotifications(usuarioId, options) {
     return notificationModel.findByUser(usuarioId, options);
+  },
+
+  markRead(id, usuarioId) {
+    return notificationModel.markRead(id, usuarioId);
+  },
+
+  markAllRead(usuarioId) {
+    return notificationModel.markAllRead(usuarioId);
   },
 };
 

@@ -14,6 +14,7 @@ import {
   crearVehiculo,
   actualizarVehiculo,
   cambiarEstadoVehiculo,
+  eliminarVehiculo,
 } from "@/services/vehicleService";
 
 import {
@@ -29,6 +30,7 @@ import {
   X,
   AlertCircle,
   Users,
+  Trash2,
 } from "lucide-react";
 
 
@@ -62,7 +64,7 @@ const formularioInicial = {
 
 export default function Vehiculos({
   onBackHome,
-  onRolAgregado,
+  onSesionActualizada,
 }) {
 
   // ============================================================
@@ -466,7 +468,7 @@ export default function Vehiculos({
 
 
         if (sesion && rolAgregado) {
-          onRolAgregado?.(
+          onSesionActualizada?.(
             sesion,
             rolAgregado
           );
@@ -606,11 +608,19 @@ export default function Vehiculos({
       try {
         const {
           vehiculo: actualizado,
+          sesion,
         } =
           await cambiarEstadoVehiculo(
             vehiculo.id,
             nuevoEstado
           );
+
+        if (sesion) {
+          onSesionActualizada?.(
+            sesion,
+            nuevoEstado ? "Conductor" : "Pasajero"
+          );
+        }
 
 
         setVehiculos((anteriores) =>
@@ -654,6 +664,32 @@ export default function Vehiculos({
         setCambiandoEstadoId(null);
       }
     };
+
+  const solicitarEliminar = async (vehiculo) => {
+    const confirmado = window.confirm(
+      `¿Eliminar ${vehiculo.marca} ${vehiculo.modelo} (${vehiculo.placas})? Si tiene viajes históricos, se conservará desactivado.`
+    );
+    if (!confirmado) return;
+
+    setCambiandoEstadoId(vehiculo.id);
+    setMensaje("");
+    try {
+      const resultado = await eliminarVehiculo(vehiculo.id);
+      if (resultado.sesion && resultado.rolRetirado) {
+        onSesionActualizada?.(resultado.sesion, "Pasajero");
+      }
+      setVehiculos((anteriores) => ordenarVehiculos(
+        resultado.vehiculo
+          ? anteriores.map((actual) => actual.id === vehiculo.id ? resultado.vehiculo : actual)
+          : anteriores.filter((actual) => actual.id !== vehiculo.id)
+      ));
+      mostrarMensaje(resultado.mensaje || "Vehículo eliminado correctamente.", "exito");
+    } catch (error) {
+      mostrarMensaje(error.message || "No fue posible eliminar el vehículo.", "error");
+    } finally {
+      setCambiandoEstadoId(null);
+    }
+  };
 
 
   // ============================================================
@@ -1639,6 +1675,23 @@ export default function Vehiculos({
                             ? "Desactivar"
                             : "Reactivar"}
 
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        aria-label={`Eliminar ${vehiculo.marca} ${vehiculo.modelo}`}
+                        title="Eliminar vehículo"
+                        disabled={cambiandoEstadoId === vehiculo.id}
+                        onClick={() => solicitarEliminar(vehiculo)}
+                        className="flex flex-1 items-center justify-center gap-2 border-red-200 text-red-600 hover:bg-red-50"
+                      >
+                        {cambiandoEstadoId === vehiculo.id ? (
+                          <LoaderCircle size={17} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={17} />
+                        )}
+                        Eliminar
                       </Button>
 
                     </div>

@@ -15,7 +15,19 @@ const tripModel = {
    * @param {number} [filters.cupoMinimo]
    * @returns {Promise<Array>}
    */
-  async findAvailable({ origen, destino, fecha, fechaInicio, fechaFin, horaDesde, horaHasta, cupoMinimo }) {
+  async findAvailable({
+    origen,
+    destino,
+    fecha,
+    fechaInicio,
+    fechaFin,
+    horaDesde,
+    horaHasta,
+    cupoMinimo,
+    conductorId,
+    limit = 10,
+    offset = 0,
+  }) {
     const pool = await poolPromise;
     const request = pool.request()
       .input("origen", sql.VarChar(255), origen ? `%${origen}%` : null)
@@ -25,10 +37,13 @@ const tripModel = {
       .input("fecha_fin", sql.Date, fechaFin || null)
       .input("hora_desde", sql.Time, horaDesde || null)
       .input("hora_hasta", sql.Time, horaHasta || null)
-      .input("cupo_minimo", sql.Int, cupoMinimo ?? null);
+      .input("cupo_minimo", sql.Int, cupoMinimo ?? null)
+      .input("conductor_id", sql.Int, conductorId ?? null)
+      .input("limit", sql.Int, limit + 1)
+      .input("offset", sql.Int, offset);
 
     const result = await request.query(`
-      SELECT TOP (10) v.id, v.origen, v.destino, v.fecha_salida,
+      SELECT v.id, v.origen, v.destino, v.fecha_salida,
              v.cupo_disponible,
              v.cupo_disponible AS asientos_disponibles,
              v.costo_por_pasajero, v.estado,
@@ -50,7 +65,9 @@ const tripModel = {
         AND (@hora_desde IS NULL OR CONVERT(time, v.fecha_salida) >= @hora_desde)
         AND (@hora_hasta IS NULL OR CONVERT(time, v.fecha_salida) <= @hora_hasta)
         AND (@cupo_minimo IS NULL OR v.cupo_disponible >= @cupo_minimo)
-      ORDER BY v.fecha_salida ASC
+        AND (@conductor_id IS NULL OR v.conductor_id <> @conductor_id)
+      ORDER BY v.fecha_salida ASC, v.id ASC
+      OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
     `);
     return result.recordset;
   },
@@ -159,21 +176,60 @@ const tripModel = {
 
   async cancel(id, conductorId, motivoCancelacion) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input("id", sql.Int, id)
-      .input("conductor_id", sql.Int, conductorId)
-      .input("motivo_cancelacion", sql.VarChar(250), motivoCancelacion)
-      .query(`
-        UPDATE Viajes
-        SET estado = 'cancelado', motivo_cancelacion = @motivo_cancelacion
-        OUTPUT INSERTED.id, INSERTED.estado, INSERTED.motivo_cancelacion
-        WHERE id = @id
-          AND conductor_id = @conductor_id
-          AND LOWER(estado) IN ('activo', 'programado')
-          AND fecha_salida > GETDATE()
-      `);
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
 
-    return result.recordset[0] || null;
+    try {
+      const found = await transaction.request()
+        .input("id", sql.Int, id)
+        .input("conductor_id", sql.Int, conductorId)
+        .query(`
+          SELECT id, conductor_id, origen, destino, fecha_salida, estado
+          FROM Viajes WITH (UPDLOCK, ROWLOCK)
+          WHERE id = @id AND conductor_id = @conductor_id
+        `);
+      const trip = found.recordset[0];
+
+      if (
+        !trip ||
+        !["activo", "programado"].includes(String(trip.estado).toLowerCase()) ||
+        new Date(trip.fecha_salida) <= new Date()
+      ) {
+        await transaction.rollback();
+        return null;
+      }
+
+      const updatedTrip = await transaction.request()
+        .input("id", sql.Int, id)
+        .input("motivo_cancelacion", sql.VarChar(250), motivoCancelacion)
+        .query(`
+          UPDATE Viajes
+          SET estado = 'cancelado', motivo_cancelacion = @motivo_cancelacion
+          OUTPUT INSERTED.id, INSERTED.conductor_id, INSERTED.origen,
+                 INSERTED.destino, INSERTED.estado, INSERTED.motivo_cancelacion
+          WHERE id = @id
+        `);
+
+      const cancelledReservations = await transaction.request()
+        .input("viaje_id", sql.Int, id)
+        .query(`
+          UPDATE SolicitudesViaje
+          SET estado = 'cancelada'
+          OUTPUT INSERTED.id, INSERTED.viaje_id, INSERTED.pasajero_id,
+                 INSERTED.estado
+          WHERE viaje_id = @viaje_id
+            AND estado IN ('pendiente', 'aceptada')
+        `);
+
+      await transaction.commit();
+      return {
+        trip: updatedTrip.recordset[0],
+        cancelledReservations: cancelledReservations.recordset,
+      };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   },
 
   /**

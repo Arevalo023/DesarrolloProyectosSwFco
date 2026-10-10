@@ -9,22 +9,38 @@ const authService = require("./authService");
  * @param {number} usuario_id
  * @returns {Promise<{token: string, user: object}|null>}
  */
-const asegurarRolConductor = async (usuario_id) => {
+const syncDriverRole = async (usuario_id) => {
   const user = await userModel.findById(usuario_id);
   const roles = (user?.roles || []).map((r) => String(r).trim().toLowerCase());
+  const hasActiveVehicle = await vehicleModel.countActiveByUser(usuario_id) > 0;
+  const hasDriverRole = roles.includes("conductor");
+  const passengerRoleId = await userModel.findRoleIdByName("Pasajero");
+  const driverRoleId = await userModel.findRoleIdByName("Conductor");
+  let updatedUser = user;
+  let changed = false;
 
-  if (roles.includes("conductor")) {
-    return null;
+  if (!roles.includes("pasajero") && passengerRoleId) {
+    updatedUser = await userModel.addRole(usuario_id, passengerRoleId);
+    changed = true;
   }
 
-  const conductorRolId = await userModel.findRoleIdByName("Conductor");
-  if (!conductorRolId) {
-    console.warn('No existe el rol "Conductor" en la tabla Roles; no se asignó.');
-    return null;
+  if (hasActiveVehicle && !hasDriverRole && driverRoleId) {
+    updatedUser = await userModel.addRole(usuario_id, driverRoleId);
+    changed = true;
+  } else if (!hasActiveVehicle && hasDriverRole && driverRoleId) {
+    updatedUser = await userModel.removeRole(usuario_id, driverRoleId);
+    changed = true;
   }
 
-  const updatedUser = await userModel.addRole(usuario_id, conductorRolId);
-  return authService.createSession(updatedUser);
+  return changed ? authService.createSession(updatedUser) : null;
+};
+
+const ensureNoUpcomingTrips = async (vehicleId) => {
+  if (await vehicleModel.hasUpcomingTrips(vehicleId)) {
+    const error = new Error("Primero cancela los viajes programados asociados a este vehículo.");
+    error.statusCode = 409;
+    throw error;
+  }
 };
 
 const vehicleService = {
@@ -51,11 +67,9 @@ const vehicleService = {
       asientos_disponibles,
     });
 
-    // Registrar un vehículo convierte al usuario en Conductor
-    // (conserva sus otros roles, ej. Pasajero)
     let session = null;
     try {
-      session = await asegurarRolConductor(usuario_id);
+      session = await syncDriverRole(usuario_id);
     } catch (err) {
       // El vehículo ya quedó guardado; no se revierte por esto
       console.warn("No se pudo asignar el rol Conductor:", err.message);
@@ -125,7 +139,12 @@ const vehicleService = {
       throw error;
     }
 
-    return vehicleModel.updateStatus(id, activo);
+    const wasActive = vehicle.activo !== false && vehicle.activo !== 0;
+    if (wasActive && !activo) await ensureNoUpcomingTrips(id);
+
+    const updatedVehicle = await vehicleModel.updateStatus(id, activo);
+    const session = await syncDriverRole(usuario_id);
+    return { vehicle: updatedVehicle, session };
   },
   // eliminar un vehículo propio
   async remove(id, usuario_id) {
@@ -141,7 +160,13 @@ const vehicleService = {
       throw error;
     }
 
-    await vehicleModel.remove(id);
+    await ensureNoUpcomingTrips(id);
+    const hasHistory = await vehicleModel.hasTrips(id);
+    const removedVehicle = hasHistory
+      ? await vehicleModel.updateStatus(id, false)
+      : (await vehicleModel.remove(id), null);
+    const session = await syncDriverRole(usuario_id);
+    return { vehicle: removedVehicle, session, softDeleted: hasHistory };
   },
 };
 

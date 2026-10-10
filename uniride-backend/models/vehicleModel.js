@@ -46,6 +46,40 @@ const vehicleModel = {
     return result.recordset;
   },
 
+  async countActiveByUser(usuario_id) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("usuario_id", sql.Int, usuario_id)
+      .query(`
+        SELECT COUNT(*) AS total
+        FROM vehiculos
+        WHERE usuario_id = @usuario_id AND COALESCE(activo, 1) = 1
+      `);
+    return Number(result.recordset[0]?.total || 0);
+  },
+
+  async hasUpcomingTrips(id) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("id", sql.Int, id)
+      .query(`
+        SELECT TOP 1 id
+        FROM Viajes
+        WHERE vehiculo_id = @id
+          AND estado IN ('activo', 'programado')
+          AND fecha_salida > GETDATE()
+      `);
+    return result.recordset.length > 0;
+  },
+
+  async hasTrips(id) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("id", sql.Int, id)
+      .query("SELECT TOP 1 id FROM Viajes WHERE vehiculo_id = @id");
+    return result.recordset.length > 0;
+  },
+
   async create({
     usuario_id,
     marca,

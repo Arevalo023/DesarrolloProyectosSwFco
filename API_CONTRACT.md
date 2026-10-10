@@ -381,6 +381,14 @@ Permite al dueño del vehículo modificar sus datos.
   ```
 - **`400 Bad Request`**: `"El campo activo es obligatorio y debe ser true o false."`
 - **`403 Forbidden`**: `"No tienes permiso para modificar este vehículo"`
+- El rol `Conductor` se agrega o retira según el usuario conserve al menos un vehículo activo. Si el rol cambia, la respuesta incluye `token`, `user` y `rolAgregado` o `rolRetirado`; el frontend debe reemplazar la sesión.
+- **`409 Conflict`**: No se puede desactivar un vehículo con viajes activos/programados futuros.
+
+#### 3.3.6. Eliminar Vehículo (`DELETE /api/vehicles/:id`)
+- El dueño puede eliminarlo solo si no tiene viajes próximos.
+- Si tiene viajes históricos, se desactiva para conservar la integridad referencial.
+- Si el último vehículo activo deja de estar disponible, la respuesta puede incluir una sesión actualizada y `rolRetirado: "Conductor"`.
+- **`409 Conflict`**: El vehículo tiene viajes activos/programados futuros; primero deben cancelarse.
 
 ---
 
@@ -507,6 +515,9 @@ Permite al dueño del vehículo modificar sus datos.
   - `hora_desde` (opcional): Hora inicial inclusiva, formato `HH:MM`.
   - `hora_hasta` (opcional): Hora final inclusiva, formato `HH:MM`.
   - `cupo_minimo` (opcional): Número entero mínimo de asientos disponibles (mayor o igual a cero).
+  - `limit` (opcional): Tamaño de página entre 1 y 50 (por defecto 10).
+  - `offset` (opcional): Número de resultados a omitir (por defecto 0).
+- Los viajes publicados por el usuario autenticado no aparecen en los resultados.
 
 **Respuestas:**
 - **`200 OK`**:
@@ -530,12 +541,20 @@ Permite al dueño del vehículo modificar sus datos.
         "color": "Blanco",
         "placa": "SAL-102"
       }
-    ]
+    ],
+    "pagination": {
+      "limit": 10,
+      "offset": 0,
+      "hasMore": true,
+      "nextOffset": 10
+    }
   }
   ```
 - **`400 Bad Request`**: `"El formato de fecha debe ser YYYY-MM-DD."`
 - **`400 Bad Request`**: Si la fecha u hora no tiene el formato indicado, un rango está invertido, el cupo mínimo no es entero no negativo o un filtro se repite.
-- Cuando no existan viajes que coincidan, responde `200 OK` con `{ "trips": [] }`.
+- Cuando no existan viajes que coincidan, responde `200 OK` con `trips: []` y `pagination.hasMore: false` (`nextOffset: null`).
+- **`400 Bad Request`**: `limit` no está entre 1 y 50, o `offset` no es un entero no negativo.
+- `pagination.hasMore` indica si hay más resultados y `nextOffset` contiene el `offset` de la siguiente página, o `null` al final.
 
 ---
 
@@ -543,6 +562,7 @@ Permite al dueño del vehículo modificar sus datos.
 - **Acceso:** Privado (`Conductor`), solo el dueño del viaje.
 - **Body opcional:** `motivo_cancelacion` (máximo 250 caracteres).
 - Solo se pueden cancelar viajes activos/programados cuya salida aún no haya ocurrido.
+- La cancelación y el cambio a `cancelada` de todas las solicitudes `pendiente`/`aceptada` se realizan en una transacción. Se crea una notificación `viaje_cancelado` para cada pasajero afectado.
 - **`200 OK`**: El viaje queda con estado `cancelado`; ya no aparece en `GET /api/trips`.
 - **`404 Not Found`**: El viaje no existe, no pertenece al conductor o no puede cancelarse.
 - **`400 Bad Request`**: ID inválido o motivo mayor a 250 caracteres.
@@ -674,6 +694,7 @@ Permite al pasajero titular o al conductor cancelar una reservación.
 - **Parámetros de Ruta:** `id` (ID de la solicitud en `SolicitudesViaje`).
 
 **Reglas de Negocio:**
+- Una solicitud `pendiente` no consume cupo. El cupo se descuenta al aceptar la solicitud y no cambia al rechazarla.
 - Si la reservación estaba en estado `aceptada`: **restituye 1 asiento** en `Viajes.cupo_disponible` (`+1`).
 - Si estaba en estado `pendiente`: cambia a `cancelada` sin modificar cupo.
 - Bloquea la cancelación si el viaje ya inició o su fecha de salida ya transcurrió.
@@ -725,7 +746,7 @@ Consulta el historial de notificaciones generadas para el usuario autenticado (e
         "usuario_id": 2,
         "solicitud_id": 15,
         "viaje_id": 10,
-        "tipo": "SOLICITUD_ACEPTADA",
+        "tipo": "reserva_aceptada",
         "titulo": "¡Tu solicitud de viaje fue aceptada!",
         "mensaje": "El conductor aceptó tu reservación para el viaje a Rectoría UAdeC.",
         "leida": false,
@@ -734,6 +755,16 @@ Consulta el historial de notificaciones generadas para el usuario autenticado (e
     ]
   }
   ```
+
+#### 3.6.2. Marcar una Notificación como Leída (`PATCH /api/notifications/:id/read`)
+- Solo modifica notificaciones pertenecientes al usuario autenticado.
+- **`200 OK`**: `{ "notification": { "id": 1, "leida": true, ... } }`
+- **`400 Bad Request`**: ID no entero positivo.
+- **`404 Not Found`**: La notificación no existe o no pertenece al usuario.
+
+#### 3.6.3. Marcar Todas como Leídas (`PATCH /api/notifications/read-all`)
+- Actualiza únicamente las notificaciones no leídas del usuario autenticado.
+- **`200 OK`**: `{ "updated": 3 }`, donde `updated` es el número de filas cambiadas.
 
 ---
 

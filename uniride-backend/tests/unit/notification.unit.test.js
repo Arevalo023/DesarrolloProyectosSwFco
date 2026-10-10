@@ -11,6 +11,8 @@ jest.mock("../../config/db", () => ({
 jest.mock("../../models/notificationModel", () => ({
   create: jest.fn(),
   findByUser: jest.fn(),
+  markRead: jest.fn(),
+  markAllRead: jest.fn(),
 }));
 jest.mock("../../models/tripModel", () => ({
   book: jest.fn(),
@@ -282,6 +284,40 @@ describe("notificationController.list", () => {
     notificationModel.findByUser.mockResolvedValue([]);
     await notificationController.list({ user: { id: 9 }, query: { noLeidas: "true" } }, mockRes());
     expect(notificationModel.findByUser).toHaveBeenCalledWith(9, { soloNoLeidas: true });
+  });
+
+  test("marca una notificación propia como leída", async () => {
+    notificationModel.markRead.mockResolvedValue({ id: 4, leida: true });
+    const res = mockRes();
+
+    await notificationController.markRead({ params: { id: "4" }, user: { id: 9 } }, res);
+
+    expect(notificationModel.markRead).toHaveBeenCalledWith(4, 9);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ notification: { id: 4, leida: true } });
+  });
+
+  test("no permite IDs inválidos ni expone notificaciones de otro usuario", async () => {
+    const invalidRes = mockRes();
+    await notificationController.markRead({ params: { id: "0" }, user: { id: 9 } }, invalidRes);
+    expect(invalidRes.status).toHaveBeenCalledWith(400);
+    expect(notificationModel.markRead).not.toHaveBeenCalled();
+
+    notificationModel.markRead.mockResolvedValue(null);
+    const missingRes = mockRes();
+    await notificationController.markRead({ params: { id: "4" }, user: { id: 9 } }, missingRes);
+    expect(missingRes.status).toHaveBeenCalledWith(404);
+  });
+
+  test("marca todas las notificaciones del usuario como leídas", async () => {
+    notificationModel.markAllRead.mockResolvedValue(3);
+    const res = mockRes();
+
+    await notificationController.markAllRead({ user: { id: 9 } }, res);
+
+    expect(notificationModel.markAllRead).toHaveBeenCalledWith(9);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ updated: 3 });
   });
 
   test("error -> 500 con mensaje", async () => {

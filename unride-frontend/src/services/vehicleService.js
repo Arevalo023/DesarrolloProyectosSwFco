@@ -64,7 +64,13 @@ export async function actualizarVehiculo(id, formulario) {
     method: "PUT",
     body: haciaApi(formulario),
   });
-  return { mensaje: data.message, vehiculo: desdeApi(data.vehicle) };
+  return {
+    mensaje: data.message,
+    vehiculo: desdeApi(data.vehicle),
+    sesion: data.token ? { token: data.token, user: data.user } : null,
+    rolAgregado: data.rolAgregado || null,
+    rolRetirado: data.rolRetirado || null,
+  };
 }
 
 export async function cambiarEstadoVehiculo(id, activo) {
@@ -73,4 +79,14 @@ export async function cambiarEstadoVehiculo(id, activo) {
     body: { activo },
   });
   return { mensaje: data.message, vehiculo: desdeApi(data.vehicle) };
+}
+
+export async function eliminarVehiculo(id) {
+  const data = await apiRequest(`/api/vehicles/${id}`, { method: "DELETE" });
+  return {
+    mensaje: data.message,
+    vehiculo: data.vehicle ? desdeApi(data.vehicle) : null,
+    sesion: data.token ? { token: data.token, user: data.user } : null,
+    rolRetirado: data.rolRetirado || null,
+  };
 }

@@ -98,8 +98,19 @@ const tripService = {
     return trips.map(addVehicleData);
   },
 
-  cancel(tripId, conductorId, motivoCancelacion) {
-    return tripModel.cancel(tripId, conductorId, motivoCancelacion);
+  async cancel(tripId, conductorId, motivoCancelacion) {
+    const result = await tripModel.cancel(tripId, conductorId, motivoCancelacion);
+    if (!result) return null;
+
+    for (const reservation of result.cancelledReservations) {
+      try {
+        await notificationService.notifyTripCancelled(reservation, result.trip);
+      } catch (err) {
+        console.error("[notifications] No se pudo notificar la cancelación del viaje:", err);
+      }
+    }
+
+    return result.trip;
   },
 
   listAvailable(filters) {

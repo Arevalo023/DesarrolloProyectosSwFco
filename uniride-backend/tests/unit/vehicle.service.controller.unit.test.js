@@ -13,6 +13,9 @@ jest.mock("../../models/vehicleModel", () => ({
   create: jest.fn(),
   findByUserId: jest.fn(),
   findById: jest.fn(),
+  countActiveByUser: jest.fn(),
+  hasUpcomingTrips: jest.fn(),
+  hasTrips: jest.fn(),
   update: jest.fn(),
   updateStatus: jest.fn(),
   remove: jest.fn(),
@@ -22,6 +25,7 @@ jest.mock("../../models/userModel", () => ({
   findById: jest.fn(),
   findRoleIdByName: jest.fn(),
   addRole: jest.fn(),
+  removeRole: jest.fn(),
 }));
 
 jest.mock("../../services/authService", () => ({
@@ -70,6 +74,7 @@ describe("vehicleService", () => {
       vehicleModel.findByPlaca.mockResolvedValue(null);
       const createdVehicle = { id: 5, usuario_id: 2, ...sampleVehicleData };
       vehicleModel.create.mockResolvedValue(createdVehicle);
+      vehicleModel.countActiveByUser.mockResolvedValue(1);
 
       // El usuario solo tiene rol Pasajero
       userModel.findById.mockResolvedValue({ id: 2, roles: ["Pasajero"] });
@@ -94,6 +99,7 @@ describe("vehicleService", () => {
       vehicleModel.findByPlaca.mockResolvedValue(null);
       const createdVehicle = { id: 6, usuario_id: 3, ...sampleVehicleData };
       vehicleModel.create.mockResolvedValue(createdVehicle);
+      vehicleModel.countActiveByUser.mockResolvedValue(1);
 
       // El usuario ya es Conductor
       userModel.findById.mockResolvedValue({ id: 3, roles: ["Conductor", "Pasajero"] });
@@ -193,14 +199,74 @@ describe("vehicleService", () => {
     });
 
     test("actualiza el estado activo/inactivo correctamente si es el dueño", async () => {
-      vehicleModel.findById.mockResolvedValue({ id: 1, usuario_id: 5, activo: true });
+      vehicleModel.findById.mockResolvedValue({
+        id: 1,
+        usuario_id: 5,
+        activo: true,
+        roles: ["Pasajero", "Conductor"],
+      });
       const updated = { id: 1, usuario_id: 5, activo: false };
       vehicleModel.updateStatus.mockResolvedValue(updated);
+      vehicleModel.hasUpcomingTrips.mockResolvedValue(false);
+      vehicleModel.countActiveByUser.mockResolvedValue(0);
+      userModel.findById.mockResolvedValue({ id: 5, roles: ["Pasajero", "Conductor"] });
+      userModel.findRoleIdByName.mockImplementation((role) =>
+        Promise.resolve(role === "Conductor" ? 2 : 1)
+      );
+      const updatedUser = { id: 5, roles: ["Pasajero"] };
+      userModel.removeRole.mockResolvedValue(updatedUser);
+      const session = { token: "passenger-token", user: updatedUser };
+      authService.createSession.mockResolvedValue(session);
 
       const result = await vehicleService.changeStatus(1, 5, false);
 
       expect(vehicleModel.updateStatus).toHaveBeenCalledWith(1, false);
-      expect(result).toEqual(updated);
+      expect(userModel.removeRole).toHaveBeenCalledWith(5, 2);
+      expect(result).toEqual({ vehicle: updated, session });
+    });
+
+    test("bloquea desactivar un vehículo asociado a un viaje futuro", async () => {
+      vehicleModel.findById.mockResolvedValue({ id: 1, usuario_id: 5, activo: true });
+      vehicleModel.hasUpcomingTrips.mockResolvedValue(true);
+
+      await expect(vehicleService.changeStatus(1, 5, false)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+      expect(vehicleModel.updateStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("remove", () => {
+    test("bloquea la baja cuando el vehículo tiene viajes programados", async () => {
+      vehicleModel.findById.mockResolvedValue({ id: 3, usuario_id: 5 });
+      vehicleModel.hasUpcomingTrips.mockResolvedValue(true);
+
+      await expect(vehicleService.remove(3, 5)).rejects.toMatchObject({ statusCode: 409 });
+      expect(vehicleModel.remove).not.toHaveBeenCalled();
+      expect(vehicleModel.updateStatus).not.toHaveBeenCalled();
+    });
+
+    test("conserva vehículos históricos y sincroniza la pérdida del rol Conductor", async () => {
+      vehicleModel.findById.mockResolvedValue({ id: 3, usuario_id: 5 });
+      vehicleModel.hasUpcomingTrips.mockResolvedValue(false);
+      vehicleModel.hasTrips.mockResolvedValue(true);
+      const inactiveVehicle = { id: 3, usuario_id: 5, activo: false };
+      vehicleModel.updateStatus.mockResolvedValue(inactiveVehicle);
+      vehicleModel.countActiveByUser.mockResolvedValue(0);
+      userModel.findById.mockResolvedValue({ id: 5, roles: ["Pasajero", "Conductor"] });
+      userModel.findRoleIdByName.mockImplementation((role) =>
+        Promise.resolve(role === "Conductor" ? 2 : 1)
+      );
+      const passenger = { id: 5, roles: ["Pasajero"] };
+      userModel.removeRole.mockResolvedValue(passenger);
+      const session = { token: "passenger-token", user: passenger };
+      authService.createSession.mockResolvedValue(session);
+
+      const result = await vehicleService.remove(3, 5);
+
+      expect(vehicleModel.updateStatus).toHaveBeenCalledWith(3, false);
+      expect(vehicleModel.remove).not.toHaveBeenCalled();
+      expect(result).toEqual({ vehicle: inactiveVehicle, session, softDeleted: true });
     });
   });
 });
@@ -310,7 +376,10 @@ describe("vehicleController", () => {
   describe("changeStatus", () => {
     test("200 OK al cambiar el estado del vehículo", async () => {
       const vehicle = { id: 3, activo: false };
-      jest.spyOn(vehicleService, "changeStatus").mockResolvedValue(vehicle);
+      jest.spyOn(vehicleService, "changeStatus").mockResolvedValue({
+        vehicle,
+        session: null,
+      });
 
       const req = { params: { id: 3 }, user: { id: 1 }, body: { activo: false } };
       const res = createMockRes();

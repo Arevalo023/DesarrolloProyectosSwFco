@@ -296,6 +296,17 @@ const userModel = {
         IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'UsuariosRoles')
         BEGIN
           DELETE FROM UsuariosRoles WHERE usuario_id = @usuario_id AND rol_id = @rol_id;
+
+          UPDATE Usuarios
+          SET rol_id = COALESCE((
+            SELECT TOP 1 ur.rol_id
+            FROM UsuariosRoles ur
+            INNER JOIN Roles r ON r.id = ur.rol_id
+            WHERE ur.usuario_id = @usuario_id
+            ORDER BY CASE WHEN LOWER(r.nombre) = 'pasajero' THEN 0 ELSE 1 END,
+                     ur.rol_id
+          ), 1)
+          WHERE id = @usuario_id AND rol_id = @rol_id;
         END
       `);
 

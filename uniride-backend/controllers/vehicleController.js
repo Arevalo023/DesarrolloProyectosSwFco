@@ -83,17 +83,22 @@ const vehicleController = {
   async changeStatus(req, res) {
     try {
       const { activo } = req.body;
-      const vehicle = await vehicleService.changeStatus(
+      const { vehicle, session } = await vehicleService.changeStatus(
         req.params.id,
         req.user.id,
         activo,
       );
-      return res
-        .status(200)
-        .json({
-          message: "Estado del vehículo actualizado correctamente.",
-          vehicle,
-        });
+      const response = {
+        message: "Estado del vehículo actualizado correctamente.",
+        vehicle,
+      };
+      if (session) {
+        response.token = session.token;
+        response.user = session.user;
+        if (activo) response.rolAgregado = "Conductor";
+        else response.rolRetirado = "Conductor";
+      }
+      return res.status(200).json(response);
     } catch (error) {
       const statusCode = error.statusCode || 500;
       return res
@@ -107,10 +112,22 @@ const vehicleController = {
   // eliminar un vehículo propio
   async remove(req, res) {
     try {
-      await vehicleService.remove(req.params.id, req.user.id);
-      return res
-        .status(200)
-        .json({ message: "Vehículo eliminado correctamente." });
+      const { vehicle, session, softDeleted } = await vehicleService.remove(
+        req.params.id,
+        req.user.id,
+      );
+      const response = {
+        message: softDeleted
+          ? "Vehículo desactivado para conservar su historial."
+          : "Vehículo eliminado correctamente.",
+        ...(vehicle ? { vehicle } : {}),
+      };
+      if (session) {
+        response.token = session.token;
+        response.user = session.user;
+        response.rolRetirado = "Conductor";
+      }
+      return res.status(200).json(response);
     } catch (error) {
       const statusCode = error.statusCode || 500;
       return res

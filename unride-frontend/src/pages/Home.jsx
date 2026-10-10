@@ -63,6 +63,8 @@ function Home({
 
   // Cantidad de resultados mostrados inicialmente.
   const [visibleCount, setVisibleCount] = useState(6);
+  const [pagination, setPagination] = useState({ hasMore: false });
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Permite saber si el usuario ya realizó una búsqueda.
   const [hasSearched, setHasSearched] = useState(false);
@@ -184,9 +186,9 @@ function Home({
 
     if (
       filtrosActuales.cupoMinimo &&
-      (!Number.isInteger(Number(filtrosActuales.cupoMinimo)) || Number(filtrosActuales.cupoMinimo) < 1)
+      (!Number.isInteger(Number(filtrosActuales.cupoMinimo)) || Number(filtrosActuales.cupoMinimo) < 0)
     ) {
-      setError("El cupo mínimo debe ser un número entero mayor que cero.");
+      setError("El cupo mínimo debe ser un número entero mayor o igual a cero.");
       setMessage("");
       return;
     }
@@ -195,6 +197,7 @@ function Home({
     setError("");
     setMessage("");
     setVisibleCount(6);
+    setPagination({ hasMore: false });
 
     try {
       const queryParams = new URLSearchParams();
@@ -248,6 +251,9 @@ function Home({
         );
       }
 
+      queryParams.set("limit", "10");
+      queryParams.set("offset", "0");
+
       const query = queryParams.toString();
 
       const data = await apiRequest(
@@ -257,6 +263,7 @@ function Home({
       );
 
       setTrips(data.trips || []);
+      setPagination(data.pagination || { hasMore: false });
       setHasSearched(true);
     } catch (requestError) {
       setError(
@@ -265,6 +272,7 @@ function Home({
       );
 
       setTrips([]);
+      setPagination({ hasMore: false });
       setHasSearched(true);
     } finally {
       setLoading(false);
@@ -313,10 +321,40 @@ function Home({
   );
 
   const hayMasViajes =
-    visibleCount < tripsFiltrados.length;
+    visibleCount < tripsFiltrados.length || pagination.hasMore;
 
-  const cargarMas = () => {
-    setVisibleCount((current) => current + 6);
+  const cargarMas = async () => {
+    if (visibleCount < tripsFiltrados.length) {
+      setVisibleCount((current) => current + 6);
+      return;
+    }
+    if (!pagination.hasMore || loadingMore) return;
+
+    setLoadingMore(true);
+    setError("");
+    try {
+      const queryParams = new URLSearchParams({
+        limit: "10",
+        offset: String(trips.length),
+      });
+      if (filters.origen) queryParams.set("origen", filters.origen);
+      if (filters.destino) queryParams.set("destino", filters.destino);
+      if (filters.fechaInicio) queryParams.set("fecha_inicio", filters.fechaInicio);
+      if (filters.fechaFin) queryParams.set("fecha_fin", filters.fechaFin);
+      if (filters.horaDesde) queryParams.set("hora_desde", filters.horaDesde);
+      if (filters.horaHasta) queryParams.set("hora_hasta", filters.horaHasta);
+      if (filters.cupoMinimo) queryParams.set("cupo_minimo", filters.cupoMinimo);
+
+      const data = await apiRequest(`/api/trips?${queryParams.toString()}`);
+      const nextTrips = data.trips || [];
+      setTrips((current) => [...current, ...nextTrips]);
+      setVisibleCount((current) => current + 6);
+      setPagination(data.pagination || { hasMore: false });
+    } catch (requestError) {
+      setError(requestError.message || "No se pudieron cargar más viajes.");
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   // ============================================================
@@ -1551,7 +1589,7 @@ function Home({
                   >
                     <ChevronDown size={18} />
 
-                    Cargar más
+                    {loadingMore ? "Cargando..." : "Cargar más"}
                   </Button>
 
                 </div>

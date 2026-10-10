@@ -71,6 +71,7 @@ const tripController = {
       const motivoCancelacion = req.body?.motivo_cancelacion;
       if (
         motivoCancelacion !== undefined &&
+        motivoCancelacion !== null &&
         (typeof motivoCancelacion !== "string" || motivoCancelacion.length > 250)
       ) {
         return res.status(400).json({
@@ -123,6 +124,8 @@ const tripController = {
         hora_desde,
         hora_hasta,
         cupo_minimo,
+        limit,
+        offset,
       } = req.query;
       const filtros = [
         origen,
@@ -133,6 +136,8 @@ const tripController = {
         hora_desde,
         hora_hasta,
         cupo_minimo,
+        limit,
+        offset,
       ];
 
       if (filtros.some((value) => value !== undefined && typeof value !== "string")) {
@@ -182,6 +187,21 @@ const tripController = {
         });
       }
 
+      const pageSize = limit === undefined ? 10 : Number(limit);
+      const pageOffset = offset === undefined ? 0 : Number(offset);
+      if (
+        !/^\d+$/.test(String(pageSize)) ||
+        !Number.isSafeInteger(pageSize) ||
+        pageSize < 1 || pageSize > 50 ||
+        !/^\d+$/.test(String(pageOffset)) ||
+        !Number.isSafeInteger(pageOffset) ||
+        pageOffset > 2147483647
+      ) {
+        return res.status(400).json({
+          message: "La paginación requiere limit entre 1 y 50 y offset mayor o igual a cero.",
+        });
+      }
+
       const trips = await tripService.listAvailable({
         origen: origen?.trim() || null,
         destino: destino?.trim() || null,
@@ -191,9 +211,21 @@ const tripController = {
         horaDesde,
         horaHasta,
         cupoMinimo: cupoMinimo === null ? null : Number(cupoMinimo),
+        conductorId: req.user.id,
+        limit: pageSize,
+        offset: pageOffset,
       });
 
-      return res.status(200).json({ trips });
+      const hasMore = trips.length > pageSize;
+      return res.status(200).json({
+        trips: hasMore ? trips.slice(0, pageSize) : trips,
+        pagination: {
+          limit: pageSize,
+          offset: pageOffset,
+          hasMore,
+          nextOffset: hasMore ? pageOffset + pageSize : null,
+        },
+      });
     } catch (error) {
       return res.status(500).json({ message: "No se pudieron obtener los viajes." });
     }

@@ -112,7 +112,7 @@ function App() {
   // NUEVO ROL
   // ============================================================
 
-  const manejarRolAgregado = (sesion, rol) => {
+  const manejarSesionActualizada = (sesion, rol) => {
     iniciarSesion(sesion);
 
     const rolValido =
@@ -376,7 +376,7 @@ function App() {
   if (pantalla === "vehiculos") {
     return (
       <Vehiculos
-        onRolAgregado={manejarRolAgregado}
+        onSesionActualizada={manejarSesionActualizada}
         onBackHome={() => {
           setPantalla("home");
         }}

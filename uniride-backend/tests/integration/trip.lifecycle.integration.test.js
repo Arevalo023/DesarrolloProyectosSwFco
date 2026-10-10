@@ -222,6 +222,17 @@ describe("Flujo funcional E2E: Ciclo completo de viaje e integridad de base de d
     const notif = res.body.notifications.find((n) => n.solicitud_id === reservationId);
     expect(notif).toBeDefined();
     expect(notif.tipo).toBe("reserva_aceptada");
+
+    const marked = await request(app)
+      .patch(`/api/notifications/${notif.id}/read`)
+      .set("Authorization", `Bearer ${tokenFor(ctx.passengerId, "Pasajero")}`);
+    expect(marked.status).toBe(200);
+    expect(marked.body.notification.leida).toBe(true);
+
+    const unread = await request(app)
+      .get("/api/notifications?noLeidas=true")
+      .set("Authorization", `Bearer ${tokenFor(ctx.passengerId, "Pasajero")}`);
+    expect(unread.body.notifications.some((item) => item.id === notif.id)).toBe(false);
   });
 
   test("7. Pasajero cancela su reserva -> estado pasa a 'cancelada' y se restituye el cupo a 2", async () => {
@@ -257,15 +268,39 @@ describe("Flujo funcional E2E: Ciclo completo de viaje e integridad de base de d
   });
 
   test("9. Un viaje cancelado por su conductor deja de aparecer en la búsqueda", async () => {
+    const newBooking = await request(app)
+      .post(`/api/trips/${tripId}/book`)
+      .set("Authorization", `Bearer ${tokenFor(ctx.passengerId, "Pasajero")}`)
+      .set("X-Active-Role", "Pasajero");
+    expect(newBooking.status).toBe(201);
+    const activeReservationId = newBooking.body.booking.id;
+
     const cancellation = await request(app)
       .patch(`/api/trips/${tripId}/cancel`)
       .set("Authorization", `Bearer ${tokenFor(ctx.driverId, "Conductor")}`)
       .set("X-Active-Role", "Conductor")
-      .send({ motivo_cancelacion: "Cambio de planes" });
+      .send({ motivo_cancelacion: null });
 
     expect(cancellation.status).toBe(200);
     expect(cancellation.body.trip.estado).toBe("cancelado");
-    expect(cancellation.body.trip.motivo_cancelacion).toBe("Cambio de planes");
+    expect(cancellation.body.trip.motivo_cancelacion).toBeNull();
+
+    const reservationInDb = (
+      await pool.request()
+        .input("id", sql.Int, activeReservationId)
+        .query("SELECT estado FROM SolicitudesViaje WHERE id = @id")
+    ).recordset[0];
+    expect(reservationInDb.estado).toBe("cancelada");
+
+    const notifications = await request(app)
+      .get("/api/notifications")
+      .set("Authorization", `Bearer ${tokenFor(ctx.passengerId, "Pasajero")}`);
+    expect(notifications.body.notifications).toContainEqual(
+      expect.objectContaining({
+        solicitud_id: activeReservationId,
+        tipo: "viaje_cancelado",
+      })
+    );
 
     const search = await request(app)
       .get("/api/trips?origen=Arteaga")

@@ -43,6 +43,9 @@ describe('tripModel.findAvailable', () => {
       hora_desde: null,
       hora_hasta: null,
       cupo_minimo: null,
+      conductor_id: null,
+      limit: 11,
+      offset: 0,
     });
     expect(db.requests[0].inputs.fecha.type).toEqual({ name: 'Date' });
   });
@@ -85,7 +88,8 @@ describe('tripModel.findAvailable', () => {
     expect(text).toMatch(/estado IN \('activo', 'programado'\)/);
     expect(text).toMatch(/cupo_disponible > 0/);
     expect(text).toMatch(/fecha_salida >= GETDATE\(\)/);
-    expect(text).toMatch(/TOP \(10\)/);
+    expect(text).toMatch(/OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY/);
+    expect(text).toMatch(/@conductor_id IS NULL OR v\.conductor_id <> @conductor_id/);
   });
 
   test('devuelve los registros tal como los entrega la BD', async () => {
