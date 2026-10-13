@@ -823,7 +823,7 @@ function Home({
                   type="button"
                   onClick={() => {
                     setMenuPerfil(false);
-                    irAResumenViajes();
+                    onMisViajes?.();
                   }}
                   className="
                     flex
@@ -855,7 +855,7 @@ function Home({
                       type="button"
                       onClick={() => {
                         setMenuPerfil(false);
-                        irAResumenViajes();
+                        onMisSolicitudes?.();
                       }}
                       className="
                         flex
