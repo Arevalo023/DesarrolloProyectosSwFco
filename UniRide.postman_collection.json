@@ -422,6 +422,83 @@
             "description": "Consulta todas las reservaciones solicitadas por el pasajero autenticado."
           },
           "response": []
+        },
+        {
+          "name": "Cancelar Viaje Publicado (Conductor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Conductor"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo_cancelacion\": \"Contratiempo personal\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/1/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "1", "cancel"]
+            },
+            "description": "Cancela un viaje activo/programado antes de su fecha de salida."
+          },
+          "response": []
+        },
+        {
+          "name": "Iniciar Viaje (Conductor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Conductor"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/1/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "1", "start"]
+            },
+            "description": "Inicia un viaje programado, cambiando su estado a en_curso. Es idempotente."
+          },
+          "response": []
+        },
+        {
+          "name": "Finalizar Viaje (Conductor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Conductor"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/1/finish",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "1", "finish"]
+            },
+            "description": "Finaliza un viaje en curso, cambiando su estado a finalizado. Es idempotente."
+          },
+          "response": []
         }
       ]
     },

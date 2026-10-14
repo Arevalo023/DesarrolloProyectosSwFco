@@ -102,6 +102,54 @@ const tripController = {
     }
   },
 
+  async start(req, res) {
+    try {
+      const tripId = parseInt(req.params.id, 10);
+      if (isNaN(tripId) || tripId <= 0) {
+        return res.status(400).json({
+          message: "El ID del viaje debe ser un número entero positivo.",
+        });
+      }
+
+      const result = await tripService.start(tripId, req.user.id);
+
+      return res.status(200).json({
+        message: result.alreadyInProgress
+          ? "El viaje ya se encuentra en curso."
+          : "Viaje iniciado correctamente.",
+        trip: result.trip,
+      });
+    } catch (error) {
+      return res.status(error.statusCode || 500).json({
+        message: error.message || "No se pudo iniciar el viaje.",
+      });
+    }
+  },
+
+  async finish(req, res) {
+    try {
+      const tripId = parseInt(req.params.id, 10);
+      if (isNaN(tripId) || tripId <= 0) {
+        return res.status(400).json({
+          message: "El ID del viaje debe ser un número entero positivo.",
+        });
+      }
+
+      const result = await tripService.finish(tripId, req.user.id);
+
+      return res.status(200).json({
+        message: result.alreadyFinished
+          ? "El viaje ya se encuentra finalizado."
+          : "Viaje finalizado correctamente.",
+        trip: result.trip,
+      });
+    } catch (error) {
+      return res.status(error.statusCode || 500).json({
+        message: error.message || "No se pudo finalizar el viaje.",
+      });
+    }
+  },
+
   async listReceivedRequests(req, res) {
     try {
       const requests = await reservationService.listReceivedByDriver(req.user.id);
