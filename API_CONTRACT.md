@@ -569,7 +569,69 @@ Permite al dueño del vehículo modificar sus datos.
 
 ---
 
-#### 3.4.6. Reservar Asiento en Viaje (`POST /api/trips/:id/book`)
+#### 3.4.6. Iniciar Viaje (`PATCH /api/trips/:id/start`)
+Permite al conductor propietario iniciar un viaje programado, cambiando su estado a `en_curso`.
+> **Idempotencia:** Si el viaje ya se encuentra en estado `en_curso`, la petición responde `200 OK` informando que ya está en curso, garantizando que reintentos o clics duplicados no causen errores.
+
+- **Acceso:** Privado (`Conductor`), solo el dueño del viaje.
+- **Parámetros de Ruta:** `id` (entero positivo, ID del viaje).
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "message": "Viaje iniciado correctamente.",
+    "trip": {
+      "id": 10,
+      "conductor_id": 1,
+      "origen": "Campus Poniente",
+      "destino": "Zona Centro",
+      "fecha_salida": "2026-10-20T14:00:00.000Z",
+      "estado": "en_curso"
+    }
+  }
+  ```
+- **`400 Bad Request`**:
+  - `"El ID del viaje debe ser un número entero positivo."`
+  - `"No es posible iniciar un viaje con estado 'cancelado'."`
+  - `"No es posible iniciar un viaje con estado 'finalizado'."`
+- **`403 Forbidden`**: `"No tienes permiso para iniciar este viaje."`
+- **`404 Not Found`**: `"El viaje no existe."`
+
+---
+
+#### 3.4.7. Finalizar Viaje (`PATCH /api/trips/:id/finish`)
+Permite al conductor propietario dar por concluido un viaje que se encuentra `en_curso`, cambiando su estado a `finalizado`.
+> **Idempotencia:** Si el viaje ya ha sido finalizado previamente, responde `200 OK` sin duplicar efectos ni generar errores.
+
+- **Acceso:** Privado (`Conductor`), solo el dueño del viaje.
+- **Parámetros de Ruta:** `id` (entero positivo, ID del viaje).
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "message": "Viaje finalizado correctamente.",
+    "trip": {
+      "id": 10,
+      "conductor_id": 1,
+      "origen": "Campus Poniente",
+      "destino": "Zona Centro",
+      "fecha_salida": "2026-10-20T14:00:00.000Z",
+      "estado": "finalizado"
+    }
+  }
+  ```
+- **`400 Bad Request`**:
+  - `"El ID del viaje debe ser un número entero positivo."`
+  - `"No es posible finalizar un viaje con estado 'programado'. El viaje debe estar 'en_curso'."`
+  - `"No es posible finalizar un viaje con estado 'cancelado'."`
+- **`403 Forbidden`**: `"No tienes permiso para finalizar este viaje."`
+- **`404 Not Found`**: `"El viaje no existe."`
+
+---
+
+#### 3.4.8. Reservar Asiento en Viaje (`POST /api/trips/:id/book`)
 Permite a un usuario con rol `Pasajero` solicitar un asiento en un viaje.
 > **Regla de Negocio:** La solicitud se crea con estado `pendiente`. **El cupo disponible NO se descuenta** al reservar; se descuenta únicamente cuando el conductor confirma y acepta la solicitud (`PATCH /api/reservations/:id`).
 
@@ -602,7 +664,7 @@ Permite a un usuario con rol `Pasajero` solicitar un asiento en un viaje.
 
 ---
 
-#### 3.4.7. Mis Reservaciones de Viaje (`GET /api/trips/reservations`)
+#### 3.4.9. Mis Reservaciones de Viaje (`GET /api/trips/reservations`)
 Permite a un pasajero consultar todas sus reservaciones realizadas.
 *(Disponible también en el alias `GET /api/reservations`)*
 

@@ -113,6 +113,34 @@ const tripService = {
     return result.trip;
   },
 
+  async start(tripId, conductorId) {
+    const result = await tripModel.start(tripId, conductorId);
+
+    if (!result.alreadyInProgress && typeof notificationService.notifyTripStarted === "function") {
+      try {
+        await notificationService.notifyTripStarted(result.trip);
+      } catch (err) {
+        console.error("[notifications] No se pudo notificar el inicio del viaje:", err);
+      }
+    }
+
+    return result;
+  },
+
+  async finish(tripId, conductorId) {
+    const result = await tripModel.finish(tripId, conductorId);
+
+    if (!result.alreadyFinished && typeof notificationService.notifyTripFinished === "function") {
+      try {
+        await notificationService.notifyTripFinished(result.trip);
+      } catch (err) {
+        console.error("[notifications] No se pudo notificar la finalización del viaje:", err);
+      }
+    }
+
+    return result;
+  },
+
   listAvailable(filters) {
     return tripModel.findAvailable(filters);
   },

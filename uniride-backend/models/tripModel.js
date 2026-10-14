@@ -232,6 +232,152 @@ const tripModel = {
     }
   },
 
+  async start(id, conductorId) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      const found = await transaction.request()
+        .input("id", sql.Int, id)
+        .query(`
+          SELECT id, conductor_id, origen, destino, fecha_salida, estado
+          FROM Viajes WITH (UPDLOCK, ROWLOCK)
+          WHERE id = @id
+        `);
+      const trip = found.recordset[0];
+
+      if (!trip) {
+        await transaction.rollback();
+        const err = new Error("El viaje no existe.");
+        err.statusCode = 404;
+        throw err;
+      }
+
+      if (Number(trip.conductor_id) !== Number(conductorId)) {
+        await transaction.rollback();
+        const err = new Error("No tienes permiso para iniciar este viaje.");
+        err.statusCode = 403;
+        throw err;
+      }
+
+      const currentStatus = String(trip.estado || "").toLowerCase();
+
+      // Idempotencia: si ya está en curso, retornar sin error
+      if (currentStatus === "en_curso" || currentStatus === "en curso") {
+        await transaction.rollback();
+        return {
+          trip,
+          alreadyInProgress: true,
+        };
+      }
+
+      // Solo se permite iniciar si el estado actual es programado o activo
+      if (!["programado", "activo"].includes(currentStatus)) {
+        await transaction.rollback();
+        const err = new Error(`No es posible iniciar un viaje con estado '${trip.estado}'.`);
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const updatedTrip = await transaction.request()
+        .input("id", sql.Int, id)
+        .query(`
+          UPDATE Viajes
+          SET estado = 'en_curso'
+          OUTPUT INSERTED.id, INSERTED.conductor_id, INSERTED.vehiculo_id,
+                 INSERTED.origen, INSERTED.destino, INSERTED.fecha_salida,
+                 INSERTED.cupo_disponible, INSERTED.costo_por_pasajero,
+                 INSERTED.estado, INSERTED.motivo_cancelacion
+          WHERE id = @id
+        `);
+
+      await transaction.commit();
+      return {
+        trip: updatedTrip.recordset[0],
+        alreadyInProgress: false,
+      };
+    } catch (error) {
+      if (transaction._acquiredConnection) {
+        await transaction.rollback().catch(() => {});
+      }
+      throw error;
+    }
+  },
+
+  async finish(id, conductorId) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      const found = await transaction.request()
+        .input("id", sql.Int, id)
+        .query(`
+          SELECT id, conductor_id, origen, destino, fecha_salida, estado
+          FROM Viajes WITH (UPDLOCK, ROWLOCK)
+          WHERE id = @id
+        `);
+      const trip = found.recordset[0];
+
+      if (!trip) {
+        await transaction.rollback();
+        const err = new Error("El viaje no existe.");
+        err.statusCode = 404;
+        throw err;
+      }
+
+      if (Number(trip.conductor_id) !== Number(conductorId)) {
+        await transaction.rollback();
+        const err = new Error("No tienes permiso para finalizar este viaje.");
+        err.statusCode = 403;
+        throw err;
+      }
+
+      const currentStatus = String(trip.estado || "").toLowerCase();
+
+      // Idempotencia: si ya está finalizado, retornar sin error
+      if (currentStatus === "finalizado") {
+        await transaction.rollback();
+        return {
+          trip,
+          alreadyFinished: true,
+        };
+      }
+
+      // Solo se puede finalizar si el viaje está en curso
+      if (currentStatus !== "en_curso" && currentStatus !== "en curso") {
+        await transaction.rollback();
+        const err = new Error(`No es posible finalizar un viaje con estado '${trip.estado}'. El viaje debe estar 'en_curso'.`);
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const updatedTrip = await transaction.request()
+        .input("id", sql.Int, id)
+        .query(`
+          UPDATE Viajes
+          SET estado = 'finalizado'
+          OUTPUT INSERTED.id, INSERTED.conductor_id, INSERTED.vehiculo_id,
+                 INSERTED.origen, INSERTED.destino, INSERTED.fecha_salida,
+                 INSERTED.cupo_disponible, INSERTED.costo_por_pasajero,
+                 INSERTED.estado, INSERTED.motivo_cancelacion
+          WHERE id = @id
+        `);
+
+      await transaction.commit();
+      return {
+        trip: updatedTrip.recordset[0],
+        alreadyFinished: false,
+      };
+    } catch (error) {
+      if (transaction._acquiredConnection) {
+        await transaction.rollback().catch(() => {});
+      }
+      throw error;
+    }
+  },
+
   /**
    * Reserva un lugar en un viaje disponible para el pasajero autenticado.
    * Descuenta atómicamente el cupo y registra la solicitud en la tabla SolicitudesViaje.

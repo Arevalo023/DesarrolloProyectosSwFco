@@ -32,6 +32,18 @@ router.patch(
 	roleMiddleware(["Conductor"]),
 	tripController.cancel
 );
+router.patch(
+	"/:id/start",
+	authMiddleware.verifyToken,
+	roleMiddleware(["Conductor"]),
+	tripController.start
+);
+router.patch(
+	"/:id/finish",
+	authMiddleware.verifyToken,
+	roleMiddleware(["Conductor"]),
+	tripController.finish
+);
 router.post("/:id/book", authMiddleware.verifyToken, roleMiddleware(["Pasajero"]), tripController.book);
 
 module.exports = router;
