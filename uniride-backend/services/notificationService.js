@@ -90,6 +90,30 @@ const notificationService = {
     });
   },
 
+  /** Viaje iniciado -> avisa a cada pasajero con reservación aceptada. */
+  async notifyTripStarted(trip) {
+    return notificationModel.createForAcceptedPassengers({
+      viajeId: trip.id,
+      tipo: "viaje_iniciado",
+      titulo: "Viaje iniciado",
+      mensaje: String(
+        `Tu viaje de ${trip.origen} a ${trip.destino} ha iniciado.`
+      ).slice(0, MAX_MENSAJE),
+    });
+  },
+
+  /** Viaje finalizado -> avisa a cada pasajero con reservación aceptada. */
+  async notifyTripFinished(trip) {
+    return notificationModel.createForAcceptedPassengers({
+      viajeId: trip.id,
+      tipo: "viaje_finalizado",
+      titulo: "Viaje finalizado",
+      mensaje: String(
+        `Tu viaje de ${trip.origen} a ${trip.destino} ha finalizado.`
+      ).slice(0, MAX_MENSAJE),
+    });
+  },
+
   /** Notificaciones del usuario (más recientes primero). */
   getUserNotifications(usuarioId, options) {
     return notificationModel.findByUser(usuarioId, options);
