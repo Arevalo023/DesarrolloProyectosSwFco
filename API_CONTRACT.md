@@ -572,6 +572,7 @@ Permite al dueño del vehículo modificar sus datos.
 #### 3.4.6. Iniciar Viaje (`PATCH /api/trips/:id/start`)
 Permite al conductor propietario iniciar un viaje programado, cambiando su estado a `en_curso`.
 > **Idempotencia:** Si el viaje ya se encuentra en estado `en_curso`, la petición responde `200 OK` informando que ya está en curso, garantizando que reintentos o clics duplicados no causen errores.
+> **Notificación:** Al iniciar el viaje (no en reintentos idempotentes) se crea una notificación `viaje_iniciado` para cada pasajero con solicitud en estado `aceptada`. Las solicitudes `pendiente`, `rechazada` o `cancelada` no reciben notificación. Si el registro de la notificación falla, el viaje se inicia de todos modos.
 
 - **Acceso:** Privado (`Conductor`), solo el dueño del viaje.
 - **Parámetros de Ruta:** `id` (entero positivo, ID del viaje).
@@ -603,6 +604,7 @@ Permite al conductor propietario iniciar un viaje programado, cambiando su estad
 #### 3.4.7. Finalizar Viaje (`PATCH /api/trips/:id/finish`)
 Permite al conductor propietario dar por concluido un viaje que se encuentra `en_curso`, cambiando su estado a `finalizado`.
 > **Idempotencia:** Si el viaje ya ha sido finalizado previamente, responde `200 OK` sin duplicar efectos ni generar errores.
+> **Notificación:** Al finalizar el viaje (no en reintentos idempotentes) se crea una notificación `viaje_finalizado` para cada pasajero con solicitud en estado `aceptada`. Las demás solicitudes no reciben notificación.
 
 - **Acceso:** Privado (`Conductor`), solo el dueño del viaje.
 - **Parámetros de Ruta:** `id` (entero positivo, ID del viaje).
@@ -793,6 +795,8 @@ Permite al pasajero titular o al conductor cancelar una reservación.
 
 #### 3.6.1. Listar Notificaciones (`GET /api/notifications`)
 Consulta el historial de notificaciones generadas para el usuario autenticado (ej. solicitudes recibidas, confirmaciones, cancelaciones).
+
+Valores posibles de `tipo`: `reserva_solicitada`, `reserva_aceptada`, `reserva_rechazada`, `reserva_cancelada`, `viaje_cancelado`, `viaje_iniciado`, `viaje_finalizado`.
 
 - **Acceso:** Privado (`Authorization: Bearer <token>`).
 - **Query Params:**

@@ -10,6 +10,7 @@ jest.mock("../../config/db", () => ({
 }));
 jest.mock("../../models/notificationModel", () => ({
   create: jest.fn(),
+  createForAcceptedPassengers: jest.fn(),
   findByUser: jest.fn(),
   markRead: jest.fn(),
   markAllRead: jest.fn(),
@@ -17,6 +18,8 @@ jest.mock("../../models/notificationModel", () => ({
 jest.mock("../../models/tripModel", () => ({
   book: jest.fn(),
   findById: jest.fn(),
+  start: jest.fn(),
+  finish: jest.fn(),
 }));
 jest.mock("../../models/vehicleModel", () => ({ findById: jest.fn() }));
 jest.mock("../../models/reservationModel", () => ({
@@ -328,5 +331,88 @@ describe("notificationController.list", () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ message: "db" });
+  });
+});
+
+describe("#99 notificaciones de inicio y finalización de viaje", () => {
+  const trip = { id: 5, conductor_id: 2, origen: "Campus Arteaga", destino: "Campus Central" };
+
+  describe("notificationService", () => {
+    test("notifyTripStarted -> crea viaje_iniciado solo para aceptadas", async () => {
+      notificationModel.createForAcceptedPassengers.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+      const out = await notificationService.notifyTripStarted(trip);
+
+      expect(notificationModel.createForAcceptedPassengers).toHaveBeenCalledTimes(1);
+      expect(notificationModel.createForAcceptedPassengers).toHaveBeenCalledWith(
+        expect.objectContaining({
+          viajeId: 5,
+          tipo: "viaje_iniciado",
+          mensaje: expect.stringContaining("Campus Arteaga"),
+        })
+      );
+      expect(out).toHaveLength(2);
+    });
+
+    test("notifyTripFinished -> crea viaje_finalizado", async () => {
+      notificationModel.createForAcceptedPassengers.mockResolvedValue([{ id: 3 }]);
+      await notificationService.notifyTripFinished(trip);
+
+      expect(notificationModel.createForAcceptedPassengers).toHaveBeenCalledWith(
+        expect.objectContaining({ viajeId: 5, tipo: "viaje_finalizado" })
+      );
+    });
+
+    test("mensaje nunca pasa de 500 caracteres", async () => {
+      notificationModel.createForAcceptedPassengers.mockResolvedValue([]);
+      await notificationService.notifyTripStarted({ ...trip, origen: "x".repeat(600) });
+
+      const { mensaje } = notificationModel.createForAcceptedPassengers.mock.calls[0][0];
+      expect(mensaje.length).toBeLessThanOrEqual(500);
+    });
+  });
+
+  describe("tripService", () => {
+    test("start -> notifica al iniciar", async () => {
+      tripModel.start.mockResolvedValue({ trip, alreadyInProgress: false });
+      notificationModel.createForAcceptedPassengers.mockResolvedValue([]);
+
+      await tripService.start(5, 2);
+      expect(notificationModel.createForAcceptedPassengers).toHaveBeenCalledWith(
+        expect.objectContaining({ viajeId: 5, tipo: "viaje_iniciado" })
+      );
+    });
+
+    test("start idempotente (ya en curso) -> no duplica notificación", async () => {
+      tripModel.start.mockResolvedValue({ trip, alreadyInProgress: true });
+
+      await tripService.start(5, 2);
+      expect(notificationModel.createForAcceptedPassengers).not.toHaveBeenCalled();
+    });
+
+    test("start -> si falla la notificación, el inicio no se rompe", async () => {
+      tripModel.start.mockResolvedValue({ trip, alreadyInProgress: false });
+      notificationModel.createForAcceptedPassengers.mockRejectedValue(new Error("db down"));
+
+      const out = await tripService.start(5, 2);
+      expect(out.trip).toEqual(trip);
+      expect(errorSpy).toHaveBeenCalled();
+    });
+
+    test("finish -> notifica al finalizar", async () => {
+      tripModel.finish.mockResolvedValue({ trip, alreadyFinished: false });
+      notificationModel.createForAcceptedPassengers.mockResolvedValue([]);
+
+      await tripService.finish(5, 2);
+      expect(notificationModel.createForAcceptedPassengers).toHaveBeenCalledWith(
+        expect.objectContaining({ viajeId: 5, tipo: "viaje_finalizado" })
+      );
+    });
+
+    test("finish idempotente (ya finalizado) -> no duplica notificación", async () => {
+      tripModel.finish.mockResolvedValue({ trip, alreadyFinished: true });
+
+      await tripService.finish(5, 2);
+      expect(notificationModel.createForAcceptedPassengers).not.toHaveBeenCalled();
+    });
   });
 });

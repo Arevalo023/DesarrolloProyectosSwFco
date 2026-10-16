@@ -25,6 +25,31 @@ const notificationModel = {
   },
 
   /**
+   * Crea una notificación por cada pasajero con reservación 'aceptada' en el viaje.
+   * Un solo INSERT ... SELECT: atómico y no toca pendientes, rechazadas ni canceladas.
+   * @returns {Promise<object[]>} notificaciones creadas
+   */
+  async createForAcceptedPassengers({ viajeId, tipo, titulo, mensaje }) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("viajeId", sql.Int, viajeId)
+      .input("tipo", sql.VarChar(50), tipo)
+      .input("titulo", sql.VarChar(150), titulo)
+      .input("mensaje", sql.VarChar(500), mensaje)
+      .query(`
+        INSERT INTO Notificaciones (usuario_id, solicitud_id, viaje_id, tipo, titulo, mensaje)
+        OUTPUT INSERTED.id, INSERTED.usuario_id, INSERTED.solicitud_id, INSERTED.viaje_id,
+               INSERTED.tipo, INSERTED.titulo, INSERTED.mensaje, INSERTED.leida,
+               INSERTED.fecha_creacion
+        SELECT sv.pasajero_id, sv.id, sv.viaje_id, @tipo, @titulo, @mensaje
+        FROM SolicitudesViaje sv
+        WHERE sv.viaje_id = @viajeId
+          AND sv.estado = 'aceptada'
+      `);
+    return result.recordset;
+  },
+
+  /**
    * Notificaciones de un usuario, de la más reciente a la más antigua.
    */
   async findByUser(usuarioId, { soloNoLeidas = false, limit = 50 } = {}) {
