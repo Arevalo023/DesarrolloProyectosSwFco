@@ -722,6 +722,57 @@ Permite a un pasajero consultar todas sus reservaciones realizadas.
 
 ---
 
+#### 3.4.10. Calificar al Conductor (`POST /api/trips/:id/rate-driver`)
+Permite a un pasajero con reservación confirmada evaluar al conductor una vez que el viaje ha finalizado.
+*(Disponible también en el alias `POST /api/ratings/driver` enviando `"viaje_id": <id>` en el body).*
+
+- **Acceso:** Privado (Pasajero con reservación confirmada).
+- **Parámetros de Ruta:** `id` (entero positivo, ID del viaje).
+- **Headers Requeridos:** `Authorization: Bearer <TOKEN>`
+- **Body (JSON):**
+  ```json
+  {
+    "puntuacion": 5,
+    "comentario": "Excelente viaje, muy puntual y amable."
+  }
+  ```
+  * `puntuacion`: Número entero entre 1 y 5 (obligatorio).
+  * `comentario`: Cadena de texto de hasta 500 caracteres (opcional).
+
+**Reglas de Negocio:**
+1. **Viaje Finalizado:** El viaje debe encontrarse en estado `finalizado`. Si el viaje está programado, en curso o cancelado, se rechaza.
+2. **Reservación Aceptada:** El usuario autenticado debe tener una reservación en estado `aceptada` en ese viaje.
+3. **No Auto-calificación:** El conductor no puede calificarse a sí mismo en su propio viaje.
+4. **Unicidad:** Cada pasajero solo puede calificar al conductor una sola vez por viaje. Intentos adicionales devuelven `409 Conflict`.
+
+**Respuestas:**
+- **`201 Created`**:
+  ```json
+  {
+    "message": "Calificación al conductor registrada exitosamente.",
+    "rating": {
+      "id": 1,
+      "viaje_id": 10,
+      "calificador_id": 2,
+      "calificado_id": 1,
+      "puntuacion": 5,
+      "comentario": "Excelente viaje, muy puntual y amable.",
+      "fecha_creacion": "2026-10-16T15:40:00.000Z"
+    }
+  }
+  ```
+- **`400 Bad Request`**:
+  - `"El ID del viaje es inválido o requerido."`
+  - `"La puntuación debe ser un número entero entre 1 y 5."`
+  - `"El comentario no puede exceder los 500 caracteres."`
+  - `"Solo se puede calificar al conductor cuando el viaje ha finalizado."`
+  - `"No puedes calificarte a ti mismo como conductor de tu propio viaje."`
+- **`403 Forbidden`**: `"Solo los pasajeros con reservación confirmada en este viaje pueden calificar al conductor."`
+- **`404 Not Found`**: `"Viaje no encontrado."`
+- **`409 Conflict`**: `"Ya has calificado al conductor de este viaje."`
+
+---
+
 ### 3.5. Módulo de Reservaciones (`/api/reservations`)
 
 #### 3.5.1. Aceptar o Rechazar Solicitud de Reserva (`PATCH /api/reservations/:id`)
@@ -846,6 +897,56 @@ Valores posibles de `tipo`: `reserva_solicitada`, `reserva_aceptada`, `reserva_r
 #### 3.6.3. Marcar Todas como Leídas (`PATCH /api/notifications/read-all`)
 - Actualiza únicamente las notificaciones no leídas del usuario autenticado.
 - **`200 OK`**: `{ "updated": 3 }`, donde `updated` es el número de filas cambiadas.
+
+---
+
+### 3.7. Módulo de Calificaciones (`/api/ratings`)
+
+#### 3.7.1. Calificar Conductor (`POST /api/ratings/driver`)
+Permite a un pasajero calificar al conductor enviando el identificador del viaje en el cuerpo de la petición.
+*(Es el alias equivalente a `POST /api/trips/:id/rate-driver`).*
+
+- **Acceso:** Privado.
+- **Body (JSON):**
+  ```json
+  {
+    "viaje_id": 10,
+    "puntuacion": 5,
+    "comentario": "Excelente servicio y conducción responsable."
+  }
+  ```
+- **Respuestas:** Idénticas a las descritas en la sección 3.4.10 (`201 Created`, `400 Bad Request`, `403 Forbidden`, `404 Not Found`, `409 Conflict`).
+
+#### 3.7.2. Consultar Calificaciones de un Usuario (`GET /api/ratings/user/:id`)
+Permite consultar el historial de calificaciones recibidas por un usuario y su promedio consolidado.
+
+- **Acceso:** Privado.
+- **Parámetros de Ruta:** `id` (entero positivo, ID del usuario a consultar).
+- **Respuestas:**
+  - **`200 OK`**:
+    ```json
+    {
+      "usuario_id": 1,
+      "promedio": 4.8,
+      "total_calificaciones": 12,
+      "calificaciones": [
+        {
+          "id": 1,
+          "viaje_id": 10,
+          "calificador_id": 2,
+          "calificado_id": 1,
+          "puntuacion": 5,
+          "comentario": "Excelente viaje, muy puntual y amable.",
+          "fecha_creacion": "2026-10-16T15:40:00.000Z",
+          "calificador_nombre": "Carlos Gómez",
+          "origen": "Campus Poniente",
+          "destino": "Zona Centro",
+          "fecha_salida": "2026-10-15T08:00:00.000Z"
+        }
+      ]
+    }
+    ```
+  - **`400 Bad Request`**: `"ID de usuario inválido."`
 
 ---
 

@@ -1,6 +1,7 @@
 const express = require("express");
 
 const tripController = require("../controllers/tripController");
+const ratingController = require("../controllers/ratingController");
 const authMiddleware = require("../middlewares/authMiddleware");
 const roleMiddleware = require("../middlewares/roleMiddleware");
 
@@ -45,5 +46,6 @@ router.patch(
 	tripController.finish
 );
 router.post("/:id/book", authMiddleware.verifyToken, roleMiddleware(["Pasajero"]), tripController.book);
+router.post("/:id/rate-driver", authMiddleware.verifyToken, ratingController.rateDriver);
 
 module.exports = router;
