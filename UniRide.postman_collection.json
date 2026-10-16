@@ -615,6 +615,84 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "7. Calificaciones",
+      "item": [
+        {
+          "name": "Calificar al Conductor (por ID de Viaje)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"puntuacion\": 5,\n  \"comentario\": \"Excelente conductor, manejo seguro y puntual.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/1/rate-driver",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "1", "rate-driver"]
+            },
+            "description": "Permite a un pasajero con reservación aceptada calificar al conductor de un viaje finalizado."
+          },
+          "response": []
+        },
+        {
+          "name": "Calificar al Conductor (Módulo Ratings)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"viaje_id\": 1,\n  \"puntuacion\": 5,\n  \"comentario\": \"Muy recomendado.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ratings/driver",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ratings", "driver"]
+            },
+            "description": "Alias para calificar al conductor indicando viaje_id en el cuerpo."
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar Calificaciones de Usuario",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ratings/user/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ratings", "user", "1"]
+            },
+            "description": "Obtiene la lista de calificaciones recibidas por el usuario y su promedio consolidado."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }
