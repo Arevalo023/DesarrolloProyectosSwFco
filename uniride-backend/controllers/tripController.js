@@ -50,8 +50,19 @@ const tripController = {
 
   async listByDriver(req, res) {
     try {
-      const trips = await tripService.listByDriver(req.user.id);
-      return res.status(200).json({ trips });
+      const { estado, classified } = req.query || {};
+      const isClassified = classified === "true" || classified === "1";
+
+      const tripsData = await tripService.listByDriver(req.user.id, {
+        estado: estado ? String(estado).trim() : undefined,
+        classified: isClassified,
+      });
+
+      if (isClassified) {
+        return res.status(200).json(tripsData);
+      }
+
+      return res.status(200).json({ trips: tripsData });
     } catch (error) {
       return res.status(error.statusCode || 500).json({
         message: error.message || "No se pudieron obtener tus viajes.",

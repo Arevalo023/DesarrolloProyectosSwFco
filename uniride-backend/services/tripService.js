@@ -93,9 +93,41 @@ const tripService = {
     }));
   },
 
-  async listByDriver(conductorId) {
-    const trips = await tripModel.findByDriver(conductorId);
-    return trips.map(addVehicleData);
+  classifyTripsByStatus(trips = []) {
+    const safeTrips = Array.isArray(trips) ? trips : [];
+    const activos = [];
+    const cancelados = [];
+    const completados = [];
+
+    for (const trip of safeTrips) {
+      const estado = String(trip?.estado || "").trim().toLowerCase();
+      if (["programado", "en_curso", "activo", "en curso"].includes(estado)) {
+        activos.push(trip);
+      } else if (["cancelado", "cancelada"].includes(estado)) {
+        cancelados.push(trip);
+      } else if (["finalizado", "completado"].includes(estado)) {
+        completados.push(trip);
+      } else {
+        activos.push(trip);
+      }
+    }
+
+    return {
+      activos,
+      cancelados,
+      completados,
+    };
+  },
+
+  async listByDriver(conductorId, options = {}) {
+    const trips = await tripModel.findByDriver(conductorId, options);
+    const enriched = trips.map(addVehicleData);
+
+    if (options.classified) {
+      return this.classifyTripsByStatus(enriched);
+    }
+
+    return enriched;
   },
 
   async cancel(tripId, conductorId, motivoCancelacion) {
