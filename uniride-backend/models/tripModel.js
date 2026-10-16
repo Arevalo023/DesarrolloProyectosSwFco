@@ -143,33 +143,49 @@ const tripModel = {
     return this.findById(result.recordset[0].id);
   },
 
-  async findByDriver(conductorId) {
+  async findByDriver(conductorId, options = {}) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input("conductor_id", sql.Int, conductorId)
-      .query(`
-        SELECT v.id, v.conductor_id, v.vehiculo_id, v.origen, v.destino,
-               v.fecha_salida, v.cupo_disponible,
-               v.cupo_disponible AS asientos_disponibles,
-               v.costo_por_pasajero, v.estado, v.motivo_cancelacion,
-               COALESCE((
-                 SELECT COUNT(*)
-                 FROM SolicitudesViaje sv
-                 WHERE sv.viaje_id = v.id
-                   AND sv.estado IN ('pendiente', 'aceptada')
-               ), 0) AS usuarios_separaron_asiento,
-               ve.marca AS vehiculo_marca,
-               ve.modelo AS vehiculo_modelo,
-               ve.anio AS vehiculo_anio,
-               ve.color AS vehiculo_color,
-               ve.placa AS vehiculo_placa,
-               ve.asientos_disponibles AS vehiculo_asientos_disponibles,
-               ve.activo AS vehiculo_activo
-        FROM Viajes v
-        INNER JOIN Vehiculos ve ON ve.id = v.vehiculo_id
-        WHERE v.conductor_id = @conductor_id
-        ORDER BY v.fecha_salida ASC
-      `);
+    let query = `
+      SELECT v.id, v.conductor_id, v.vehiculo_id, v.origen, v.destino,
+             v.fecha_salida, v.cupo_disponible,
+             v.cupo_disponible AS asientos_disponibles,
+             v.costo_por_pasajero, v.estado, v.motivo_cancelacion,
+             COALESCE((
+               SELECT COUNT(*)
+               FROM SolicitudesViaje sv
+               WHERE sv.viaje_id = v.id
+                 AND sv.estado IN ('pendiente', 'aceptada')
+             ), 0) AS usuarios_separaron_asiento,
+             ve.marca AS vehiculo_marca,
+             ve.modelo AS vehiculo_modelo,
+             ve.anio AS vehiculo_anio,
+             ve.color AS vehiculo_color,
+             ve.placa AS vehiculo_placa,
+             ve.asientos_disponibles AS vehiculo_asientos_disponibles,
+             ve.activo AS vehiculo_activo
+      FROM Viajes v
+      INNER JOIN Vehiculos ve ON ve.id = v.vehiculo_id
+      WHERE v.conductor_id = @conductor_id
+    `;
+
+    const request = pool.request().input("conductor_id", sql.Int, conductorId);
+
+    if (options.estado) {
+      const estadoNorm = String(options.estado).trim().toLowerCase();
+      if (estadoNorm === "activos" || estadoNorm === "activo") {
+        query += ` AND LOWER(v.estado) IN ('programado', 'en_curso', 'activo')`;
+      } else if (estadoNorm === "cancelados" || estadoNorm === "cancelado") {
+        query += ` AND LOWER(v.estado) = 'cancelado'`;
+      } else if (estadoNorm === "completados" || estadoNorm === "completado" || estadoNorm === "finalizado") {
+        query += ` AND LOWER(v.estado) = 'finalizado'`;
+      } else {
+        request.input("estadoFiltro", sql.VarChar(30), estadoNorm);
+        query += ` AND LOWER(v.estado) = LOWER(@estadoFiltro)`;
+      }
+    }
+
+    query += ` ORDER BY v.fecha_salida ASC`;
+    const result = await request.query(query);
 
     return result.recordset;
   },

@@ -333,9 +333,23 @@
             "url": {
               "raw": "{{baseUrl}}/api/trips/driver",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "trips", "driver"]
+              "path": ["api", "trips", "driver"],
+              "query": [
+                {
+                  "key": "classified",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Si es true, devuelve agrupados en activos, cancelados y completados."
+                },
+                {
+                  "key": "estado",
+                  "value": "programado",
+                  "disabled": true,
+                  "description": "Filtra por estado puntual o categoría (activos, cancelados, completados)."
+                }
+              ]
             },
-            "description": "Devuelve los viajes publicados por el conductor autenticado."
+            "description": "Devuelve los viajes publicados por el conductor autenticado (soporta ?classified=true y ?estado=...)."
           },
           "response": []
         },

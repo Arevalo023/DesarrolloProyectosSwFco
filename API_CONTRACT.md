@@ -450,9 +450,12 @@ Permite al dueño del vehículo modificar sus datos.
 
 #### 3.4.2. Listar Viajes Publicados por Conductor (`GET /api/trips/driver`)
 - **Acceso:** Privado (`Conductor`).
+- **Query Params (opcionales):**
+  - `classified` (`boolean`): Si es `true`, devuelve los viajes categorizados en buckets `{ activos: [...], cancelados: [...], completados: [...] }`, garantizando arreglos vacíos si no hay viajes en una categoría.
+  - `estado` (`string`): Filtra por estado puntual (`programado`, `en_curso`, `cancelado`, `finalizado`) o por categoría (`activos`, `cancelados`, `completados`).
 
 **Respuestas:**
-- **`200 OK`**:
+- **`200 OK` (por defecto, lista plana):**
   ```json
   {
     "trips": [
@@ -471,6 +474,18 @@ Permite al dueño del vehículo modificar sus datos.
         "vehiculo_placa": "SAL-102",
         "vehiculo_activo": true
       }
+    ]
+  }
+  ```
+- **`200 OK` (con `classified=true`):**
+  ```json
+  {
+    "activos": [
+      { "id": 10, "estado": "programado", ... }
+    ],
+    "cancelados": [],
+    "completados": [
+      { "id": 9, "estado": "finalizado", ... }
     ]
   }
   ```
