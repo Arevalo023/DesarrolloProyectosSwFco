@@ -240,3 +240,78 @@ describe("consulta por usuario", () => {
     expect(unread.find((n) => n.id === all[0].id)).toBeUndefined();
   });
 });
+
+describe("lectura de notificaciones (#107)", () => {
+  const patchNotif = (path, userId, rol) =>
+    request(app)
+      .patch(`/api/notifications${path}`)
+      .set("Authorization", `Bearer ${tokenFor(userId, rol)}`);
+
+  const unreadOf = async (userId, rol) =>
+    (await getNotifications(userId, rol, "?noLeidas=true")).body.notifications;
+
+  const leidaEnBD = async (id) =>
+    (await q("SELECT leida FROM Notificaciones WHERE id = @id", { id })).recordset[0].leida;
+
+  test("sin token -> 401 en read y read-all", async () => {
+    expect((await request(app).patch("/api/notifications/1/read")).status).toBe(401);
+    expect((await request(app).patch("/api/notifications/read-all")).status).toBe(401);
+  });
+
+  test("marcar una propia -> 200 y queda leida=true en BD", async () => {
+    const mine = await unreadOf(ctx.p1, "Pasajero");
+    expect(mine.length).toBeGreaterThanOrEqual(1);
+
+    const res = await patchNotif(`/${mine[0].id}/read`, ctx.p1, "Pasajero");
+
+    expect(res.status).toBe(200);
+    expect(res.body.notification).toMatchObject({
+      id: mine[0].id,
+      usuario_id: ctx.p1,
+      leida: true,
+    });
+    expect(await leidaEnBD(mine[0].id)).toBe(true);
+  });
+
+  test("marcar una ajena -> 404 y NO cambia en BD", async () => {
+    const driverUnread = await unreadOf(ctx.driver, "Conductor");
+    expect(driverUnread.length).toBeGreaterThanOrEqual(1);
+    const target = driverUnread[0].id;
+
+    const res = await patchNotif(`/${target}/read`, ctx.p2, "Pasajero");
+
+    expect(res.status).toBe(404);
+    expect(await leidaEnBD(target)).toBe(false);
+  });
+
+  test("ID inexistente -> 404", async () => {
+    const res = await patchNotif("/999999999/read", ctx.p1, "Pasajero");
+    expect(res.status).toBe(404);
+  });
+
+  test.each(["abc", "0", "-1", "1.5"])("ID inválido (%s) -> 400", async (badId) => {
+    const res = await patchNotif(`/${badId}/read`, ctx.p1, "Pasajero");
+    expect(res.status).toBe(400);
+  });
+
+  test("read-all solo afecta al usuario autenticado", async () => {
+    const driverBefore = (await unreadOf(ctx.driver, "Conductor")).length;
+    const p2Before = (await unreadOf(ctx.p2, "Pasajero")).length;
+    expect(driverBefore).toBeGreaterThanOrEqual(1);
+    expect(p2Before).toBeGreaterThanOrEqual(1);
+
+    const res = await patchNotif("/read-all", ctx.driver, "Conductor");
+
+    expect(res.status).toBe(200);
+    expect(res.body.updated).toBe(driverBefore);
+    expect(await unreadOf(ctx.driver, "Conductor")).toEqual([]);
+    // pasajero 2 intacto
+    expect((await unreadOf(ctx.p2, "Pasajero")).length).toBe(p2Before);
+  });
+
+  test("read-all repetido -> updated = 0", async () => {
+    const res = await patchNotif("/read-all", ctx.driver, "Conductor");
+    expect(res.status).toBe(200);
+    expect(res.body.updated).toBe(0);
+  });
+});

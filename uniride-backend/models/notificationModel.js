@@ -63,7 +63,7 @@ const notificationModel = {
                leida, fecha_creacion
         FROM Notificaciones
         WHERE usuario_id = @usuarioId
-          ${soloNoLeidas ? "AND leida = 0" : ""}
+          ${soloNoLeidas ? "AND ISNULL(leida, 0) = 0" : ""}
         ORDER BY fecha_creacion DESC, id DESC
       `);
     return result.recordset;
@@ -92,7 +92,7 @@ const notificationModel = {
       .query(`
         UPDATE Notificaciones
         SET leida = 1
-        WHERE usuario_id = @usuarioId AND leida = 0
+        WHERE usuario_id = @usuarioId AND ISNULL(leida, 0) = 0
       `);
     return result.rowsAffected[0] || 0;
   },
