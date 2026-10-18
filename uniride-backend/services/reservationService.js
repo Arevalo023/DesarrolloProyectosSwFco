@@ -41,9 +41,55 @@ const reservationService = {
     return reservation;
   },
 
-  async listByPassenger(passengerId, { order = "asc" } = {}) {
+  /**
+   * Clasifica las reservaciones del pasajero en buckets según su estado y el del viaje.
+   * Los criterios son los mismos que los filtros ?estado= de reservationModel.findByPassenger:
+   *  - activos: reservación pendiente/aceptada en un viaje vigente.
+   *  - cancelados: reservación cancelada o viaje cancelado (salvo las rechazadas).
+   *  - completados: reservación aceptada en un viaje finalizado.
+   *  - no_aceptadas: el resto (rechazadas, o pendientes en un viaje ya finalizado), para que
+   *    ninguna reservación se pierda al clasificar.
+   */
+  classifyReservationsByStatus(reservations = []) {
+    const safeReservations = Array.isArray(reservations) ? reservations : [];
+    const buckets = { activos: [], cancelados: [], completados: [], no_aceptadas: [] };
+    const normalize = (value) => String(value || "").trim().toLowerCase();
+
+    for (const reservation of safeReservations) {
+      const reserva = normalize(reservation?.estado);
+      const viaje = normalize(reservation?.viaje_estado);
+
+      if (
+        ["pendiente", "aceptada"].includes(reserva) &&
+        ["programado", "en_curso", "activo"].includes(viaje)
+      ) {
+        buckets.activos.push(reservation);
+      } else if (reserva !== "rechazada" && (reserva === "cancelada" || viaje === "cancelado")) {
+        buckets.cancelados.push(reservation);
+      } else if (reserva === "aceptada" && viaje === "finalizado") {
+        buckets.completados.push(reservation);
+      } else {
+        buckets.no_aceptadas.push(reservation);
+      }
+    }
+
+    return buckets;
+  },
+
+  async listByPassenger(passengerId, { order = "asc", estado, classified = false } = {}) {
+    if (estado !== undefined && typeof estado !== "string") {
+      const e = new Error("El estado debe enviarse como un único valor de texto.");
+      e.statusCode = 400;
+      throw e;
+    }
+
     const sortOrder = String(order || "asc").trim().toLowerCase() === "desc" ? "desc" : "asc";
-    return reservationModel.findByPassenger(passengerId, { order: sortOrder });
+    const reservations = await reservationModel.findByPassenger(passengerId, {
+      order: sortOrder,
+      estado: estado?.trim() || undefined,
+    });
+
+    return classified ? this.classifyReservationsByStatus(reservations) : reservations;
   },
 
   listReceivedByDriver(driverId) {

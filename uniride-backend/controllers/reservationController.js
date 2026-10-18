@@ -51,10 +51,20 @@ const reservationController = {
 
   async listMyReservations(req, res) {
     try {
-      const reservations = await reservationService.listByPassenger(req.user.id, {
-        order: req.query.order,
+      const { order, estado, classified } = req.query || {};
+      const isClassified = classified === "true" || classified === "1";
+
+      const data = await reservationService.listByPassenger(req.user.id, {
+        order,
+        estado,
+        classified: isClassified,
       });
-      return res.status(200).json({ reservations });
+
+      if (isClassified) {
+        return res.status(200).json(data);
+      }
+
+      return res.status(200).json({ reservations: data });
     } catch (error) {
       return res.status(error.statusCode || 500).json({
         message: error.message || "No se pudieron obtener las reservaciones.",

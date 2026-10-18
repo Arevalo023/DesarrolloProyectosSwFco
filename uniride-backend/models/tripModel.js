@@ -178,6 +178,9 @@ const tripModel = {
         query += ` AND LOWER(v.estado) = 'cancelado'`;
       } else if (estadoNorm === "completados" || estadoNorm === "completado" || estadoNorm === "finalizado") {
         query += ` AND LOWER(v.estado) = 'finalizado'`;
+      } else if (estadoNorm === "historial") {
+        // Historial = viajes cerrados: complemento de "activos" (cancelados + finalizados).
+        query += ` AND LOWER(v.estado) IN ('cancelado', 'finalizado')`;
       } else {
         request.input("estadoFiltro", sql.VarChar(30), estadoNorm);
         query += ` AND LOWER(v.estado) = LOWER(@estadoFiltro)`;

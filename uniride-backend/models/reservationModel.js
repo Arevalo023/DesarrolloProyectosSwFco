@@ -1,6 +1,48 @@
 const { sql, poolPromise } = require("../config/db");
 
+const RESERVA = "LOWER(COALESCE(sv.estado, ''))";
+const VIAJE = "LOWER(COALESCE(v.estado, ''))";
+const ES_ACTIVA =
+  `(${RESERVA} IN ('pendiente', 'aceptada') AND ${VIAJE} IN ('programado', 'en_curso', 'activo'))`;
+
+/**
+ * Categorías para filtrar las reservaciones del pasajero con ?estado=. Combinan el estado de
+ * la reservación (sv.estado) con el del viaje (v.estado):
+ *  - activos: reservación pendiente/aceptada en un viaje programado/en_curso/activo.
+ *  - cancelados: reservación cancelada o viaje cancelado (las rechazadas no cuentan).
+ *  - completados: reservación aceptada en un viaje finalizado.
+ *  - historial: todo lo que no es activo (complemento exacto de "activos").
+ * Las condiciones son constantes: ningún valor del cliente se concatena en el SQL.
+ */
+const CONDICIONES_ESTADO_PASAJERO = Object.freeze({
+  activos: ES_ACTIVA,
+  cancelados:
+    `(${RESERVA} <> 'rechazada' AND (${RESERVA} = 'cancelada' OR ${VIAJE} = 'cancelado'))`,
+  completados: `(${RESERVA} = 'aceptada' AND ${VIAJE} = 'finalizado')`,
+  historial: `(NOT ${ES_ACTIVA})`,
+});
+
+const ALIAS_ESTADO_PASAJERO = Object.freeze({
+  activo: "activos",
+  cancelado: "cancelados",
+  completado: "completados",
+  finalizado: "completados",
+  finalizados: "completados",
+});
+
+/** Devuelve la categoría canónica de ?estado= o undefined si no es válida. */
+const categoriaEstadoPasajero = (estado) => {
+  const normalizado = String(estado ?? "").trim().toLowerCase();
+  const categoria = ALIAS_ESTADO_PASAJERO[normalizado] || normalizado;
+  return Object.prototype.hasOwnProperty.call(CONDICIONES_ESTADO_PASAJERO, categoria)
+    ? categoria
+    : undefined;
+};
+
 const reservationModel = {
+  categoriaEstadoPasajero,
+  CATEGORIAS_ESTADO_PASAJERO: Object.keys(CONDICIONES_ESTADO_PASAJERO),
+
   /**
    * El conductor dueño del viaje acepta o rechaza una solicitud pendiente.
    * Solo al aceptar se descuenta cupo del viaje (transacción + bloqueo de filas).
@@ -205,14 +247,29 @@ const reservationModel = {
   },
 
   /**
-   * Obtiene todas las reservaciones realizadas por el pasajero autenticado.
+   * Obtiene las reservaciones realizadas por el pasajero autenticado.
    * Incluye datos completos del viaje, vehículo y conductor.
    * @param {number} passengerId
    * @param {object} [options]
    * @param {string} [options.order='asc'] - 'asc' | 'desc' ordenado por fecha_salida
+   * @param {string} [options.estado] - activos | cancelados | completados | historial
+   *   (con los alias activo, cancelado, completado, finalizado). Sin valor: todas.
    * @returns {Promise<Array>}
    */
-  async findByPassenger(passengerId, { order = "asc" } = {}) {
+  async findByPassenger(passengerId, { order = "asc", estado } = {}) {
+    let filtroEstado = "";
+    if (estado !== undefined && estado !== null && String(estado).trim() !== "") {
+      const categoria = categoriaEstadoPasajero(estado);
+      if (!categoria) {
+        const error = new Error(
+          `El estado debe ser uno de: ${Object.keys(CONDICIONES_ESTADO_PASAJERO).join(", ")}.`
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+      filtroEstado = `AND ${CONDICIONES_ESTADO_PASAJERO[categoria]}`;
+    }
+
     const pool = await poolPromise;
     const sortDirection = String(order).toLowerCase() === "desc" ? "DESC" : "ASC";
 
@@ -234,6 +291,7 @@ const reservationModel = {
         INNER JOIN Usuarios u ON u.id = v.conductor_id
         LEFT JOIN Vehiculos ve ON ve.id = v.vehiculo_id
         WHERE sv.pasajero_id = @passengerId
+          ${filtroEstado}
         ORDER BY v.fecha_salida ${sortDirection}
       `);
 
