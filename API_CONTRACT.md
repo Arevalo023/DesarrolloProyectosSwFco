@@ -452,7 +452,16 @@ Permite al dueño del vehículo modificar sus datos.
 - **Acceso:** Privado (`Conductor`).
 - **Query Params (opcionales):**
   - `classified` (`boolean`): Si es `true`, devuelve los viajes categorizados en buckets `{ activos: [...], cancelados: [...], completados: [...] }`, garantizando arreglos vacíos si no hay viajes en una categoría.
-  - `estado` (`string`): Filtra por estado puntual (`programado`, `en_curso`, `cancelado`, `finalizado`) o por categoría (`activos`, `cancelados`, `completados`).
+  - `estado` (`string`): Filtra por estado puntual (`programado`, `en_curso`, `cancelado`, `finalizado`) o por categoría (`activos`, `cancelados`, `completados`, `historial`).
+
+| Categoría | Estados del viaje incluidos |
+|---|---|
+| `activos` | `programado`, `en_curso`, `activo` |
+| `cancelados` | `cancelado` |
+| `completados` | `finalizado` |
+| `historial` | `cancelado` y `finalizado` (complemento exacto de `activos`) |
+
+> **Nota:** Sin `estado` ni `classified`, el endpoint devuelve todos los viajes del conductor mezclados. Para la vista de viajes activos usar `?estado=activos`; para el historial, `?estado=historial` (juntos) o `?estado=cancelados` / `?estado=completados` (por separado).
 
 **Respuestas:**
 - **`200 OK` (por defecto, lista plana):**
@@ -682,12 +691,26 @@ Permite a un usuario con rol `Pasajero` solicitar un asiento en un viaje.
 ---
 
 #### 3.4.9. Mis Reservaciones de Viaje (`GET /api/trips/reservations`)
-Permite a un pasajero consultar todas sus reservaciones realizadas.
+Permite a un pasajero consultar sus reservaciones realizadas, con la misma separación activos / historial que `GET /api/trips/driver`.
 *(Disponible también en el alias `GET /api/reservations`)*
 
 - **Acceso:** Privado.
-- **Query Params:**
-  - `order` (opcional): `'asc'` (por defecto, próximos primero) o `'desc'`.
+- **Query Params (opcionales):**
+  - `order`: `'asc'` (por defecto, próximos primero) o `'desc'`.
+  - `estado` (`string`): Filtra por categoría: `activos`, `cancelados`, `completados` o `historial` (alias aceptados: `activo`, `cancelado`, `completado`, `finalizado`). Cualquier otro valor responde `400`.
+  - `classified` (`boolean`): Si es `true` (o `1`), devuelve las reservaciones en buckets `{ activos, cancelados, completados, no_aceptadas }`, con arreglos vacíos si una categoría no tiene elementos.
+
+Las categorías combinan el estado de la reservación y el del viaje:
+
+| Categoría | Qué incluye |
+|---|---|
+| `activos` | Reservación `pendiente` o `aceptada` en un viaje `programado`, `en_curso` o `activo`. |
+| `cancelados` | Reservación `cancelada` o viaje `cancelado` (excepto las `rechazada`). |
+| `completados` | Reservación `aceptada` en un viaje `finalizado`. |
+| `historial` | Todo lo que no es `activos`; es el complemento exacto de `activos`. |
+| `no_aceptadas` (solo en `classified`) | El resto: reservaciones `rechazada`, o `pendiente` en un viaje ya `finalizado` (nunca se aceptaron). Así ninguna reservación se pierde al clasificar. |
+
+> **Nota:** Sin `estado` ni `classified`, el endpoint devuelve todas las reservaciones mezcladas (comportamiento previo). Para "Mis Reservaciones" activas usar `?estado=activos`; para el historial, `?estado=historial`.
 
 **Respuestas:**
 - **`200 OK`**:
@@ -719,6 +742,17 @@ Permite a un pasajero consultar todas sus reservaciones realizadas.
     ]
   }
   ```
+- **`200 OK` (con `classified=true`):**
+  ```json
+  {
+    "activos": [ { "id": 15, "estado": "pendiente", "viaje_estado": "programado", "...": "..." } ],
+    "cancelados": [],
+    "completados": [ { "id": 9, "estado": "aceptada", "viaje_estado": "finalizado", "...": "..." } ],
+    "no_aceptadas": []
+  }
+  ```
+- **`400 Bad Request`**: `estado` desconocido (`"El estado debe ser uno de: activos, cancelados, completados, historial."`) o enviado más de una vez (`"El estado debe enviarse como un único valor de texto."`).
+- **`401 Unauthorized`**: Token ausente o inválido.
 
 ---
 
