@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatearFechaViaje } from "@/utils/fechaViaje";
 import {
   ArrowLeft,
   CalendarDays,
@@ -258,30 +259,7 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
     }
   };
 
-  const formatearFecha = (fecha) => {
-    if (!fecha) return "Fecha no disponible";
-
-    const partes = String(fecha).split("-");
-
-    if (partes.length !== 3) {
-      return fecha;
-    }
-
-    const [year, month, day] = partes;
-
-    const fechaLocal = new Date(
-      Number(year),
-      Number(month) - 1,
-      Number(day)
-    );
-
-    return fechaLocal.toLocaleDateString("es-MX", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
+  const formatearFecha = formatearFechaViaje;
 
   const obtenerNombrePasajero = (solicitud) => {
     return (

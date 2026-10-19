@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
 import { apiRequest } from "@/services/api";
+import { formatearFechaViaje } from "@/utils/fechaViaje";
 
 function MisSolicitudes({ onBack, user }) {
   const [reservaciones, setReservaciones] = useState([]);
@@ -48,24 +49,7 @@ function MisSolicitudes({ onBack, user }) {
     };
   }, []);
 
-  const formatearFecha = (fecha) => {
-    if (!fecha) return "";
-
-    const [year, month, day] = fecha.split("-");
-
-    const fechaLocal = new Date(
-      Number(year),
-      Number(month) - 1,
-      Number(day)
-    );
-
-    return fechaLocal.toLocaleDateString("es-MX", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
+  const formatearFecha = formatearFechaViaje;
 
   const obtenerEstado = (estado) => {
     switch (estado) {
