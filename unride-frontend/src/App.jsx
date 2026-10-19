@@ -7,6 +7,8 @@ import Vehiculos from "./pages/Vehiculos";
 import Register from "./pages/Register";
 import PublicarViaje from "./pages/PublicarViaje";
 import MisViajes from "./pages/MisViajes";
+import ViajesCancelados from "./pages/ViajesCancelados";
+import ViajesCompletados from "./pages/ViajesCompletados";
 import ResumenReserva from "./pages/ResumenReserva";
 import Notificaciones from "./pages/Notificaciones";
 import MisSolicitudes from "./pages/MisReservaciones";
@@ -321,8 +323,18 @@ function App() {
         onPublicarViaje={() => {
           setPantalla("publicar");
         }}
+        onViajesCancelados={() => setPantalla("viajes-cancelados")}
+        onViajesCompletados={() => setPantalla("viajes-completados")}
       />
     );
+  }
+
+  if (pantalla === "viajes-cancelados") {
+    return <ViajesCancelados onBack={() => setPantalla("mis-viajes")} />;
+  }
+
+  if (pantalla === "viajes-completados") {
+    return <ViajesCompletados onBack={() => setPantalla("mis-viajes")} />;
   }
 
   // ============================================================

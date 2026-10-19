@@ -18,7 +18,7 @@ import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
 import { apiRequest } from "@/services/api";
 
-function MisViajes({ onBackHome }) {
+function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
   const [viajes, setViajes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -371,6 +371,28 @@ function MisViajes({ onBackHome }) {
             Consulta tus viajes publicados y administra
             las solicitudes de los pasajeros.
           </p>
+        </div>
+
+        {/* NAVEGACIÓN A HISTORIAL DE VIAJES */}
+        <div className="mb-8 grid gap-4 sm:grid-cols-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onViajesCancelados}
+            className="h-auto justify-between rounded-xl border-red-200 bg-white px-5 py-4 text-red-700 hover:bg-red-50"
+          >
+            <span className="flex items-center gap-3"><XCircle size={22} /> Viajes cancelados</span>
+            <span aria-hidden="true">→</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onViajesCompletados}
+            className="h-auto justify-between rounded-xl border-green-200 bg-white px-5 py-4 text-green-700 hover:bg-green-50"
+          >
+            <span className="flex items-center gap-3"><Check size={22} /> Viajes completados</span>
+            <span aria-hidden="true">→</span>
+          </Button>
         </div>
 
         {/* ERROR */}
