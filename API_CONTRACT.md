@@ -980,7 +980,21 @@ Permite consultar el historial de calificaciones recibidas por un usuario y su p
       ]
     }
     ```
+  - **`200 OK` (usuario sin calificaciones)**: la respuesta mantiene la misma estructura, con `promedio` en `0`, `total_calificaciones` en `0` y `calificaciones` como arreglo vacío:
+    ```json
+    {
+      "usuario_id": 5,
+      "promedio": 0,
+      "total_calificaciones": 0,
+      "calificaciones": []
+    }
+    ```
   - **`400 Bad Request`**: `"ID de usuario inválido."`
+  - **`401 Unauthorized`**: token ausente, inválido o expirado.
+- **Notas:**
+  - Disponible para cualquier usuario autenticado, sin importar su rol activo.
+  - `promedio` se redondea a un decimal.
+  - Las calificaciones se ordenan de la más reciente a la más antigua (`fecha_creacion`).
 
 ---
 
