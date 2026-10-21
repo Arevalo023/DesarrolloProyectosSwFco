@@ -226,24 +226,30 @@ function MisViajes({
 
       const viajeActualizado = respuesta?.trip || {};
 
-      setViajes((viajesActuales) =>
-        viajesActuales.map((item) => {
-          if (obtenerIdViaje(item) !== idViaje) {
-            return item;
-          }
+           if (accion === "finish") {
+        setViajes((viajesActuales) =>
+          viajesActuales.filter(
+            (item) => obtenerIdViaje(item) !== idViaje
+          )
+        );
+      } else {
+        setViajes((viajesActuales) =>
+          viajesActuales.map((item) => {
+            if (obtenerIdViaje(item) !== idViaje) {
+              return item;
+            }
 
-          return {
-            ...item,
-            ...viajeActualizado,
-            // Conserva el estado enviado por el servidor.
-            // Usa el esperado únicamente si no viene en la respuesta.
-            estado:
-              viajeActualizado.estado ??
-              viajeActualizado.status ??
-              estadoEsperado,
-          };
-        })
-      );
+            return {
+              ...item,
+              ...viajeActualizado,
+              estado:
+                viajeActualizado.estado ??
+                viajeActualizado.status ??
+                estadoEsperado,
+            };
+          })
+        );
+      }
     } catch (err) {
       console.error(
         `Error al ${accion === "start" ? "iniciar" : "finalizar"} el viaje:`,
