@@ -33,7 +33,9 @@ function App() {
   // ============================================================
 
   const [pantalla, setPantalla] = useState(() =>
-  obtenerToken() && obtenerUsuario() ? "home" : "login"
+  obtenerToken() && obtenerUsuario()
+    ? window.location.pathname.replace(/\/$/, "") === "/administracion" ? "administracion" : "home"
+    : "login"
   );
   const [usuario, setUsuario] = useState(() => obtenerUsuario());
 
@@ -51,6 +53,27 @@ function App() {
   });
 
   const [sesionExpirada, setSesionExpirada] = useState(false);
+
+  // Mantener sincronizada la pantalla con la URL al usar Atrás/Adelante.
+  useEffect(() => {
+    const sincronizarRuta = () => {
+      const rutaAdmin = window.location.pathname.replace(/\/$/, "") === "/administracion";
+      setPantalla(obtenerToken() && obtenerUsuario() ? (rutaAdmin ? "administracion" : "home") : "login");
+    };
+    window.addEventListener("popstate", sincronizarRuta);
+    return () => window.removeEventListener("popstate", sincronizarRuta);
+  }, []);
+
+  const abrirAdministracion = () => {
+    if (!rolesDe(usuario).some((rol) => mismoRol(rol, "Administrador"))) return;
+    window.history.pushState({}, "", "/administracion");
+    setPantalla("administracion");
+  };
+
+  const volverDeAdministracion = () => {
+    window.history.pushState({}, "", "/");
+    setPantalla("home");
+  };
 
   // ============================================================
   // EVENTOS DE SESIÓN
@@ -153,6 +176,7 @@ function App() {
     setRolActivo(rol);
     setSesionExpirada(false);
     setViajeSeleccionado(null);
+    window.history.replaceState({}, "", "/");
     setPantalla("home");
   };
 
@@ -168,6 +192,7 @@ function App() {
     setViajeSeleccionado(null);
     setSesionExpirada(false);
 
+    window.history.replaceState({}, "", "/");
     setPantalla("login");
   };
 
@@ -240,11 +265,7 @@ function App() {
           setPantalla("notificaciones");
         }}
         onCalificaciones={() => setPantalla("calificaciones")}
-        onAdministracion={() => {
-          if (rolesDe(usuario).some((rol) => mismoRol(rol, "Administrador"))) {
-            setPantalla("administracion");
-          }
-        }}
+        onAdministracion={abrirAdministracion}
 
         onVerViaje={(viaje) => {
           setViajeSeleccionado(viaje);
@@ -323,9 +344,11 @@ function App() {
 
   if (pantalla === "administracion") {
     const esAdministrador = rolesDe(usuario).some((rol) => mismoRol(rol, "Administrador"));
-    return esAdministrador
-      ? <Administracion onBack={() => setPantalla("home")} />
-      : null;
+    if (!obtenerToken() || !usuario || !esAdministrador) {
+      // No renderizar información administrativa a usuarios sin permiso.
+      return <div className="min-h-screen bg-slate-50 p-8 text-center"><p className="mb-4 text-slate-700">Acceso restringido a Administradores.</p><button type="button" onClick={volverDeAdministracion} className="rounded-lg bg-emerald-700 px-4 py-2 text-white">Volver al inicio</button></div>;
+    }
+    return <Administracion onBack={volverDeAdministracion} />;
   }
 
   // ============================================================

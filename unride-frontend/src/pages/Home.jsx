@@ -844,7 +844,7 @@ function Home({
                   </button>
                 )}
 
-                {onAdministracion && (
+                {tieneRol("Administrador") && onAdministracion && (
                   <button type="button" onClick={() => { setMenuPerfil(false); onAdministracion(); }} className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700">
                     <ClipboardList size={18} />
                     <span>Administración</span>
