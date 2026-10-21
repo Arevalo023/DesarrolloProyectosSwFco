@@ -21,6 +21,16 @@ import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
 import { apiRequest } from "@/services/api";
 
+const obtenerIdViaje = (viaje) =>
+  viaje?.id ?? viaje?.trip_id ?? viaje?.viaje_id;
+
+const obtenerSolicitudes = (viaje) =>
+  viaje?.reservations ||
+  viaje?.reservaciones ||
+  viaje?.solicitudes ||
+  viaje?.requests ||
+  [];
+
 function MisViajes({
   onBackHome,
   onViajesCancelados,
@@ -145,16 +155,6 @@ function MisViajes({
         };
     }
   };
-
-  const obtenerIdViaje = (viaje) =>
-    viaje?.id ?? viaje?.trip_id ?? viaje?.viaje_id;
-
-  const obtenerSolicitudes = (viaje) =>
-    viaje?.reservations ||
-    viaje?.reservaciones ||
-    viaje?.solicitudes ||
-    viaje?.requests ||
-    [];
 
   const esViajeCancelado = (viaje) => {
     const estado = obtenerEstadoViaje(viaje);
