@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
+  Star,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,15 +30,30 @@ function MisSolicitudes({ onBack, user }) {
   const [reservacionSeleccionada, setReservacionSeleccionada] =
     useState(null);
 
+  // Estados para calificar al conductor.
+  const [calificacionAbiertaId, setCalificacionAbiertaId] = useState(null);
+  const [puntuacion, setPuntuacion] = useState(5);
+  const [comentario, setComentario] = useState("");
+  const [calificandoId, setCalificandoId] = useState(null);
+  const [calificacionesEnviadas, setCalificacionesEnviadas] = useState([]);
+  const [mensajeCalificacion, setMensajeCalificacion] = useState("");
+  const [errorCalificacion, setErrorCalificacion] = useState("");
+
   useEffect(() => {
     let cancelado = false;
+
     apiRequest("/api/trips/reservations")
       .then((data) => {
-        if (!cancelado) setReservaciones(data.reservations || []);
+        if (!cancelado) {
+          setReservaciones(data.reservations || []);
+        }
       })
       .catch((requestError) => {
         if (!cancelado) {
-          setError(requestError.message || "No se pudieron cargar tus solicitudes.");
+          setError(
+            requestError.message ||
+              "No se pudieron cargar tus solicitudes."
+          );
         }
       })
       .finally(() => {
@@ -90,6 +106,7 @@ function MisSolicitudes({ onBack, user }) {
     }
   };
 
+  // Funciones para cancelar una reservación.
   const abrirModalCancelacion = (reservacion) => {
     setReservacionSeleccionada(reservacion);
   };
@@ -100,20 +117,109 @@ function MisSolicitudes({ onBack, user }) {
 
   const cancelarReservacion = async () => {
     if (!reservacionSeleccionada) return;
+
     const id = reservacionSeleccionada.id;
 
     setCancelandoId(id);
     setError("");
+
     try {
-      await apiRequest(`/api/reservations/${id}/cancel`, { method: "PATCH" });
-      setReservaciones((actuales) => actuales.map((reservacion) =>
-        reservacion.id === id ? { ...reservacion, estado: "cancelada" } : reservacion
-      ));
+      await apiRequest(`/api/reservations/${id}/cancel`, {
+        method: "PATCH",
+      });
+
+      setReservaciones((actuales) =>
+        actuales.map((reservacion) =>
+          reservacion.id === id
+            ? { ...reservacion, estado: "cancelada" }
+            : reservacion
+        )
+      );
+
       setReservacionSeleccionada(null);
     } catch (requestError) {
-      setError(requestError.message || "No se pudo cancelar la solicitud.");
+      setError(
+        requestError.message ||
+          "No se pudo cancelar la solicitud."
+      );
     } finally {
       setCancelandoId(null);
+    }
+  };
+
+  // Abrir el formulario de calificación.
+  const abrirFormularioCalificacion = (reservacion) => {
+    setCalificacionAbiertaId(reservacion.id);
+    setPuntuacion(5);
+    setComentario("");
+    setMensajeCalificacion("");
+    setErrorCalificacion("");
+    setError("");
+  };
+
+  // Enviar la calificación al backend.
+  const enviarCalificacion = async (reservacion) => {
+    if (!reservacion?.viaje_id) {
+      setErrorCalificacion(
+        "No se encontró el identificador del viaje."
+      );
+      return;
+    }
+
+    if (!Number.isInteger(puntuacion) || puntuacion < 1 || puntuacion > 5) {
+      setErrorCalificacion(
+        "Selecciona una calificación de 1 a 5 estrellas."
+      );
+      return;
+    }
+
+    if (comentario.length > 500) {
+      setErrorCalificacion(
+        "El comentario no puede superar los 500 caracteres."
+      );
+      return;
+    }
+
+    setCalificandoId(reservacion.id);
+    setErrorCalificacion("");
+    setMensajeCalificacion("");
+
+    try {
+      await apiRequest(
+        `/api/trips/${reservacion.viaje_id}/rate-driver`,
+        {
+          method: "POST",
+          body: {
+            puntuacion,
+            comentario: comentario.trim(),
+          },
+        }
+      );
+
+      setCalificacionesEnviadas((actuales) =>
+        [...new Set([...actuales, reservacion.id])]
+      );
+
+      setCalificacionAbiertaId(null);
+      setPuntuacion(5);
+      setComentario("");
+
+      setMensajeCalificacion(
+        `Tu calificación para el conductor de la solicitud #${reservacion.id} se envió correctamente.`
+      );
+    } catch (requestError) {
+      if (requestError.status === 409) {
+        setErrorCalificacion(
+          "Este viaje ya fue calificado anteriormente."
+        );
+      } else {
+        setErrorCalificacion(
+          requestError.message ||
+            "No se pudo enviar la calificación."
+        );
+      }
+    } finally {
+      setCalificandoId(null);
     }
   };
 
@@ -127,39 +233,31 @@ function MisSolicitudes({ onBack, user }) {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-
       {/* NAVBAR */}
       <nav className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
-
           <button
             type="button"
             onClick={onBack}
             className="flex items-center gap-2 text-slate-600 transition hover:text-slate-900"
           >
             <ArrowLeft size={20} />
-
-            <span className="hidden sm:inline">
-              Regresar
-            </span>
+            <span className="hidden sm:inline">Regresar</span>
           </button>
 
           <Logo />
 
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <UserRound size={18} />
-
             <span className="hidden sm:inline">
               {user?.nombre || "Pasajero"}
             </span>
           </div>
-
         </div>
       </nav>
 
       {/* CONTENIDO */}
       <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-
         {/* ENCABEZADO */}
         <div className="mb-8">
           <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-indigo-600">
@@ -176,14 +274,26 @@ function MisSolicitudes({ onBack, user }) {
         </div>
 
         {error && (
-          <p role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <p
+            role="alert"
+            className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
             {error}
+          </p>
+        )}
+
+        {mensajeCalificacion && (
+          <p
+            role="status"
+            className="mb-5 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700"
+          >
+            <CheckCircle2 size={17} className="mr-2 inline" />
+            {mensajeCalificacion}
           </p>
         )}
 
         {/* RESERVACIONES */}
         <section>
-
           <div className="mb-5">
             <h2 className="text-xl font-bold text-slate-900">
               Mis solicitudes
@@ -197,13 +307,15 @@ function MisSolicitudes({ onBack, user }) {
 
           {/* ESTADO VACÍO */}
           {cargando ? (
-            <p role="status" className="py-10 text-center text-sm text-slate-500">
+            <p
+              role="status"
+              className="py-10 text-center text-sm text-slate-500"
+            >
               Cargando tus solicitudes...
             </p>
           ) : reservacionesActivas.length === 0 ? (
             <Card className="border-dashed bg-white">
               <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-
                 <div className="mb-4 rounded-full bg-slate-100 p-4">
                   <CalendarDays
                     size={32}
@@ -216,19 +328,21 @@ function MisSolicitudes({ onBack, user }) {
                 </h3>
 
                 <p className="mt-2 max-w-md text-sm text-slate-500">
-                  Cuando solicites un viaje, tus solicitudes
-                  aparecerán aquí.
+                  Cuando solicites un viaje, tus solicitudes aparecerán aquí.
                 </p>
-
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-5 lg:grid-cols-2">
-
               {reservacionesActivas.map((reservacion) => {
-                const estado = obtenerEstado(
-                  reservacion.estado
-                );
+                const estado = obtenerEstado(reservacion.estado);
+
+                const viajeFinalizado =
+                  reservacion.estado === "aceptada" &&
+                  reservacion.viaje_estado === "finalizado";
+
+                const calificacionEnviada =
+                  calificacionesEnviadas.includes(reservacion.id);
 
                 return (
                   <Card
@@ -236,12 +350,9 @@ function MisSolicitudes({ onBack, user }) {
                     className="overflow-hidden border-slate-200 bg-white shadow-sm transition hover:shadow-md"
                   >
                     <CardContent className="p-0">
-
                       {/* ENCABEZADO */}
                       <div className="flex items-center justify-between border-b px-5 py-4">
-
                         <div className="flex items-center gap-3">
-
                           <div className="rounded-xl bg-indigo-50 p-3">
                             <Car
                               size={21}
@@ -258,7 +369,6 @@ function MisSolicitudes({ onBack, user }) {
                               Viaje compartido
                             </p>
                           </div>
-
                         </div>
 
                         <span
@@ -267,15 +377,12 @@ function MisSolicitudes({ onBack, user }) {
                           {estado.icono}
                           {estado.texto}
                         </span>
-
                       </div>
 
                       {/* INFORMACIÓN */}
                       <div className="px-5 py-5">
-
                         {/* RUTA */}
                         <div className="grid gap-4 sm:grid-cols-2">
-
                           <div className="flex gap-3">
                             <MapPin
                               size={20}
@@ -309,12 +416,10 @@ function MisSolicitudes({ onBack, user }) {
                               </p>
                             </div>
                           </div>
-
                         </div>
 
                         {/* FECHA Y HORA */}
                         <div className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
-
                           <div className="flex items-center gap-3">
                             <CalendarDays
                               size={19}
@@ -327,9 +432,7 @@ function MisSolicitudes({ onBack, user }) {
                               </p>
 
                               <p className="text-sm font-medium capitalize">
-                                {formatearFecha(
-                                  reservacion.fecha_salida
-                                )}
+                                {formatearFecha(reservacion.fecha_salida)}
                               </p>
                             </div>
                           </div>
@@ -350,18 +453,15 @@ function MisSolicitudes({ onBack, user }) {
                               </p>
                             </div>
                           </div>
-
                         </div>
 
                         {/* CONDUCTOR */}
                         <div className="mt-5 border-t pt-5">
-
                           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                             Información del conductor
                           </p>
 
                           <div className="grid gap-4 sm:grid-cols-2">
-
                             <div className="flex items-center gap-3">
                               <div className="rounded-full bg-slate-100 p-2">
                                 <UserRound
@@ -399,24 +499,20 @@ function MisSolicitudes({ onBack, user }) {
                                 </p>
                               </div>
                             </div>
-
                           </div>
                         </div>
 
                         {/* VEHÍCULO */}
                         <div className="mt-5 border-t pt-5">
-
                           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                             Vehículo
                           </p>
 
                           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-
                             <div>
                               <p className="text-xs text-slate-400">
                                 Marca
                               </p>
-
                               <p className="text-sm font-medium">
                                 {reservacion.vehiculo_marca}
                               </p>
@@ -426,7 +522,6 @@ function MisSolicitudes({ onBack, user }) {
                               <p className="text-xs text-slate-400">
                                 Modelo
                               </p>
-
                               <p className="text-sm font-medium">
                                 {reservacion.vehiculo_modelo}
                               </p>
@@ -436,7 +531,6 @@ function MisSolicitudes({ onBack, user }) {
                               <p className="text-xs text-slate-400">
                                 Color
                               </p>
-
                               <p className="text-sm font-medium">
                                 {reservacion.vehiculo_color}
                               </p>
@@ -446,18 +540,15 @@ function MisSolicitudes({ onBack, user }) {
                               <p className="text-xs text-slate-400">
                                 Placas
                               </p>
-
                               <p className="text-sm font-medium">
                                 {reservacion.vehiculo_placa}
                               </p>
                             </div>
-
                           </div>
                         </div>
 
                         {/* PRECIO Y CANCELAR */}
                         <div className="mt-5 flex flex-col gap-4 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
-
                           <div>
                             <p className="text-xs text-slate-400">
                               Costo por pasajero
@@ -468,40 +559,199 @@ function MisSolicitudes({ onBack, user }) {
                             </p>
                           </div>
 
-                          {reservacion.estado !== "rechazada" && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() =>
-                                abrirModalCancelacion(
-                                  reservacion
-                                )
-                              }
-                              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                            >
-                              <X size={17} />
-                              Cancelar solicitud
-                            </Button>
-                          )}
-
+                          {reservacion.estado !== "rechazada" &&
+                            reservacion.estado !== "cancelada" &&
+                            !viajeFinalizado && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                  abrirModalCancelacion(reservacion)
+                                }
+                                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              >
+                                <X size={17} />
+                                Cancelar solicitud
+                              </Button>
+                            )}
                         </div>
 
-                      </div>
+                        {/* CALIFICAR CONDUCTOR */}
+                        {viajeFinalizado && (
+                          <div className="mt-5 border-t pt-5">
+                            <div className="flex items-center gap-2">
+                              <Star
+                                size={20}
+                                className="text-amber-500"
+                              />
 
+                              <h3 className="font-semibold text-slate-900">
+                                Calificar al conductor
+                              </h3>
+                            </div>
+
+                            {calificacionEnviada ? (
+                              <p
+                                role="status"
+                                className="mt-3 rounded-lg bg-green-50 p-3 text-sm text-green-700"
+                              >
+                                <CheckCircle2
+                                  size={17}
+                                  className="mr-2 inline"
+                                />
+                                ¡Gracias! Tu calificación se envió correctamente.
+                              </p>
+                            ) : (
+                              <>
+                                <p className="mt-2 text-sm text-slate-500">
+                                  ¿Cómo fue tu experiencia con{" "}
+                                  {reservacion.conductor_nombre || "el conductor"}?
+                                </p>
+
+                                {calificacionAbiertaId !== reservacion.id ? (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="mt-3 border-amber-300 text-amber-700 hover:bg-amber-50"
+                                    onClick={() =>
+                                      abrirFormularioCalificacion(reservacion)
+                                    }
+                                  >
+                                    <Star size={17} className="mr-2" />
+                                    Calificar conductor
+                                  </Button>
+                                ) : (
+                                  <div className="mt-4 space-y-4">
+                                    <div>
+                                      <p className="mb-2 text-sm font-medium text-slate-700">
+                                        Tu puntuación
+                                      </p>
+
+                                      <div
+                                        className="flex items-center gap-2"
+                                        role="group"
+                                        aria-label="Puntuación del conductor"
+                                      >
+                                        {[1, 2, 3, 4, 5].map((estrella) => (
+                                          <button
+                                            key={estrella}
+                                            type="button"
+                                            aria-label={`${estrella} ${
+                                              estrella === 1
+                                                ? "estrella"
+                                                : "estrellas"
+                                            }`}
+                                            aria-pressed={
+                                              puntuacion === estrella
+                                            }
+                                            onClick={() =>
+                                              setPuntuacion(estrella)
+                                            }
+                                            className="rounded-md p-1 transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                          >
+                                            <Star
+                                              size={28}
+                                              className={
+                                                estrella <= puntuacion
+                                                  ? "fill-amber-400 text-amber-400"
+                                                  : "text-slate-300"
+                                              }
+                                            />
+                                          </button>
+                                        ))}
+
+                                        <span className="text-sm text-slate-600">
+                                          {puntuacion}/5
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <label
+                                        htmlFor={`comentario-${reservacion.id}`}
+                                        className="mb-2 block text-sm font-medium text-slate-700"
+                                      >
+                                        Comentario (opcional)
+                                      </label>
+
+                                      <textarea
+                                        id={`comentario-${reservacion.id}`}
+                                        value={comentario}
+                                        onChange={(event) =>
+                                          setComentario(
+                                            event.target.value.slice(0, 500)
+                                          )
+                                        }
+                                        maxLength={500}
+                                        rows={3}
+                                        placeholder="Cuéntanos cómo fue tu experiencia..."
+                                        className="w-full rounded-lg border border-slate-300 p-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                      />
+
+                                      <p className="mt-1 text-right text-xs text-slate-400">
+                                        {comentario.length}/500 caracteres
+                                      </p>
+                                    </div>
+
+                                    {errorCalificacion && (
+                                      <p
+                                        role="alert"
+                                        className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+                                      >
+                                        {errorCalificacion}
+                                      </p>
+                                    )}
+
+                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                      <Button
+                                        type="button"
+                                        disabled={
+                                          calificandoId === reservacion.id
+                                        }
+                                        onClick={() =>
+                                          enviarCalificacion(reservacion)
+                                        }
+                                        className="bg-indigo-600 text-white hover:bg-indigo-700"
+                                      >
+                                        {calificandoId === reservacion.id
+                                          ? "Enviando..."
+                                          : "Enviar calificación"}
+                                      </Button>
+
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        disabled={
+                                          calificandoId === reservacion.id
+                                        }
+                                        onClick={() => {
+                                          setCalificacionAbiertaId(null);
+                                          setErrorCalificacion("");
+                                          setComentario("");
+                                          setPuntuacion(5);
+                                        }}
+                                      >
+                                        Cancelar
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 );
               })}
-
             </div>
           )}
-
         </section>
 
         {/* HISTORIAL DE CANCELADAS */}
         {reservacionesCanceladas.length > 0 && (
           <section className="mt-10">
-
             <div className="mb-5">
               <h2 className="text-xl font-bold text-slate-900">
                 Solicitudes canceladas
@@ -513,24 +763,20 @@ function MisSolicitudes({ onBack, user }) {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-
               {reservacionesCanceladas.map((reservacion) => (
                 <Card
                   key={reservacion.id}
                   className="border-slate-200 bg-white opacity-80"
                 >
                   <CardContent className="p-5">
-
                     <div className="flex items-start justify-between gap-4">
-
                       <div>
                         <p className="text-xs font-medium text-slate-400">
                           Solicitud #{reservacion.id}
                         </p>
 
                         <h3 className="mt-1 font-semibold text-slate-700">
-                          {reservacion.origen} →{" "}
-                          {reservacion.destino}
+                          {reservacion.origen} → {reservacion.destino}
                         </h3>
                       </div>
 
@@ -538,34 +784,25 @@ function MisSolicitudes({ onBack, user }) {
                         <X size={15} />
                         Cancelada
                       </span>
-
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
-
                       <span className="flex items-center gap-2">
                         <CalendarDays size={16} />
-                        {formatearFecha(
-                          reservacion.fecha_salida
-                        )}
+                        {formatearFecha(reservacion.fecha_salida)}
                       </span>
 
                       <span className="flex items-center gap-2">
                         <Clock3 size={16} />
                         {reservacion.hora_salida}
                       </span>
-
                     </div>
-
                   </CardContent>
                 </Card>
               ))}
-
             </div>
-
           </section>
         )}
-
       </main>
 
       <Footer />
@@ -573,13 +810,9 @@ function MisSolicitudes({ onBack, user }) {
       {/* MODAL DE CANCELACIÓN */}
       {reservacionSeleccionada && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-
             <div className="mb-5 flex items-start justify-between">
-
               <div>
-
                 <div className="mb-3 inline-flex rounded-full bg-red-50 p-3">
                   <AlertCircle
                     size={24}
@@ -592,10 +825,8 @@ function MisSolicitudes({ onBack, user }) {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  ¿Estás segura de que deseas cancelar esta
-                  solicitud?
+                  ¿Estás segura de que deseas cancelar esta solicitud?
                 </p>
-
               </div>
 
               <button
@@ -605,11 +836,9 @@ function MisSolicitudes({ onBack, user }) {
               >
                 <X size={20} />
               </button>
-
             </div>
 
             <div className="rounded-xl bg-slate-50 p-4">
-
               <p className="text-sm font-semibold text-slate-800">
                 {reservacionSeleccionada.origen}
                 {" → "}
@@ -617,7 +846,6 @@ function MisSolicitudes({ onBack, user }) {
               </p>
 
               <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-
                 <span>
                   {formatearFecha(
                     reservacionSeleccionada.fecha_salida
@@ -627,18 +855,17 @@ function MisSolicitudes({ onBack, user }) {
                 <span>
                   {reservacionSeleccionada.hora_salida}
                 </span>
-
               </div>
-
             </div>
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-
               <Button
                 type="button"
                 variant="outline"
                 onClick={cerrarModal}
-                disabled={cancelandoId === reservacionSeleccionada.id}
+                disabled={
+                  cancelandoId === reservacionSeleccionada.id
+                }
               >
                 Mantener solicitud
               </Button>
@@ -646,19 +873,19 @@ function MisSolicitudes({ onBack, user }) {
               <Button
                 type="button"
                 onClick={cancelarReservacion}
-                disabled={cancelandoId === reservacionSeleccionada.id}
+                disabled={
+                  cancelandoId === reservacionSeleccionada.id
+                }
                 className="bg-red-600 text-white hover:bg-red-700"
               >
-                {cancelandoId === reservacionSeleccionada.id ? "Cancelando..." : "Sí, cancelar"}
+                {cancelandoId === reservacionSeleccionada.id
+                  ? "Cancelando..."
+                  : "Sí, cancelar"}
               </Button>
-
             </div>
-
           </div>
-
         </div>
       )}
-
     </div>
   );
 }
