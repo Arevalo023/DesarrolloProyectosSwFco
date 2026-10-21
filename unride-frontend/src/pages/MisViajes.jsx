@@ -11,6 +11,8 @@ import {
   X,
   XCircle,
   AlertTriangle,
+  Play,
+  Flag,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,7 +21,11 @@ import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
 import { apiRequest } from "@/services/api";
 
-function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
+function MisViajes({
+  onBackHome,
+  onViajesCancelados,
+  onViajesCompletados,
+}) {
   const [viajes, setViajes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -29,12 +35,26 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
 
   const [procesandoSolicitud, setProcesandoSolicitud] = useState(null);
   const [cancelandoViaje, setCancelandoViaje] = useState(false);
+  const [procesandoViaje, setProcesandoViaje] = useState(null);
+
+  // Normaliza los estados para comparar distintas representaciones.
+  const normalizarEstado = (estado) =>
+    String(estado || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ");
+
+  const obtenerEstadoViaje = (viaje) =>
+    normalizarEstado(viaje?.estado || viaje?.status);
 
   useEffect(() => {
     let cancelado = false;
 
     const cargarViajes = async () => {
       try {
+        setError("");
+
         const [respuesta, respuestaSolicitudes] = await Promise.all([
           apiRequest("/api/trips/driver"),
           apiRequest("/api/trips/driver/requests"),
@@ -43,41 +63,56 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
         const datos = Array.isArray(respuesta)
           ? respuesta
           : respuesta?.trips || respuesta?.viajes || [];
+
         const solicitudes = Array.isArray(respuestaSolicitudes?.requests)
           ? respuestaSolicitudes.requests
           : [];
+
         const solicitudesPorViaje = new Map();
 
         solicitudes.forEach((solicitud) => {
-          const solicitudesDelViaje = solicitudesPorViaje.get(solicitud.viaje_id) || [];
+          const idViaje = solicitud.viaje_id ?? solicitud.trip_id;
+          const solicitudesDelViaje =
+            solicitudesPorViaje.get(idViaje) || [];
+
           solicitudesDelViaje.push(solicitud);
-          solicitudesPorViaje.set(solicitud.viaje_id, solicitudesDelViaje);
+          solicitudesPorViaje.set(idViaje, solicitudesDelViaje);
         });
 
         if (!cancelado) {
-          setViajes(datos.map((viaje) => ({
-            ...viaje,
-            reservations: solicitudesPorViaje.get(viaje.id) || [],
-          })));
+          setViajes(
+            datos.map((viaje) => ({
+              ...viaje,
+              reservations:
+                solicitudesPorViaje.get(obtenerIdViaje(viaje)) || [],
+            }))
+          );
         }
       } catch (err) {
         console.error("Error al cargar mis viajes:", err);
+
         if (!cancelado) {
-          setError(err?.message || "No fue posible cargar tus viajes publicados.");
+          setError(
+            err?.message ||
+              "No fue posible cargar tus viajes publicados."
+          );
         }
       } finally {
-        if (!cancelado) setCargando(false);
+        if (!cancelado) {
+          setCargando(false);
+        }
       }
     };
 
     void cargarViajes();
+
     return () => {
       cancelado = true;
     };
   }, []);
 
   const mapEstado = (estado) => {
-    switch (String(estado || "").toLowerCase()) {
+    switch (normalizarEstado(estado)) {
       case "programado":
         return {
           texto: "Programado",
@@ -85,7 +120,6 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
         };
 
       case "en curso":
-      case "encurso":
         return {
           texto: "En curso",
           clase: "bg-yellow-50 text-yellow-700",
@@ -112,42 +146,32 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
     }
   };
 
-  const obtenerIdViaje = (viaje) => {
-    return viaje?.id ?? viaje?.trip_id ?? viaje?.viaje_id;
-  };
+  const obtenerIdViaje = (viaje) =>
+    viaje?.id ?? viaje?.trip_id ?? viaje?.viaje_id;
 
-  const obtenerSolicitudes = (viaje) => {
-    return (
-      viaje?.reservations ||
-      viaje?.reservaciones ||
-      viaje?.solicitudes ||
-      viaje?.requests ||
-      []
-    );
-  };
+  const obtenerSolicitudes = (viaje) =>
+    viaje?.reservations ||
+    viaje?.reservaciones ||
+    viaje?.solicitudes ||
+    viaje?.requests ||
+    [];
 
   const esViajeCancelado = (viaje) => {
-    const estado = String(
-      viaje?.estado || viaje?.status || ""
-    ).toLowerCase();
-
+    const estado = obtenerEstadoViaje(viaje);
     return estado === "cancelado" || estado === "cancelada";
   };
 
-  const esViajeFinalizado = (viaje) => {
-    const estado = String(
-      viaje?.estado || viaje?.status || ""
-    ).toLowerCase();
+  const esViajeFinalizado = (viaje) =>
+    obtenerEstadoViaje(viaje) === "finalizado";
 
-    return estado === "finalizado";
-  };
+  const esViajeProgramado = (viaje) =>
+    obtenerEstadoViaje(viaje) === "programado";
 
-  const puedeCancelarViaje = (viaje) => {
-    return (
-      !esViajeCancelado(viaje) &&
-      !esViajeFinalizado(viaje)
-    );
-  };
+  const esViajeEnCurso = (viaje) =>
+    obtenerEstadoViaje(viaje) === "en curso";
+
+  const puedeCancelarViaje = (viaje) =>
+    !esViajeCancelado(viaje) && !esViajeFinalizado(viaje);
 
   const abrirModalCancelacion = (viaje) => {
     setViajeSeleccionado(viaje);
@@ -159,6 +183,84 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
     setMotivoCancelacion("");
   };
 
+  // Iniciar y finalizar viaje mediante los endpoints reales del backend.
+  const cambiarEstadoViaje = async (viaje, accion) => {
+    const idViaje = obtenerIdViaje(viaje);
+
+    if (!idViaje) {
+      setError("No se pudo identificar el viaje seleccionado.");
+      return;
+    }
+
+    const estadoActual = obtenerEstadoViaje(viaje);
+
+    // Evita enviar acciones que no corresponden al estado actual.
+    if (
+      (accion === "start" && estadoActual !== "programado") ||
+      (accion === "finish" && estadoActual !== "en curso")
+    ) {
+      setError(
+        accion === "start"
+          ? "Solo puedes iniciar un viaje programado."
+          : "Solo puedes finalizar un viaje que esté en curso."
+      );
+      return;
+    }
+
+    setProcesandoViaje({
+      id: idViaje,
+      accion,
+    });
+    setError("");
+
+    try {
+      const respuesta = await apiRequest(
+        `/api/trips/${idViaje}/${accion}`,
+        {
+          method: "PATCH",
+        }
+      );
+
+      const estadoEsperado =
+        accion === "start" ? "en curso" : "finalizado";
+
+      const viajeActualizado = respuesta?.trip || {};
+
+      setViajes((viajesActuales) =>
+        viajesActuales.map((item) => {
+          if (obtenerIdViaje(item) !== idViaje) {
+            return item;
+          }
+
+          return {
+            ...item,
+            ...viajeActualizado,
+            // Conserva el estado enviado por el servidor.
+            // Usa el esperado únicamente si no viene en la respuesta.
+            estado:
+              viajeActualizado.estado ??
+              viajeActualizado.status ??
+              estadoEsperado,
+          };
+        })
+      );
+    } catch (err) {
+      console.error(
+        `Error al ${accion === "start" ? "iniciar" : "finalizar"} el viaje:`,
+        err
+      );
+
+      setError(
+        err?.message ||
+          (accion === "start"
+            ? "No se pudo iniciar el viaje. Inténtalo nuevamente."
+            : "No se pudo finalizar el viaje. Inténtalo nuevamente.")
+      );
+    } finally {
+      setProcesandoViaje(null);
+    }
+  };
+
   const cancelarViaje = async () => {
     if (!viajeSeleccionado) return;
 
@@ -168,51 +270,57 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
     setError("");
 
     try {
-      const respuesta = await apiRequest(`/api/trips/${idViaje}/cancel`, {
-        method: "PATCH",
-        body: {
-          motivo_cancelacion: motivoCancelacion.trim() || null,
-        },
-      });
+      const respuesta = await apiRequest(
+        `/api/trips/${idViaje}/cancel`,
+        {
+          method: "PATCH",
+          body: {
+            motivo_cancelacion: motivoCancelacion.trim() || null,
+          },
+        }
+      );
 
       setViajes((viajesActuales) =>
         viajesActuales.map((viaje) =>
           obtenerIdViaje(viaje) === idViaje
             ? {
                 ...viaje,
-                ...respuesta.trip,
+                ...respuesta?.trip,
                 estado: "cancelado",
-                motivo_cancelacion: respuesta.trip?.motivo_cancelacion || null,
+                motivo_cancelacion:
+                  respuesta?.trip?.motivo_cancelacion ||
+                  motivoCancelacion.trim() ||
+                  null,
               }
             : viaje
         )
       );
+
       cerrarModalCancelacion();
     } catch (requestError) {
-      setError(requestError.message || "No se pudo cancelar el viaje.");
+      console.error("Error al cancelar viaje:", requestError);
+
+      setError(
+        requestError?.message || "No se pudo cancelar el viaje."
+      );
     } finally {
       setCancelandoViaje(false);
     }
   };
 
-  const responderSolicitud = async (
-    solicitud,
-    nuevoEstado
-  ) => {
+  const responderSolicitud = async (solicitud, nuevoEstado) => {
     if (!solicitud?.id) return;
 
     setProcesandoSolicitud(solicitud.id);
+    setError("");
 
     try {
-      await apiRequest(
-        `/api/reservations/${solicitud.id}`,
-        {
-          method: "PATCH",
-          body: {
-            estado: nuevoEstado,
-          },
-        }
-      );
+      await apiRequest(`/api/reservations/${solicitud.id}`, {
+        method: "PATCH",
+        body: {
+          estado: nuevoEstado,
+        },
+      });
 
       setViajes((viajesActuales) =>
         viajesActuales.map((viaje) => {
@@ -222,18 +330,12 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
             (item) => item.id === solicitud.id
           );
 
-          if (!tieneSolicitud) {
-            return viaje;
-          }
+          if (!tieneSolicitud) return viaje;
 
-          const solicitudesActualizadas = solicitudes.map(
-            (item) =>
-              item.id === solicitud.id
-                ? {
-                    ...item,
-                    estado: nuevoEstado,
-                  }
-                : item
+          const solicitudesActualizadas = solicitudes.map((item) =>
+            item.id === solicitud.id
+              ? { ...item, estado: nuevoEstado }
+              : item
           );
 
           return {
@@ -245,10 +347,7 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
         })
       );
     } catch (err) {
-      console.error(
-        "Error al actualizar solicitud:",
-        err
-      );
+      console.error("Error al actualizar solicitud:", err);
 
       setError(
         err?.message ||
@@ -261,20 +360,15 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
 
   const formatearFecha = formatearFechaViaje;
 
-  const obtenerNombrePasajero = (solicitud) => {
-    return (
-      solicitud?.pasajero_nombre ||
-      solicitud?.usuario_nombre ||
-      solicitud?.nombre_pasajero ||
-      solicitud?.nombre ||
-      "Pasajero"
-    );
-  };
+  const obtenerNombrePasajero = (solicitud) =>
+    solicitud?.pasajero_nombre ||
+    solicitud?.usuario_nombre ||
+    solicitud?.nombre_pasajero ||
+    solicitud?.nombre ||
+    "Pasajero";
 
   const obtenerEstadoSolicitud = (estado) => {
-    switch (
-      String(estado || "").toLowerCase()
-    ) {
+    switch (normalizarEstado(estado)) {
       case "aceptada":
         return {
           texto: "Aceptada",
@@ -303,21 +397,16 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-
       {/* NAVBAR */}
       <nav className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
-
           <button
             type="button"
             onClick={onBackHome}
             className="flex items-center gap-2 text-slate-600 transition hover:text-slate-900"
           >
             <ArrowLeft size={20} />
-
-            <span className="hidden sm:inline">
-              Regresar
-            </span>
+            <span className="hidden sm:inline">Regresar</span>
           </button>
 
           <Logo />
@@ -328,13 +417,11 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
               Mis viajes publicados
             </span>
           </div>
-
         </div>
       </nav>
 
       {/* CONTENIDO */}
       <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-
         {/* ENCABEZADO */}
         <div className="mb-8">
           <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-indigo-600">
@@ -351,7 +438,7 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
           </p>
         </div>
 
-        {/* NAVEGACIÓN A HISTORIAL DE VIAJES */}
+        {/* NAVEGACIÓN AL HISTORIAL */}
         <div className="mb-8 grid gap-4 sm:grid-cols-2">
           <Button
             type="button"
@@ -359,23 +446,33 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
             onClick={onViajesCancelados}
             className="h-auto justify-between rounded-xl border-red-200 bg-white px-5 py-4 text-red-700 hover:bg-red-50"
           >
-            <span className="flex items-center gap-3"><XCircle size={22} /> Viajes cancelados</span>
+            <span className="flex items-center gap-3">
+              <XCircle size={22} />
+              Viajes cancelados
+            </span>
             <span aria-hidden="true">→</span>
           </Button>
+
           <Button
             type="button"
             variant="outline"
             onClick={onViajesCompletados}
             className="h-auto justify-between rounded-xl border-green-200 bg-white px-5 py-4 text-green-700 hover:bg-green-50"
           >
-            <span className="flex items-center gap-3"><Check size={22} /> Viajes completados</span>
+            <span className="flex items-center gap-3">
+              <Check size={22} />
+              Viajes completados
+            </span>
             <span aria-hidden="true">→</span>
           </Button>
         </div>
 
         {/* ERROR */}
         {error && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+          <div
+            role="alert"
+            className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700"
+          >
             <AlertTriangle
               size={20}
               className="mt-0.5 shrink-0"
@@ -385,42 +482,38 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
               <p className="font-semibold">
                 Ocurrió un problema
               </p>
-
-              <p className="mt-1 text-sm">
-                {error}
-              </p>
+              <p className="mt-1 text-sm">{error}</p>
             </div>
+
+            <button
+              type="button"
+              aria-label="Cerrar mensaje de error"
+              onClick={() => setError("")}
+              className="ml-auto rounded p-1 hover:bg-red-100"
+            >
+              <X size={18} />
+            </button>
           </div>
         )}
 
-        {/* CARGANDO */}
+        {/* CARGANDO / VACÍO / LISTA */}
         {cargando ? (
           <Card className="border-slate-200 bg-white">
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-
               <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
-
               <h2 className="font-semibold text-slate-800">
                 Cargando tus viajes...
               </h2>
-
               <p className="mt-2 text-sm text-slate-500">
                 Estamos consultando tus viajes publicados.
               </p>
-
             </CardContent>
           </Card>
         ) : viajes.length === 0 ? (
-
-          /* ESTADO VACÍO */
           <Card className="border-dashed bg-white">
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-
               <div className="mb-4 rounded-full bg-slate-100 p-4">
-                <Car
-                  size={32}
-                  className="text-slate-400"
-                />
+                <Car size={32} className="text-slate-400" />
               </div>
 
               <h2 className="text-lg font-semibold text-slate-800">
@@ -428,29 +521,25 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
               </h2>
 
               <p className="mt-2 max-w-md text-sm text-slate-500">
-                Cuando publiques un viaje, aparecerá
-                aquí para que puedas administrarlo.
+                Cuando publiques un viaje, aparecerá aquí para
+                que puedas administrarlo.
               </p>
-
             </CardContent>
           </Card>
-
         ) : (
-
-          /* LISTA DE VIAJES */
           <div className="grid gap-6 lg:grid-cols-2">
-
             {viajes.map((viaje) => {
               const idViaje = obtenerIdViaje(viaje);
               const estado = mapEstado(
                 viaje?.estado || viaje?.status
               );
 
-              const cancelado =
-                esViajeCancelado(viaje);
+              const cancelado = esViajeCancelado(viaje);
+              const programado = esViajeProgramado(viaje);
+              const enCurso = esViajeEnCurso(viaje);
+              const finalizado = esViajeFinalizado(viaje);
 
-              const solicitudes =
-                obtenerSolicitudes(viaje);
+              const solicitudes = obtenerSolicitudes(viaje);
 
               const origen =
                 viaje?.origen ||
@@ -480,6 +569,11 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
                 viaje?.cupo ??
                 0;
 
+              const accionEnProceso =
+                procesandoViaje?.id === idViaje
+                  ? procesandoViaje.accion
+                  : null;
+
               return (
                 <Card
                   key={idViaje}
@@ -488,23 +582,20 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
                   }`}
                 >
                   <CardContent className="p-0">
-
-                    {/* ENCABEZADO DE VIAJE */}
+                    {/* ENCABEZADO */}
                     <div
                       className={`flex items-start justify-between gap-4 border-b px-5 py-5 ${
-                        cancelado
-                          ? "bg-red-50/50"
-                          : "bg-white"
+                        cancelado ? "bg-red-50/50" : "bg-white"
                       }`}
                     >
-
                       <div className="flex items-center gap-3">
-
                         <div
                           className={`rounded-xl p-3 ${
                             cancelado
                               ? "bg-red-100"
-                              : "bg-indigo-50"
+                              : enCurso
+                                ? "bg-yellow-50"
+                                : "bg-indigo-50"
                           }`}
                         >
                           {cancelado ? (
@@ -515,7 +606,11 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
                           ) : (
                             <Car
                               size={22}
-                              className="text-indigo-600"
+                              className={
+                                enCurso
+                                  ? "text-yellow-700"
+                                  : "text-indigo-600"
+                              }
                             />
                           )}
                         </div>
@@ -529,7 +624,6 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
                             {origen} → {destino}
                           </h2>
                         </div>
-
                       </div>
 
                       <span
@@ -537,28 +631,21 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
                       >
                         {estado.texto}
                       </span>
-
                     </div>
 
                     {/* INFORMACIÓN DEL VIAJE */}
                     <div className="px-5 py-5">
-
                       <div className="grid gap-4 sm:grid-cols-2">
-
                         <div className="flex gap-3">
                           <MapPin
                             size={20}
                             className="mt-0.5 shrink-0 text-emerald-600"
                           />
-
                           <div>
                             <p className="text-xs text-slate-400">
                               Origen
                             </p>
-
-                            <p className="font-semibold">
-                              {origen}
-                            </p>
+                            <p className="font-semibold">{origen}</p>
                           </div>
                         </div>
 
@@ -567,34 +654,26 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
                             size={20}
                             className="mt-0.5 shrink-0 text-rose-500"
                           />
-
                           <div>
                             <p className="text-xs text-slate-400">
                               Destino
                             </p>
-
-                            <p className="font-semibold">
-                              {destino}
-                            </p>
+                            <p className="font-semibold">{destino}</p>
                           </div>
                         </div>
-
                       </div>
 
                       {/* FECHA / HORA / CUPO */}
                       <div className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-3">
-
                         <div className="flex items-center gap-3">
                           <CalendarDays
                             size={19}
                             className="text-indigo-500"
                           />
-
                           <div>
                             <p className="text-xs text-slate-400">
                               Fecha
                             </p>
-
                             <p className="text-sm font-medium capitalize">
                               {formatearFecha(fecha)}
                             </p>
@@ -606,12 +685,10 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
                             size={19}
                             className="text-indigo-500"
                           />
-
                           <div>
                             <p className="text-xs text-slate-400">
                               Hora
                             </p>
-
                             <p className="text-sm font-medium">
                               {hora || "No disponible"}
                             </p>
@@ -623,250 +700,242 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
                             size={19}
                             className="text-indigo-500"
                           />
-
                           <div>
                             <p className="text-xs text-slate-400">
                               Cupos disponibles
                             </p>
-
                             <p className="text-sm font-medium">
                               {cupoDisponible}
                             </p>
                           </div>
                         </div>
-
                       </div>
 
                       {/* VIAJE CANCELADO */}
                       {cancelado && (
                         <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
-
                           <div className="flex gap-3">
-
                             <XCircle
                               size={20}
                               className="mt-0.5 shrink-0 text-red-600"
                             />
-
                             <div>
                               <p className="font-semibold text-red-800">
                                 Viaje cancelado
                               </p>
 
-                              {viaje?.motivo_cancelacion && (
+                              {viaje?.motivo_cancelacion ? (
                                 <p className="mt-1 text-sm text-red-700">
-                                  Motivo:{" "}
-                                  {viaje.motivo_cancelacion}
+                                  Motivo: {viaje.motivo_cancelacion}
                                 </p>
-                              )}
-
-                              {!viaje?.motivo_cancelacion && (
+                              ) : (
                                 <p className="mt-1 text-sm text-red-700">
                                   Este viaje ya no está disponible
                                   para nuevas solicitudes.
                                 </p>
                               )}
                             </div>
-
                           </div>
-
                         </div>
                       )}
 
                       {/* SOLICITUDES */}
-                      {!cancelado && (
+                      {!cancelado && !finalizado && (
                         <div className="mt-6 border-t pt-5">
-
                           <div className="mb-4 flex items-center justify-between">
-
                             <div>
                               <h3 className="font-semibold text-slate-900">
                                 Solicitudes recibidas
                               </h3>
-
                               <p className="text-sm text-slate-500">
                                 {solicitudes.length} solicitud
-                                {solicitudes.length !== 1
-                                  ? "es"
-                                  : ""}
+                                {solicitudes.length !== 1 ? "es" : ""}
                               </p>
                             </div>
-
                           </div>
 
                           {solicitudes.length === 0 ? (
-
                             <div className="rounded-xl bg-slate-50 p-5 text-center">
-
                               <UserRound
                                 size={25}
                                 className="mx-auto mb-2 text-slate-400"
                               />
-
                               <p className="text-sm font-medium text-slate-600">
                                 No hay solicitudes todavía
                               </p>
-
                             </div>
-
                           ) : (
-
                             <div className="space-y-3">
+                              {solicitudes.map((solicitud) => {
+                                const estadoSolicitud =
+                                  obtenerEstadoSolicitud(
+                                    solicitud?.estado
+                                  );
 
-                              {solicitudes.map(
-                                (solicitud) => {
-                                  const estadoSolicitud =
-                                    obtenerEstadoSolicitud(
-                                      solicitud?.estado
-                                    );
+                                const solicitudResuelta = [
+                                  "aceptada",
+                                  "rechazada",
+                                  "cancelada",
+                                ].includes(
+                                  normalizarEstado(solicitud?.estado)
+                                );
 
-                                  const solicitudResuelta =
-                                    ["aceptada", "rechazada", "cancelada"].includes(
-                                      String(
-                                        solicitud?.estado || ""
-                                      ).toLowerCase()
-                                    );
-
-                                  return (
-                                    <div
-                                      key={
-                                        solicitud.id
-                                      }
-                                      className="rounded-xl border border-slate-200 p-4"
-                                    >
-
-                                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-                                        <div className="flex items-center gap-3">
-
-                                          <div className="rounded-full bg-slate-100 p-2">
-                                            <UserRound
-                                              size={19}
-                                              className="text-slate-600"
-                                            />
-                                          </div>
-
-                                          <div>
-                                            <p className="font-semibold text-slate-800">
-                                              {obtenerNombrePasajero(
-                                                solicitud
-                                              )}
-                                            </p>
-
-                                            <span
-                                              className={`inline-flex mt-1 rounded-full px-2.5 py-1 text-xs font-semibold ${estadoSolicitud.clase}`}
-                                            >
-                                              {
-                                                estadoSolicitud.texto
-                                              }
-                                            </span>
-                                          </div>
-
+                                return (
+                                  <div
+                                    key={solicitud.id}
+                                    className="rounded-xl border border-slate-200 p-4"
+                                  >
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                      <div className="flex items-center gap-3">
+                                        <div className="rounded-full bg-slate-100 p-2">
+                                          <UserRound
+                                            size={19}
+                                            className="text-slate-600"
+                                          />
                                         </div>
 
-                                        {/* ACCIONES DE SOLICITUD */}
-                                        {!solicitudResuelta && (
-                                          <div className="flex gap-2">
+                                        <div>
+                                          <p className="font-semibold text-slate-800">
+                                            {obtenerNombrePasajero(
+                                              solicitud
+                                            )}
+                                          </p>
 
-                                            <Button
-                                              type="button"
-                                              size="sm"
-                                              disabled={
-                                                procesandoSolicitud ===
-                                                solicitud.id
-                                              }
-                                              onClick={() =>
-                                                responderSolicitud(
-                                                  solicitud,
-                                                  "rechazada"
-                                                )
-                                              }
-                                              variant="outline"
-                                              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                            >
-                                              <X
-                                                size={16}
-                                              />
-                                              Rechazar
-                                            </Button>
-
-                                            <Button
-                                              type="button"
-                                              size="sm"
-                                              disabled={
-                                                procesandoSolicitud ===
-                                                solicitud.id
-                                              }
-                                              onClick={() =>
-                                                responderSolicitud(
-                                                  solicitud,
-                                                  "aceptada"
-                                                )
-                                              }
-                                              className="bg-green-600 text-white hover:bg-green-700"
-                                            >
-                                              <Check
-                                                size={16}
-                                              />
-                                              Aceptar
-                                            </Button>
-
-                                          </div>
-                                        )}
-
+                                          <span
+                                            className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${estadoSolicitud.clase}`}
+                                          >
+                                            {estadoSolicitud.texto}
+                                          </span>
+                                        </div>
                                       </div>
 
-                                    </div>
-                                  );
-                                }
-                              )}
+                                      {!solicitudResuelta && (
+                                        <div className="flex gap-2">
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            disabled={
+                                              procesandoSolicitud ===
+                                              solicitud.id
+                                            }
+                                            onClick={() =>
+                                              responderSolicitud(
+                                                solicitud,
+                                                "rechazada"
+                                              )
+                                            }
+                                            variant="outline"
+                                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                          >
+                                            <X size={16} />
+                                            Rechazar
+                                          </Button>
 
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            disabled={
+                                              procesandoSolicitud ===
+                                              solicitud.id
+                                            }
+                                            onClick={() =>
+                                              responderSolicitud(
+                                                solicitud,
+                                                "aceptada"
+                                              )
+                                            }
+                                            className="bg-green-600 text-white hover:bg-green-700"
+                                          >
+                                            <Check size={16} />
+                                            Aceptar
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
-
                         </div>
                       )}
 
                       {/* ACCIONES DEL VIAJE */}
                       <div className="mt-6 flex flex-col gap-3 border-t pt-5">
+                        {/* INICIAR: solo cuando está programado */}
+                        {programado && (
+                          <Button
+                            type="button"
+                            disabled={Boolean(procesandoViaje)}
+                            onClick={() =>
+                              cambiarEstadoViaje(viaje, "start")
+                            }
+                            className="w-full bg-indigo-600 text-white hover:bg-indigo-700"
+                          >
+                            <Play size={17} />
+                            {accionEnProceso === "start"
+                              ? "Iniciando viaje..."
+                              : "Iniciar viaje"}
+                          </Button>
+                        )}
 
-                        {puedeCancelarViaje(viaje) ? (
+                        {/* FINALIZAR: solo cuando está en curso */}
+                        {enCurso && (
+                          <Button
+                            type="button"
+                            disabled={Boolean(procesandoViaje)}
+                            onClick={() =>
+                              cambiarEstadoViaje(viaje, "finish")
+                            }
+                            className="w-full bg-green-600 text-white hover:bg-green-700"
+                          >
+                            <Flag size={17} />
+                            {accionEnProceso === "finish"
+                              ? "Finalizando viaje..."
+                              : "Finalizar viaje"}
+                          </Button>
+                        )}
+
+                        {/* CANCELAR: se conserva la funcionalidad existente */}
+                        {puedeCancelarViaje(viaje) && (
                           <Button
                             type="button"
                             variant="outline"
+                            disabled={Boolean(procesandoViaje) || cancelandoViaje}
                             onClick={() =>
-                              abrirModalCancelacion(
-                                viaje
-                              )
+                              abrirModalCancelacion(viaje)
                             }
                             className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
                           >
                             <XCircle size={17} />
                             Cancelar viaje
                           </Button>
-                        ) : cancelado ? (
+                        )}
+
+                        {cancelado && (
                           <div className="rounded-xl bg-slate-50 p-3 text-center text-sm font-medium text-slate-500">
                             Este viaje está cancelado y ya no tiene
                             acciones disponibles.
                           </div>
-                        ) : (
-                          <div className="rounded-xl bg-slate-50 p-3 text-center text-sm font-medium text-slate-500">
+                        )}
+
+                        {finalizado && (
+                          <div className="rounded-xl bg-green-50 p-3 text-center text-sm font-medium text-green-700">
+                            <Check
+                              size={17}
+                              className="mr-1 inline"
+                            />
                             Este viaje ya finalizó.
                           </div>
                         )}
-
                       </div>
-
                     </div>
-
                   </CardContent>
                 </Card>
               );
             })}
-
           </div>
         )}
-
       </main>
 
       <Footer />
@@ -874,14 +943,10 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
       {/* MODAL CANCELAR VIAJE */}
       {viajeSeleccionado && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-
             {/* ENCABEZADO */}
             <div className="mb-5 flex items-start justify-between gap-4">
-
               <div>
-
                 <div className="mb-3 inline-flex rounded-full bg-red-50 p-3">
                   <AlertTriangle
                     size={24}
@@ -894,11 +959,9 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  ¿Estás segura de que deseas cancelar este
-                  viaje? Esta acción cambiará su estado a
-                  Cancelado.
+                  ¿Estás segura de que deseas cancelar este viaje?
+                  Esta acción cambiará su estado a Cancelado.
                 </p>
-
               </div>
 
               <button
@@ -909,12 +972,10 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
               >
                 <X size={20} />
               </button>
-
             </div>
 
             {/* RESUMEN DEL VIAJE */}
             <div className="rounded-xl bg-slate-50 p-4">
-
               <p className="font-semibold text-slate-800">
                 {viajeSeleccionado?.origen ||
                   viajeSeleccionado?.origin ||
@@ -926,10 +987,8 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
               </p>
 
               <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-
                 <span className="flex items-center gap-1.5">
                   <CalendarDays size={15} />
-
                   {formatearFecha(
                     viajeSeleccionado?.fecha_salida ||
                       viajeSeleccionado?.fecha ||
@@ -939,20 +998,16 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
 
                 <span className="flex items-center gap-1.5">
                   <Clock3 size={15} />
-
                   {viajeSeleccionado?.hora_salida ||
                     viajeSeleccionado?.hora ||
                     viajeSeleccionado?.departure_time ||
                     "Hora no disponible"}
                 </span>
-
               </div>
-
             </div>
 
             {/* MOTIVO */}
             <div className="mt-5">
-
               <label
                 htmlFor="motivo-cancelacion"
                 className="mb-2 block text-sm font-semibold text-slate-700"
@@ -967,9 +1022,7 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
                 id="motivo-cancelacion"
                 value={motivoCancelacion}
                 onChange={(event) =>
-                  setMotivoCancelacion(
-                    event.target.value
-                  )
+                  setMotivoCancelacion(event.target.value)
                 }
                 placeholder="Escribe el motivo de la cancelación..."
                 rows={4}
@@ -980,12 +1033,10 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
               <p className="mt-1 text-right text-xs text-slate-400">
                 {motivoCancelacion.length}/250
               </p>
-
             </div>
 
             {/* BOTONES */}
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-
               <Button
                 type="button"
                 variant="outline"
@@ -1002,16 +1053,14 @@ function MisViajes({ onBackHome, onViajesCancelados, onViajesCompletados }) {
                 className="bg-red-600 text-white hover:bg-red-700"
               >
                 <XCircle size={17} />
-                {cancelandoViaje ? "Cancelando..." : "Sí, cancelar viaje"}
+                {cancelandoViaje
+                  ? "Cancelando..."
+                  : "Sí, cancelar viaje"}
               </Button>
-
             </div>
-
           </div>
-
         </div>
       )}
-
     </div>
   );
 }
