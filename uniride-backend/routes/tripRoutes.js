@@ -47,5 +47,11 @@ router.patch(
 );
 router.post("/:id/book", authMiddleware.verifyToken, roleMiddleware(["Pasajero"]), tripController.book);
 router.post("/:id/rate-driver", authMiddleware.verifyToken, ratingController.rateDriver);
+router.post(
+	"/:id/rate-passenger",
+	authMiddleware.verifyToken,
+	roleMiddleware(["Conductor"]),
+	ratingController.ratePassenger
+);
 
 module.exports = router;

@@ -807,6 +807,67 @@ Permite a un pasajero con reservación confirmada evaluar al conductor una vez q
 
 ---
 
+#### 3.4.11. Calificar a un Pasajero (`POST /api/trips/:id/rate-passenger`)
+Permite al conductor propietario de un viaje finalizado evaluar a un pasajero con reservación confirmada en ese viaje.
+*(Disponible también en el alias `POST /api/ratings/passenger` enviando `"viaje_id": <id>` en el body).*
+
+- **Acceso:** Privado (Conductor propietario del viaje, con rol activo `Conductor`).
+- **Parámetros de Ruta:** `id` (entero positivo, ID del viaje).
+- **Headers Requeridos:** `Authorization: Bearer <TOKEN>` (opcional `X-Active-Role: Conductor`).
+- **Body (JSON):**
+  ```json
+  {
+    "pasajero_id": 2,
+    "puntuacion": 5,
+    "comentario": "Pasajero puntual y respetuoso."
+  }
+  ```
+  * `pasajero_id`: Entero positivo, ID del pasajero a calificar (obligatorio).
+  * `puntuacion`: Número entero entre 1 y 5 (obligatorio).
+  * `comentario`: Cadena de texto de hasta 500 caracteres (opcional).
+
+**Reglas de Negocio:**
+1. **Rol activo:** La ruta exige rol activo `Conductor`. Si el usuario tiene ese rol pero está en modo Pasajero, se responde `403` con `code: "ROLE_NOT_ACTIVE"`.
+2. **Viaje Finalizado:** El viaje debe encontrarse en estado `finalizado` (o `completado`).
+3. **Conductor Propietario:** Solo el conductor del viaje (`Viajes.conductor_id = req.user.id`) puede calificar a sus pasajeros.
+4. **Reservación Aceptada:** El pasajero calificado debe tener una reservación en estado `aceptada` en ese viaje.
+5. **No Auto-calificación:** El conductor no puede calificarse a sí mismo.
+6. **Unicidad:** El conductor solo puede calificar a cada pasajero una vez por viaje. Intentos adicionales devuelven `409 Conflict`.
+
+**Respuestas:**
+- **`201 Created`**:
+  ```json
+  {
+    "message": "Calificación al pasajero registrada exitosamente.",
+    "rating": {
+      "id": 7,
+      "viaje_id": 10,
+      "calificador_id": 1,
+      "calificado_id": 2,
+      "puntuacion": 5,
+      "comentario": "Pasajero puntual y respetuoso.",
+      "fecha_creacion": "2026-10-20T15:40:00.000Z"
+    }
+  }
+  ```
+- **`400 Bad Request`**:
+  - `"El ID del viaje es inválido o requerido."`
+  - `"El ID del pasajero es inválido o requerido."`
+  - `"La puntuación debe ser un número entero entre 1 y 5."`
+  - `"El comentario debe ser una cadena de texto."`
+  - `"El comentario no puede exceder los 500 caracteres."`
+  - `"Solo se puede calificar a un pasajero cuando el viaje ha finalizado."`
+  - `"No puedes calificarte a ti mismo."`
+- **`401 Unauthorized`**: Token ausente o inválido.
+- **`403 Forbidden`**:
+  - Rol activo distinto de `Conductor` (ver regla 1).
+  - `"Solo el conductor de este viaje puede calificar a sus pasajeros."`
+  - `"Solo se puede calificar a pasajeros con reservación confirmada en este viaje."`
+- **`404 Not Found`**: `"Viaje no encontrado."`
+- **`409 Conflict`**: `"Ya has calificado a este pasajero en este viaje."`
+
+---
+
 ### 3.5. Módulo de Reservaciones (`/api/reservations`)
 
 #### 3.5.1. Aceptar o Rechazar Solicitud de Reserva (`PATCH /api/reservations/:id`)
@@ -995,6 +1056,22 @@ Permite consultar el historial de calificaciones recibidas por un usuario y su p
   - Disponible para cualquier usuario autenticado, sin importar su rol activo.
   - `promedio` se redondea a un decimal.
   - Las calificaciones se ordenan de la más reciente a la más antigua (`fecha_creacion`).
+
+#### 3.7.3. Calificar Pasajero (`POST /api/ratings/passenger`)
+Permite al conductor propietario calificar a un pasajero enviando el identificador del viaje en el cuerpo de la petición.
+*(Es el alias equivalente a `POST /api/trips/:id/rate-passenger`).*
+
+- **Acceso:** Privado (rol activo `Conductor`).
+- **Body (JSON):**
+  ```json
+  {
+    "viaje_id": 10,
+    "pasajero_id": 2,
+    "puntuacion": 4,
+    "comentario": "Llegó a tiempo al punto de encuentro."
+  }
+  ```
+- **Respuestas:** Idénticas a las descritas en la sección 3.4.11 (`201 Created`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict`).
 
 ---
 

@@ -1,6 +1,41 @@
 const ratingModel = require("../models/ratingModel");
 const tripModel = require("../models/tripModel");
 
+const ESTADOS_FINALIZADOS = ["finalizado", "completado"];
+
+const httpError = (message, statusCode) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
+
+/** Convierte a entero positivo o lanza 400 con el mensaje indicado. */
+const parsePositiveId = (value, message) => {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) throw httpError(message, 400);
+  return id;
+};
+
+const parseScore = (puntuacion) => {
+  const score = Number(puntuacion);
+  if (!Number.isInteger(score) || score < 1 || score > 5) {
+    throw httpError("La puntuación debe ser un número entero entre 1 y 5.", 400);
+  }
+  return score;
+};
+
+const parseComment = (comentario) => {
+  if (comentario === undefined || comentario === null) return null;
+  if (typeof comentario !== "string") {
+    throw httpError("El comentario debe ser una cadena de texto.", 400);
+  }
+  const clean = comentario.trim();
+  if (clean.length > 500) {
+    throw httpError("El comentario no puede exceder los 500 caracteres.", 400);
+  }
+  return clean.length === 0 ? null : clean;
+};
+
 const ratingService = {
   /**
    * Permite que un pasajero con reservación aceptada califique al conductor de un viaje finalizado.
@@ -110,6 +145,78 @@ const ratingService = {
 
     return {
       message: "Calificación al conductor registrada exitosamente.",
+      rating,
+    };
+  },
+
+  /**
+   * Permite que el conductor propietario de un viaje finalizado califique a un pasajero
+   * con reservación aceptada en ese viaje (Issue #115).
+   * @param {object} params
+   * @param {number} params.viajeId
+   * @param {number} params.calificadorId  conductor autenticado
+   * @param {number} params.pasajeroId     pasajero a calificar
+   * @param {number} params.puntuacion
+   * @param {string} [params.comentario]
+   * @returns {Promise<object>}
+   */
+  async ratePassenger({ viajeId, calificadorId, pasajeroId, puntuacion, comentario }) {
+    const vId = parsePositiveId(viajeId, "El ID del viaje es inválido o requerido.");
+    const cId = parsePositiveId(calificadorId, "El ID del calificador es inválido o requerido.");
+    const pId = parsePositiveId(pasajeroId, "El ID del pasajero es inválido o requerido.");
+    const score = parseScore(puntuacion);
+    const cleanComentario = parseComment(comentario);
+
+    // 1. Obtener viaje
+    const trip = await tripModel.findById(vId);
+    if (!trip) throw httpError("Viaje no encontrado.", 404);
+
+    // 2. Validar que el viaje esté finalizado
+    const estadoViaje = String(trip.estado || "").toLowerCase().trim();
+    if (!ESTADOS_FINALIZADOS.includes(estadoViaje)) {
+      throw httpError("Solo se puede calificar a un pasajero cuando el viaje ha finalizado.", 400);
+    }
+
+    // 3. Solo el conductor propietario del viaje puede calificar a sus pasajeros
+    if (Number(trip.conductor_id) !== cId) {
+      throw httpError("Solo el conductor de este viaje puede calificar a sus pasajeros.", 403);
+    }
+
+    // 4. El conductor no puede calificarse a sí mismo
+    if (pId === cId) {
+      throw httpError("No puedes calificarte a ti mismo.", 400);
+    }
+
+    // 5. El calificado debe ser un pasajero con reservación aceptada en el viaje
+    const hasReservation = await ratingModel.hasAcceptedReservation({
+      viajeId: vId,
+      pasajeroId: pId,
+    });
+    if (!hasReservation) {
+      throw httpError("Solo se puede calificar a pasajeros con reservación confirmada en este viaje.", 403);
+    }
+
+    // 6. Una sola calificación del conductor a cada pasajero por viaje
+    const existingRating = await ratingModel.findByTripAndParticipants({
+      viajeId: vId,
+      calificadorId: cId,
+      calificadoId: pId,
+    });
+    if (existingRating) {
+      throw httpError("Ya has calificado a este pasajero en este viaje.", 409);
+    }
+
+    // 7. Insertar calificación
+    const rating = await ratingModel.create({
+      viajeId: vId,
+      calificadorId: cId,
+      calificadoId: pId,
+      puntuacion: score,
+      comentario: cleanComentario,
+    });
+
+    return {
+      message: "Calificación al pasajero registrada exitosamente.",
       rating,
     };
   },

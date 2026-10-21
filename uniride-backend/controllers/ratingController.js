@@ -29,6 +29,34 @@ const ratingController = {
   },
 
   /**
+   * Endpoint para que el conductor propietario califique a un pasajero de un viaje finalizado.
+   * Admite:
+   *  - POST /api/trips/:id/rate-passenger (con pasajero_id en el body)
+   *  - POST /api/ratings/passenger (con viaje_id y pasajero_id en el body)
+   */
+  async ratePassenger(req, res) {
+    try {
+      const viajeId = req.params.id || req.body.viaje_id;
+      const { pasajero_id: pasajeroId, puntuacion, comentario } = req.body;
+      const calificadorId = req.user?.id;
+
+      const result = await ratingService.ratePassenger({
+        viajeId,
+        calificadorId,
+        pasajeroId,
+        puntuacion,
+        comentario,
+      });
+
+      return res.status(201).json(result);
+    } catch (error) {
+      return res.status(error.statusCode || 500).json({
+        message: error.message || "Error al registrar la calificación.",
+      });
+    }
+  },
+
+  /**
    * Endpoint para obtener las calificaciones y promedio de un usuario.
    * Admite:
    *  - GET /api/ratings/user/:id
