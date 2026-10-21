@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import { apiRequest } from "@/services/api";
+import { formatearFechaHora } from "@/utils/fechaViaje";
 import "../styles/Notificaciones.css";
 
 export default function Notificaciones({ onVolver }) {
@@ -161,9 +162,7 @@ export default function Notificaciones({ onVolver }) {
                   </div>
 
                     <span className="notificacion-tiempo">
-                    {notificacion.fecha_creacion
-                      ? new Date(notificacion.fecha_creacion).toLocaleString()
-                      : ""}
+                    {formatearFechaHora(notificacion.fecha_creacion)}
                   </span>
                 </div>
 
@@ -213,9 +212,7 @@ export default function Notificaciones({ onVolver }) {
             </p>
 
             <span className="notificacion-modal-tiempo">
-              {notificacionSeleccionada.fecha_creacion
-                ? new Date(notificacionSeleccionada.fecha_creacion).toLocaleString()
-                : ""}
+              {formatearFechaHora(notificacionSeleccionada.fecha_creacion)}
             </span>
 
             <button

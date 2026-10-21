@@ -12,6 +12,8 @@ import ViajesCompletados from "./pages/ViajesCompletados";
 import ResumenReserva from "./pages/ResumenReserva";
 import Notificaciones from "./pages/Notificaciones";
 import MisSolicitudes from "./pages/MisReservaciones";
+import Calificaciones from "./pages/Calificaciones";
+import Administracion from "./pages/Administracion";
 
 import {
   cerrarSesion,
@@ -237,6 +239,12 @@ function App() {
         onNotificaciones={() => {
           setPantalla("notificaciones");
         }}
+        onCalificaciones={() => setPantalla("calificaciones")}
+        onAdministracion={() => {
+          if (rolesDe(usuario).some((rol) => mismoRol(rol, "Administrador"))) {
+            setPantalla("administracion");
+          }
+        }}
 
         onVerViaje={(viaje) => {
           setViajeSeleccionado(viaje);
@@ -307,6 +315,17 @@ function App() {
         }}
       />
     );
+  }
+
+  if (pantalla === "calificaciones") {
+    return <Calificaciones user={usuario} onBack={() => setPantalla("home")} />;
+  }
+
+  if (pantalla === "administracion") {
+    const esAdministrador = rolesDe(usuario).some((rol) => mismoRol(rol, "Administrador"));
+    return esAdministrador
+      ? <Administracion onBack={() => setPantalla("home")} />
+      : null;
   }
 
   // ============================================================

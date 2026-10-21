@@ -41,3 +41,20 @@ export function formatearFechaViaje(fecha) {
     timeZone: "UTC",
   }).format(fechaUTC);
 }
+
+export function formatearFechaHora(fecha) {
+  if (typeof fecha !== "string" || !fecha.trim()) {
+    return "Fecha no disponible";
+  }
+
+  const valor = fecha.trim();
+  const fechaParte = /^(\d{4}-\d{2}-\d{2})/.exec(valor)?.[1];
+  if (!fechaParte || formatearFechaViaje(valor) === "Fecha no disponible") {
+    return "Fecha no disponible";
+  }
+
+  const hora = /T(\d{2}:\d{2})/.exec(valor)?.[1];
+  return hora
+    ? `${formatearFechaViaje(valor)} ${hora}`
+    : formatearFechaViaje(valor);
+}

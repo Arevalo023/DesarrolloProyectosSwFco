@@ -13,6 +13,7 @@ import {
 import Logo from "@/components/Logo";
 import ReservaConfirmada from "../components/ReservaConfirmada";
 import "../styles/ResumenReserva.css";
+import { formatearFechaHora, formatearFechaViaje } from "@/utils/fechaViaje";
 
 export default function ResumenReserva({
   viaje,
@@ -68,28 +69,16 @@ export default function ResumenReserva({
   const placas =
     viajeActual.placas || "";
 
-  const fechaSalida =
-    viajeActual.fecha_salida
-      ? new Date(viajeActual.fecha_salida)
-      : null;
-
   const fecha =
     viajeActual.fecha ||
-    (fechaSalida
-      ? fechaSalida.toLocaleDateString("es-MX", {
-          day: "2-digit",
-          month: "long",
-          year: "numeric",
-        })
+    (viajeActual.fecha_salida
+      ? formatearFechaViaje(viajeActual.fecha_salida)
       : "Fecha no disponible");
 
   const hora =
     viajeActual.hora ||
-    (fechaSalida
-      ? fechaSalida.toLocaleTimeString("es-MX", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+    (viajeActual.fecha_salida
+      ? formatearFechaHora(viajeActual.fecha_salida).split(" ").slice(-1)[0]
       : "Hora no disponible");
 
   const total =

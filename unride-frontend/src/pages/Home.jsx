@@ -24,6 +24,7 @@ import heroImage from "@/assets/hero.png";
 
 import { apiRequest } from "@/services/api";
 import { mismoRol, rolesDe } from "@/services/session";
+import { formatearFechaHora, formatearFechaViaje } from "@/utils/fechaViaje";
 
 function Home({
   onLogout,
@@ -32,6 +33,9 @@ function Home({
   onPublish,
   onMisViajes,
   onMisSolicitudes,
+  onNotificaciones,
+  onCalificaciones,
+  onAdministracion,
   user,
   rolActivo,
   onCambiarRol,
@@ -491,26 +495,7 @@ function Home({
   // FORMATEAR FECHA
   // ============================================================
 
-  const formatearFecha = (fecha) => {
-    if (!fecha) {
-      return "Fecha no disponible";
-    }
-
-    const date = new Date(fecha);
-
-    if (Number.isNaN(date.getTime())) {
-      return fecha;
-    }
-
-    return new Intl.DateTimeFormat(
-      "es-MX",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }
-    ).format(date);
-  };
+  const formatearFecha = formatearFechaViaje;
 
   // ============================================================
   // FORMATEAR HORA
@@ -583,6 +568,11 @@ function Home({
               Inicio
 
             </a>
+            {onNotificaciones && (
+              <button type="button" onClick={onNotificaciones} className="text-sm font-medium text-slate-600 transition hover:text-emerald-600">
+                Notificaciones
+              </button>
+            )}
             {modoPasajero && onMisSolicitudes && (
               <button
                 type="button"
@@ -846,6 +836,20 @@ function Home({
                     Mis viajes
                   </span>
                 </button>
+
+                {onCalificaciones && (
+                  <button type="button" onClick={() => { setMenuPerfil(false); onCalificaciones(); }} className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700">
+                    <UserRound size={18} />
+                    <span>Mis calificaciones</span>
+                  </button>
+                )}
+
+                {onAdministracion && (
+                  <button type="button" onClick={() => { setMenuPerfil(false); onAdministracion(); }} className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700">
+                    <ClipboardList size={18} />
+                    <span>Administración</span>
+                  </button>
+                )}
 
                 {/* MIS SOLICITUDES */}
 
@@ -1113,14 +1117,8 @@ function Home({
                   ].filter(Boolean).join(" · ");
                   const vehiclePlate = item.vehiculo_placa || item.placa;
                   const departure = item.fecha_salida
-                    ? new Date(item.fecha_salida).toLocaleString("es-MX", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "Fecha pendiente";
+                  ? formatearFechaHora(item.fecha_salida)
+                  : "Fecha pendiente";
 
                   return (
                     <Card key={passengerView ? item.id : `trip-${item.id}`} className="overflow-hidden border-slate-200 bg-white shadow-sm">
