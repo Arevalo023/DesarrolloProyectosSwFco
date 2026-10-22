@@ -13,7 +13,7 @@ describe("MisViajes: Clasificación por estado y persistencia (Issue #105)", () 
     vi.clearAllMocks();
   });
 
-  test("clasifica y muestra etiquetas correctas para viajes programados, en curso, finalizados y cancelados", async () => {
+  test("solo muestra viajes programados y en curso, y deja cancelados y completados en el historial", async () => {
     apiRequest.mockImplementation(async (url) => {
       if (url === "/api/trips/driver") {
         return {
@@ -63,16 +63,13 @@ describe("MisViajes: Clasificación por estado y persistencia (Issue #105)", () 
 
     render(<MisViajes onBackHome={vi.fn()} />);
 
-    // Verificar que cada estado se identifique y renderice correctamente
+    // Solo los viajes que todavía se administran aparecen en esta página.
     expect(await screen.findByText("Programado")).toBeTruthy();
     expect(screen.getByText("En curso")).toBeTruthy();
-    expect(screen.getByText("Finalizado")).toBeTruthy();
-    expect(screen.getByText("Cancelado")).toBeTruthy();
-
-    // Acciones y mensajes por estado
-    expect(screen.getByText("Este viaje ya finalizó.")).toBeTruthy();
-    expect(screen.getByText("Este viaje está cancelado y ya no tiene acciones disponibles.")).toBeTruthy();
-    expect(screen.getByText(/Lluvia intensa/)).toBeTruthy();
+    expect(screen.queryByText("Finalizado")).toBeNull();
+    expect(screen.queryByText("Cancelado")).toBeNull();
+    expect(screen.queryByText("Facultad de Sistemas → Plaza Sendero")).toBeNull();
+    expect(screen.queryByText("Campus Central → Aeropuerto")).toBeNull();
   });
 
   test("cubre el caso de lista vacía mostrando el estado vacío correspondiente", async () => {
@@ -80,10 +77,10 @@ describe("MisViajes: Clasificación por estado y persistencia (Issue #105)", () 
 
     render(<MisViajes onBackHome={vi.fn()} />);
 
-    expect(await screen.findByText("No tienes viajes publicados")).toBeTruthy();
+    expect(await screen.findByText("No tienes viajes activos o programados")).toBeTruthy();
     expect(
       screen.getByText(
-        "Cuando publiques un viaje, aparecerá aquí para que puedas administrarlo."
+        "Los viajes cancelados y completados están disponibles en sus páginas de historial."
       )
     ).toBeTruthy();
   });
@@ -109,7 +106,7 @@ describe("MisViajes: Clasificación por estado y persistencia (Issue #105)", () 
     expect(await screen.findByText("Programado")).toBeTruthy();
     unmount();
 
-    // Simular recarga tras transición en backend a finalizado
+    // Simular recarga tras transición en backend a finalizado.
     apiRequest.mockResolvedValue({
       trips: [
         {
@@ -126,7 +123,7 @@ describe("MisViajes: Clasificación por estado y persistencia (Issue #105)", () 
     });
 
     render(<MisViajes onBackHome={vi.fn()} />);
-    expect(await screen.findByText("Finalizado")).toBeTruthy();
+    expect(await screen.findByText("No tienes viajes activos o programados")).toBeTruthy();
     expect(screen.queryByText("Programado")).toBeNull();
   });
 });

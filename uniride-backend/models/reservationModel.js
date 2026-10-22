@@ -62,7 +62,8 @@ const reservationModel = {
         .query(`
           SELECT s.id, s.viaje_id, s.pasajero_id, s.estado,
                  v.conductor_id, v.cupo_disponible,
-                 v.estado AS viaje_estado, v.fecha_salida
+                 v.estado AS viaje_estado, v.fecha_salida,
+                 CASE WHEN v.fecha_salida < GETDATE() THEN 1 ELSE 0 END AS viaje_salida_pasada
           FROM SolicitudesViaje s WITH (UPDLOCK, ROWLOCK)
           INNER JOIN Viajes v WITH (UPDLOCK, ROWLOCK) ON v.id = s.viaje_id
           WHERE s.id = @id
@@ -76,14 +77,14 @@ const reservationModel = {
       }
 
       // 2. Solo el conductor dueño del viaje
-      if (row.conductor_id !== driverId) {
+      if (Number(row.conductor_id) !== Number(driverId)) {
         const e = new Error("Solo el conductor dueño del viaje puede gestionar esta solicitud.");
         e.statusCode = 403;
         throw e;
       }
 
       // 3. Solo desde 'pendiente'
-      if (String(row.estado).toLowerCase() !== "pendiente") {
+      if (String(row.estado || "").trim().toLowerCase() !== "pendiente") {
         const e = new Error(`La solicitud ya fue resuelta (estado actual: ${row.estado}).`);
         e.statusCode = 409;
         throw e;
@@ -91,12 +92,12 @@ const reservationModel = {
 
       // 4. Aceptar -> validar viaje y descontar cupo
       if (nuevoEstado === "aceptada") {
-        if (!["activo", "programado"].includes(String(row.viaje_estado).toLowerCase())) {
+        if (!["activo", "programado"].includes(String(row.viaje_estado || "").trim().toLowerCase())) {
           const e = new Error("El viaje ya no admite solicitudes.");
           e.statusCode = 400;
           throw e;
         }
-        if (new Date(row.fecha_salida) < new Date()) {
+        if (row.viaje_salida_pasada) {
           const e = new Error("El viaje ya salió; no se puede aceptar la solicitud.");
           e.statusCode = 400;
           throw e;

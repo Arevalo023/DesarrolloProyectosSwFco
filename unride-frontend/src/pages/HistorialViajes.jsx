@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import Footer from "@/components/Footer";
 import { apiRequest } from "@/services/api";
+import { formatearHoraViaje } from "@/utils/fechaViaje";
 
 const normalizarEstado = (v) => String(v?.estado || v?.status || "").trim().toLowerCase();
 const idViaje = (v) => v.id ?? v.trip_id ?? v.viaje_id;
@@ -161,7 +162,7 @@ export default function HistorialViajes({ tipo, onBack }) {
               <Card key={id} className="border-slate-200 bg-white shadow-sm"><CardContent className="p-5">
                 <div className="mb-4 flex items-center justify-between gap-3"><span className="text-sm text-slate-500">Viaje #{id}</span><span className={`rounded-full px-3 py-1 text-xs font-semibold ${esCancelado ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{esCancelado ? "Cancelado" : "Finalizado"}</span></div>
                 <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><MapPin size={20} className="text-indigo-600" />{viaje.origen || viaje.origin || "Origen no disponible"} → {viaje.destino || viaje.destination || "Destino no disponible"}</h2>
-                <div className="flex flex-wrap gap-4 text-sm text-slate-600"><span className="flex items-center gap-2"><CalendarDays size={16} />{String(viaje.fecha_salida || viaje.fecha || viaje.departure_date || "Fecha no disponible").slice(0, 10)}</span><span className="flex items-center gap-2"><Clock3 size={16} />{viaje.hora_salida || viaje.hora || viaje.departure_time || "Hora no disponible"}</span></div>
+                <div className="flex flex-wrap gap-4 text-sm text-slate-600"><span className="flex items-center gap-2"><CalendarDays size={16} />{String(viaje.fecha_salida || viaje.fecha || viaje.departure_date || "Fecha no disponible").slice(0, 10)}</span><span className="flex items-center gap-2"><Clock3 size={16} />{formatearHoraViaje(viaje.fecha_salida || viaje.fecha || viaje.departure_date, viaje.hora_salida || viaje.hora || viaje.departure_time)}</span></div>
                 {esCancelado && viaje.motivo_cancelacion && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">Motivo: {viaje.motivo_cancelacion}</p>}
                 {!esCancelado && (
                   <section className="mt-5 border-t pt-4" aria-label={`Pasajeros del viaje ${id}`}>

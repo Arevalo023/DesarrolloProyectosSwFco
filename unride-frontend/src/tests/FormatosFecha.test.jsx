@@ -1,6 +1,9 @@
 
 import { describe, it, expect } from "vitest";
-import { formatearFechaViaje } from "../utils/fechaViaje";
+import {
+  formatearFechaViaje,
+  formatearHoraViaje,
+} from "../utils/fechaViaje";
 
 describe("Issue #101 - Formatos de fecha", () => {
   it("formatea fechas sin hora", () => {
@@ -31,5 +34,21 @@ describe("Issue #101 - Formatos de fecha", () => {
   it("rechaza fechas mal formadas", () => {
     expect(formatearFechaViaje("fecha incorrecta"))
       .toBe("Fecha no disponible");
+  });
+
+  it("extrae la hora del campo fecha_salida ISO", () => {
+    expect(formatearHoraViaje("2026-10-12T10:30:00.000Z")).toBe("10:30");
+  });
+
+  it("extrae la hora de una fecha SQL separada por espacio", () => {
+    expect(formatearHoraViaje("2026-10-12 08:05:00")).toBe("08:05");
+  });
+
+  it("acepta un campo de hora separado", () => {
+    expect(formatearHoraViaje("2026-10-12", "16:45:00")).toBe("16:45");
+  });
+
+  it("indica cuando la fecha recibida no contiene hora", () => {
+    expect(formatearHoraViaje("2026-10-12")).toBe("Hora no disponible");
   });
 });

@@ -5,6 +5,7 @@ import {
   MapPin,
 } from "lucide-react";
 
+import { formatearHoraViaje } from "@/utils/fechaViaje";
 import "../styles/ReservaConfirmada.css";
 
 function ReservaConfirmada({
@@ -59,7 +60,11 @@ function ReservaConfirmada({
               <Clock size={18} />
 
               <span>
-                {viaje.hora || "Hora del viaje"}
+                {viaje.hora ||
+                  formatearHoraViaje(
+                    viaje.fecha_salida,
+                    viaje.hora_salida
+                  )}
               </span>
             </div>
           </div>

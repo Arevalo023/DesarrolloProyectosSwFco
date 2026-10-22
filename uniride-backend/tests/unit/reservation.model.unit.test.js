@@ -22,6 +22,7 @@ const row = (overrides = {}) => ({
   cupo_disponible: 3,
   viaje_estado: 'programado',
   fecha_salida: future(),
+  viaje_salida_pasada: 0,
   ...overrides,
 });
 
@@ -82,13 +83,39 @@ describe('reservationModel.respond', () => {
   });
 
   test('lanza 400 al aceptar si el viaje ya salió', async () => {
-    db.queueResult({ recordset: [row({ fecha_salida: past() })] });
+    db.queueResult({ recordset: [row({ fecha_salida: past(), viaje_salida_pasada: 1 })] });
 
     await expect(reservationModel.respond(100, driverId, 'aceptada')).rejects.toMatchObject({
       statusCode: 400,
     });
     expect(touchesTrip()).toBe(false);
     expectRolledBack();
+  });
+
+  test('compara la fecha de salida con el reloj de la base de datos', async () => {
+    db.queueResult({ recordset: [row()] });
+    db.queueResult({ rowsAffected: [1] });
+    db.queueResult({
+      recordset: [{ id: 100, viaje_id: 10, pasajero_id: 1, estado: 'aceptada' }],
+    });
+
+    await reservationModel.respond(100, driverId, 'aceptada');
+
+    expect(db.requests[0].text).toMatch(
+      /CASE WHEN v\.fecha_salida < GETDATE\(\) THEN 1 ELSE 0 END AS viaje_salida_pasada/
+    );
+  });
+
+  test('acepta IDs numéricos aunque el token los represente como texto', async () => {
+    db.queueResult({ recordset: [row()] });
+    db.queueResult({ rowsAffected: [1] });
+    db.queueResult({
+      recordset: [{ id: 100, viaje_id: 10, pasajero_id: 1, estado: 'aceptada' }],
+    });
+
+    await expect(reservationModel.respond(100, '2', 'aceptada')).resolves.toMatchObject({
+      estado: 'aceptada',
+    });
   });
 
   test('lanza 409 al aceptar si no queda cupo (UPDATE sin filas afectadas)', async () => {
@@ -142,8 +169,8 @@ describe('reservationModel.respond', () => {
     expect(db.lastTransaction).toMatchObject({ committed: true, rolledBack: false });
   });
 
-  test("interpreta 'PENDIENTE' y 'Programado' sin distinguir mayúsculas", async () => {
-    db.queueResult({ recordset: [row({ estado: 'PENDIENTE', viaje_estado: 'Programado' })] });
+  test("normaliza estados con mayúsculas y espacios antes de aceptar", async () => {
+    db.queueResult({ recordset: [row({ estado: ' PENDIENTE ', viaje_estado: ' Programado ' })] });
     db.queueResult({ rowsAffected: [1] });
     db.queueResult({ recordset: [{ id: 100, estado: 'aceptada' }] });
 
