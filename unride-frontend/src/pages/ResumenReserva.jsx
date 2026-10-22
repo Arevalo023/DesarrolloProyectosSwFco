@@ -13,7 +13,10 @@ import {
 import Logo from "@/components/Logo";
 import ReservaConfirmada from "../components/ReservaConfirmada";
 import "../styles/ResumenReserva.css";
-import { formatearFechaHora, formatearFechaViaje } from "@/utils/fechaViaje";
+import {
+  formatearFechaViaje,
+  formatearHoraViaje,
+} from "@/utils/fechaViaje";
 
 export default function ResumenReserva({
   viaje,
@@ -78,8 +81,8 @@ export default function ResumenReserva({
   const hora =
     viajeActual.hora ||
     (viajeActual.fecha_salida
-      ? formatearFechaHora(viajeActual.fecha_salida).split(" ").slice(-1)[0]
-      : "Hora no disponible");
+      ? formatearHoraViaje(viajeActual.fecha_salida)
+      : formatearHoraViaje(null));
 
   const total =
     precioPorLugar * lugares;

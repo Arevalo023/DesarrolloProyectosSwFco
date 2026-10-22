@@ -19,9 +19,15 @@ import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import Logo from "@/components/Logo";
 import { apiRequest } from "@/services/api";
-import { formatearFechaViaje } from "@/utils/fechaViaje";
+import { formatearFechaViaje, formatearHoraViaje } from "@/utils/fechaViaje";
 
-function MisSolicitudes({ onBack, user }) {
+function MisSolicitudes({
+  onBack,
+  user,
+  vista = "principal",
+  onVerRechazadas,
+  onVerCanceladas,
+}) {
   const [reservaciones, setReservaciones] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -36,6 +42,8 @@ function MisSolicitudes({ onBack, user }) {
   const [comentario, setComentario] = useState("");
   const [calificandoId, setCalificandoId] = useState(null);
   const [calificacionesEnviadas, setCalificacionesEnviadas] = useState([]);
+  const [estadoCalificaciones, setEstadoCalificaciones] = useState({});
+  const [motivosCalificacionBloqueada, setMotivosCalificacionBloqueada] = useState({});
   const [mensajeCalificacion, setMensajeCalificacion] = useState("");
   const [errorCalificacion, setErrorCalificacion] = useState("");
 
@@ -64,6 +72,81 @@ function MisSolicitudes({ onBack, user }) {
       cancelado = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (vista !== "principal") return undefined;
+
+    const reservacionesElegibles = reservaciones.filter((reservacion) =>
+      String(reservacion.estado || "").trim().toLowerCase() === "aceptada" &&
+      ["finalizado", "completado"].includes(
+        String(reservacion.viaje_estado || "").trim().toLowerCase()
+      )
+    );
+    if (reservacionesElegibles.length === 0) return undefined;
+
+    let cancelado = false;
+    const idsConductor = [...new Set(
+      reservacionesElegibles
+        .map((reservacion) => Number(reservacion.conductor_id))
+        .filter((id) => Number.isInteger(id) && id > 0)
+    )];
+    const sinConductor = reservacionesElegibles.filter(
+      (reservacion) => !Number.isInteger(Number(reservacion.conductor_id)) ||
+        Number(reservacion.conductor_id) <= 0
+    );
+
+    const verificarCalificaciones = async () => {
+      const resultados = await Promise.allSettled(
+        idsConductor.map(async (conductorId) => ({
+          conductorId,
+          respuesta: await apiRequest(`/api/ratings/user/${conductorId}`),
+        }))
+      );
+
+      if (cancelado) return;
+
+      const estadoPorConductor = new Map();
+      resultados.forEach((resultado, indice) => {
+        if (resultado.status === "fulfilled") {
+          estadoPorConductor.set(
+            resultado.value.conductorId,
+            resultado.value.respuesta.calificaciones || []
+          );
+        } else {
+          estadoPorConductor.set(idsConductor[indice], null);
+        }
+      });
+
+      setEstadoCalificaciones((actuales) => {
+        const siguiente = { ...actuales };
+        reservacionesElegibles.forEach((reservacion) => {
+          const conductorId = Number(reservacion.conductor_id);
+          if (sinConductor.includes(reservacion)) {
+            siguiente[reservacion.id] = "no_disponible";
+            return;
+          }
+          const calificaciones = estadoPorConductor.get(conductorId);
+          if (!Array.isArray(calificaciones) || !Number(user?.id)) {
+            siguiente[reservacion.id] = "no_disponible";
+            return;
+          }
+
+          const yaCalifico = calificaciones.some((calificacion) =>
+            Number(calificacion.viaje_id) === Number(reservacion.viaje_id) &&
+            Number(calificacion.calificador_id) === Number(user.id) &&
+            Number(calificacion.calificado_id) === conductorId
+          );
+          siguiente[reservacion.id] = yaCalifico ? "calificada" : "disponible";
+        });
+        return siguiente;
+      });
+    };
+
+    void verificarCalificaciones();
+    return () => {
+      cancelado = true;
+    };
+  }, [reservaciones, user?.id, vista]);
 
   const formatearFecha = formatearFechaViaje;
 
@@ -199,6 +282,15 @@ function MisSolicitudes({ onBack, user }) {
       setCalificacionesEnviadas((actuales) =>
         [...new Set([...actuales, reservacion.id])]
       );
+      setEstadoCalificaciones((actuales) => ({
+        ...actuales,
+        [reservacion.id]: "calificada",
+      }));
+      setMotivosCalificacionBloqueada((actuales) => {
+        const siguientes = { ...actuales };
+        delete siguientes[reservacion.id];
+        return siguientes;
+      });
 
       setCalificacionAbiertaId(null);
       setPuntuacion(5);
@@ -209,27 +301,48 @@ function MisSolicitudes({ onBack, user }) {
       );
     } catch (requestError) {
       if (requestError.status === 409) {
-        setErrorCalificacion(
-          "Este viaje ya fue calificado anteriormente."
-        );
+        setEstadoCalificaciones((actuales) => ({
+          ...actuales,
+          [reservacion.id]: "calificada",
+        }));
+        setCalificacionAbiertaId(null);
+        setErrorCalificacion("");
       } else {
-        setErrorCalificacion(
-          requestError.message ||
-            "No se pudo enviar la calificación."
-        );
+        if ([400, 403].includes(requestError.status)) {
+          setEstadoCalificaciones((actuales) => ({
+            ...actuales,
+            [reservacion.id]: "no_disponible",
+          }));
+          setMotivosCalificacionBloqueada((actuales) => ({
+            ...actuales,
+            [reservacion.id]:
+              requestError.message || "No es posible calificar este viaje.",
+          }));
+          setCalificacionAbiertaId(null);
+          setErrorCalificacion("");
+        } else {
+          setErrorCalificacion(
+            requestError.message ||
+              "No se pudo enviar la calificación."
+          );
+        }
       }
     } finally {
       setCalificandoId(null);
     }
   };
 
-  const reservacionesActivas = reservaciones.filter(
-    (reservacion) => reservacion.estado !== "cancelada"
-  );
-
-  const reservacionesCanceladas = reservaciones.filter(
-    (reservacion) => reservacion.estado === "cancelada"
-  );
+  const reservacionesVisibles = reservaciones.filter((reservacion) => {
+    const estado = String(reservacion.estado || "").trim().toLowerCase();
+    if (vista === "rechazadas") return estado === "rechazada";
+    if (vista === "canceladas") return estado === "cancelada";
+    return ["pendiente", "aceptada"].includes(estado);
+  });
+  const tituloPagina = vista === "rechazadas"
+    ? "Solicitudes rechazadas"
+    : vista === "canceladas"
+      ? "Solicitudes canceladas"
+      : "Mis Solicitudes";
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -265,13 +378,42 @@ function MisSolicitudes({ onBack, user }) {
           </p>
 
           <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">
-            Mis Solicitudes
+            {tituloPagina}
           </h1>
 
           <p className="mt-2 max-w-2xl text-slate-600">
             Consulta tus solicitudes de viaje y revisa cuáles fueron confirmadas.
           </p>
         </div>
+
+        {vista === "principal" && (
+          <div className="mb-8 grid gap-4 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onVerRechazadas}
+              className="h-auto justify-between rounded-xl border-red-200 bg-white px-5 py-4 text-red-700 hover:bg-red-50"
+            >
+              <span className="flex items-center gap-3">
+                <XCircle size={20} />
+                Solicitudes rechazadas
+              </span>
+              <span aria-hidden="true">→</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onVerCanceladas}
+              className="h-auto justify-between rounded-xl border-slate-300 bg-white px-5 py-4 text-slate-700 hover:bg-slate-50"
+            >
+              <span className="flex items-center gap-3">
+                <X size={20} />
+                Solicitudes canceladas
+              </span>
+              <span aria-hidden="true">→</span>
+            </Button>
+          </div>
+        )}
 
         {error && (
           <p
@@ -296,12 +438,12 @@ function MisSolicitudes({ onBack, user }) {
         <section>
           <div className="mb-5">
             <h2 className="text-xl font-bold text-slate-900">
-              Mis solicitudes
+              {vista === "principal" ? "Solicitudes activas" : tituloPagina}
             </h2>
 
             <p className="text-sm text-slate-500">
-              {reservacionesActivas.length} solicitud
-              {reservacionesActivas.length !== 1 ? "es" : ""}
+              {reservacionesVisibles.length} solicitud
+              {reservacionesVisibles.length !== 1 ? "es" : ""}
             </p>
           </div>
 
@@ -313,7 +455,7 @@ function MisSolicitudes({ onBack, user }) {
             >
               Cargando tus solicitudes...
             </p>
-          ) : reservacionesActivas.length === 0 ? (
+          ) : reservacionesVisibles.length === 0 ? (
             <Card className="border-dashed bg-white">
               <CardContent className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="mb-4 rounded-full bg-slate-100 p-4">
@@ -324,25 +466,35 @@ function MisSolicitudes({ onBack, user }) {
                 </div>
 
                 <h3 className="text-lg font-semibold text-slate-800">
-                  No tienes solicitudes
+                  {vista === "rechazadas"
+                    ? "No tienes solicitudes rechazadas"
+                    : vista === "canceladas"
+                      ? "No tienes solicitudes canceladas"
+                      : "No tienes solicitudes activas"}
                 </h3>
 
                 <p className="mt-2 max-w-md text-sm text-slate-500">
-                  Cuando solicites un viaje, tus solicitudes aparecerán aquí.
+                  {vista === "principal"
+                    ? "Cuando solicites un viaje, tus solicitudes pendientes o aceptadas aparecerán aquí."
+                    : "Cuando existan solicitudes con este estado, aparecerán aquí."}
                 </p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-5 lg:grid-cols-2">
-              {reservacionesActivas.map((reservacion) => {
+              {reservacionesVisibles.map((reservacion) => {
                 const estado = obtenerEstado(reservacion.estado);
+                const estadoViaje = String(
+                  reservacion.viaje_estado || ""
+                ).trim().toLowerCase();
 
                 const viajeFinalizado =
-                  reservacion.estado === "aceptada" &&
-                  reservacion.viaje_estado === "finalizado";
+                  String(reservacion.estado || "").trim().toLowerCase() === "aceptada" &&
+                  ["finalizado", "completado"].includes(estadoViaje);
 
                 const calificacionEnviada =
-                  calificacionesEnviadas.includes(reservacion.id);
+                  calificacionesEnviadas.includes(reservacion.id) ||
+                  estadoCalificaciones[reservacion.id] === "calificada";
 
                 return (
                   <Card
@@ -449,7 +601,10 @@ function MisSolicitudes({ onBack, user }) {
                               </p>
 
                               <p className="text-sm font-medium">
-                                {reservacion.hora_salida}
+                                {formatearHoraViaje(
+                                  reservacion.fecha_salida,
+                                  reservacion.hora_salida
+                                )}
                               </p>
                             </div>
                           </div>
@@ -577,7 +732,7 @@ function MisSolicitudes({ onBack, user }) {
                         </div>
 
                         {/* CALIFICAR CONDUCTOR */}
-                        {viajeFinalizado && (
+                        {String(reservacion.estado || "").trim().toLowerCase() === "aceptada" && (
                           <div className="mt-5 border-t pt-5">
                             <div className="flex items-center gap-2">
                               <Star
@@ -591,16 +746,59 @@ function MisSolicitudes({ onBack, user }) {
                             </div>
 
                             {calificacionEnviada ? (
-                              <p
-                                role="status"
-                                className="mt-3 rounded-lg bg-green-50 p-3 text-sm text-green-700"
-                              >
-                                <CheckCircle2
-                                  size={17}
-                                  className="mr-2 inline"
-                                />
-                                ¡Gracias! Tu calificación se envió correctamente.
-                              </p>
+                              <div className="mt-3">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  disabled
+                                  className="border-green-200 text-green-700"
+                                >
+                                  <CheckCircle2 size={17} className="mr-2" />
+                                  Calificación completada
+                                </Button>
+                                <p role="status" className="mt-2 text-sm text-green-700">
+                                  {calificacionesEnviadas.includes(reservacion.id)
+                                    ? "¡Gracias! Tu calificación se envió correctamente."
+                                    : "Este viaje ya fue calificado."}
+                                </p>
+                              </div>
+                            ) : !viajeFinalizado ? (
+                              <div className="mt-3">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  disabled
+                                  className="border-slate-200 text-slate-500"
+                                >
+                                  <Star size={17} className="mr-2" />
+                                  Calificación no disponible
+                                </Button>
+                                <p role="status" className="mt-2 text-sm text-slate-500">
+                                  {["cancelado", "cancelada"].includes(estadoViaje)
+                                    ? "No es posible calificar un viaje cancelado."
+                                    : "Podrás calificar al conductor cuando el viaje haya finalizado."}
+                                </p>
+                              </div>
+                            ) : estadoCalificaciones[reservacion.id] !== "disponible" ? (
+                              <div className="mt-3">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  disabled
+                                  className="border-slate-200 text-slate-500"
+                                >
+                                  <Star size={17} className="mr-2" />
+                                  {estadoCalificaciones[reservacion.id] === "no_disponible"
+                                    ? "Calificación no disponible"
+                                    : "Verificando calificación..."}
+                                </Button>
+                                <p role="status" className="mt-2 text-sm text-slate-500">
+                                  {estadoCalificaciones[reservacion.id] === "no_disponible"
+                                    ? motivosCalificacionBloqueada[reservacion.id] ||
+                                      "No fue posible verificar la calificación. Inténtalo más tarde."
+                                    : "Estamos verificando si ya calificaste este viaje."}
+                                </p>
+                              </div>
                             ) : (
                               <>
                                 <p className="mt-2 text-sm text-slate-500">
@@ -749,60 +947,6 @@ function MisSolicitudes({ onBack, user }) {
           )}
         </section>
 
-        {/* HISTORIAL DE CANCELADAS */}
-        {reservacionesCanceladas.length > 0 && (
-          <section className="mt-10">
-            <div className="mb-5">
-              <h2 className="text-xl font-bold text-slate-900">
-                Solicitudes canceladas
-              </h2>
-
-              <p className="text-sm text-slate-500">
-                Historial de solicitudes canceladas
-              </p>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              {reservacionesCanceladas.map((reservacion) => (
-                <Card
-                  key={reservacion.id}
-                  className="border-slate-200 bg-white opacity-80"
-                >
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-medium text-slate-400">
-                          Solicitud #{reservacion.id}
-                        </p>
-
-                        <h3 className="mt-1 font-semibold text-slate-700">
-                          {reservacion.origen} → {reservacion.destino}
-                        </h3>
-                      </div>
-
-                      <span className="flex items-center gap-1 rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600">
-                        <X size={15} />
-                        Cancelada
-                      </span>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
-                      <span className="flex items-center gap-2">
-                        <CalendarDays size={16} />
-                        {formatearFecha(reservacion.fecha_salida)}
-                      </span>
-
-                      <span className="flex items-center gap-2">
-                        <Clock3 size={16} />
-                        {reservacion.hora_salida}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </section>
-        )}
       </main>
 
       <Footer />
@@ -853,7 +997,10 @@ function MisSolicitudes({ onBack, user }) {
                 </span>
 
                 <span>
-                  {reservacionSeleccionada.hora_salida}
+                  {formatearHoraViaje(
+                    reservacionSeleccionada.fecha_salida,
+                    reservacionSeleccionada.hora_salida
+                  )}
                 </span>
               </div>
             </div>

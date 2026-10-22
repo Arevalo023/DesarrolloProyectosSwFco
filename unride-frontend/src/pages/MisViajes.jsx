@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { formatearFechaViaje } from "@/utils/fechaViaje";
+import { formatearFechaViaje, formatearHoraViaje } from "@/utils/fechaViaje";
 import {
   ArrowLeft,
   CalendarDays,
@@ -31,6 +31,16 @@ const obtenerSolicitudes = (viaje) =>
   viaje?.requests ||
   [];
 
+const normalizarEstado = (estado) =>
+  String(estado || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+
+const obtenerEstadoViaje = (viaje) =>
+  normalizarEstado(viaje?.estado || viaje?.status);
+
 function MisViajes({
   onBackHome,
   onViajesCancelados,
@@ -42,21 +52,11 @@ function MisViajes({
 
   const [viajeSeleccionado, setViajeSeleccionado] = useState(null);
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
+  const [errorCancelacion, setErrorCancelacion] = useState("");
 
   const [procesandoSolicitud, setProcesandoSolicitud] = useState(null);
   const [cancelandoViaje, setCancelandoViaje] = useState(false);
   const [procesandoViaje, setProcesandoViaje] = useState(null);
-
-  // Normaliza los estados para comparar distintas representaciones.
-  const normalizarEstado = (estado) =>
-    String(estado || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[_-]+/g, " ")
-      .replace(/\s+/g, " ");
-
-  const obtenerEstadoViaje = (viaje) =>
-    normalizarEstado(viaje?.estado || viaje?.status);
 
   useEffect(() => {
     let cancelado = false;
@@ -73,6 +73,9 @@ function MisViajes({
         const datos = Array.isArray(respuesta)
           ? respuesta
           : respuesta?.trips || respuesta?.viajes || [];
+        const viajesActivos = datos.filter((viaje) =>
+          ["activo", "programado", "en curso"].includes(obtenerEstadoViaje(viaje))
+        );
 
         const solicitudes = Array.isArray(respuestaSolicitudes?.requests)
           ? respuestaSolicitudes.requests
@@ -91,7 +94,7 @@ function MisViajes({
 
         if (!cancelado) {
           setViajes(
-            datos.map((viaje) => ({
+            viajesActivos.map((viaje) => ({
               ...viaje,
               reservations:
                 solicitudesPorViaje.get(obtenerIdViaje(viaje)) || [],
@@ -306,9 +309,13 @@ function MisViajes({
     } catch (requestError) {
       console.error("Error al cancelar viaje:", requestError);
 
-      setError(
-        requestError?.message || "No se pudo cancelar el viaje."
-      );
+      const mensajeError =
+        requestError?.message || "No se pudo cancelar el viaje.";
+      if (requestError?.status === 400) {
+        setErrorCancelacion(mensajeError);
+      } else {
+        setError(mensajeError);
+      }
     } finally {
       setCancelandoViaje(false);
     }
@@ -523,12 +530,12 @@ function MisViajes({
               </div>
 
               <h2 className="text-lg font-semibold text-slate-800">
-                No tienes viajes publicados
+                No tienes viajes activos o programados
               </h2>
 
               <p className="mt-2 max-w-md text-sm text-slate-500">
-                Cuando publiques un viaje, aparecerá aquí para
-                que puedas administrarlo.
+                Los viajes cancelados y completados están disponibles en sus
+                páginas de historial.
               </p>
             </CardContent>
           </Card>
@@ -562,11 +569,10 @@ function MisViajes({
                 viaje?.fecha ||
                 viaje?.departure_date;
 
-              const hora =
-                viaje?.hora_salida ||
-                viaje?.hora ||
-                viaje?.departure_time ||
-                "";
+              const hora = formatearHoraViaje(
+                fecha,
+                viaje?.hora_salida || viaje?.hora || viaje?.departure_time
+              );
 
               const cupoDisponible =
                 viaje?.cupo_disponible ??
@@ -696,7 +702,7 @@ function MisViajes({
                               Hora
                             </p>
                             <p className="text-sm font-medium">
-                              {hora || "No disponible"}
+                              {hora}
                             </p>
                           </div>
                         </div>
@@ -1004,10 +1010,14 @@ function MisViajes({
 
                 <span className="flex items-center gap-1.5">
                   <Clock3 size={15} />
-                  {viajeSeleccionado?.hora_salida ||
-                    viajeSeleccionado?.hora ||
-                    viajeSeleccionado?.departure_time ||
-                    "Hora no disponible"}
+                  {formatearHoraViaje(
+                    viajeSeleccionado?.fecha_salida ||
+                      viajeSeleccionado?.fecha ||
+                      viajeSeleccionado?.departure_date,
+                    viajeSeleccionado?.hora_salida ||
+                      viajeSeleccionado?.hora ||
+                      viajeSeleccionado?.departure_time
+                  )}
                 </span>
               </div>
             </div>
@@ -1065,6 +1075,44 @@ function MisViajes({
               </Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {errorCancelacion && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 p-4">
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="titulo-error-cancelacion"
+            aria-describedby="mensaje-error-cancelacion"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <div className="mb-4 inline-flex rounded-full bg-red-50 p-3">
+              <AlertTriangle size={24} className="text-red-600" />
+            </div>
+            <h2
+              id="titulo-error-cancelacion"
+              className="text-xl font-bold text-slate-900"
+            >
+              No se pudo cancelar el viaje
+            </h2>
+            <p
+              id="mensaje-error-cancelacion"
+              className="mt-2 text-sm leading-6 text-slate-600"
+            >
+              {errorCancelacion}
+            </p>
+            <div className="mt-6 flex justify-end">
+              <Button
+                type="button"
+                autoFocus
+                onClick={() => setErrorCancelacion("")}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                Entendido
+              </Button>
+            </div>
+          </section>
         </div>
       )}
     </div>

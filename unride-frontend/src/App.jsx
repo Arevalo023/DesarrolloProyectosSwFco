@@ -320,9 +320,21 @@ function App() {
     <MisSolicitudes
       user={usuario}
       onBack={() => setPantalla("home")}
+      onVerRechazadas={() => setPantalla("solicitudes-rechazadas")}
+      onVerCanceladas={() => setPantalla("solicitudes-canceladas")}
     />
   );
 }
+
+  if (pantalla === "solicitudes-rechazadas" || pantalla === "solicitudes-canceladas") {
+    return (
+      <MisSolicitudes
+        user={usuario}
+        vista={pantalla === "solicitudes-rechazadas" ? "rechazadas" : "canceladas"}
+        onBack={() => setPantalla("mis-solicitudes")}
+      />
+    );
+  }
 
   // ============================================================
   // NOTIFICACIONES

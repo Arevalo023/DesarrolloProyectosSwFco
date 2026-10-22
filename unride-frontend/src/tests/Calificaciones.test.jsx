@@ -13,11 +13,19 @@ describe("Issue #119 y #121 - calificaciones", () => {
     apiRequest.mockResolvedValue({
       promedio: 4.5,
       total_calificaciones: 2,
-      calificaciones: [{ id: 1, puntuacion: 5, comentario: "Excelente" }],
+      calificaciones: [{
+        id: 1,
+        puntuacion: 5,
+        comentario: "Excelente",
+        calificador_nombre: "María López",
+        fecha_creacion: "2026-10-21T14:30:00.000Z",
+      }],
     });
     render(<Calificaciones user={{ id: 7 }} onBack={vi.fn()} />);
     expect(await screen.findByText("4.5")).toBeTruthy();
     expect(screen.getByText("Excelente")).toBeTruthy();
+    expect(screen.getByText("María López")).toBeTruthy();
+    expect(screen.getByText("miércoles, 21 de octubre de 2026")).toBeTruthy();
 
     apiRequest.mockResolvedValue({ promedio: 0, total_calificaciones: 0, calificaciones: [] });
     render(<Calificaciones user={{ id: 8 }} onBack={vi.fn()} />);

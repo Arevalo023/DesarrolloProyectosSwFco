@@ -18,13 +18,18 @@ import {
   Users,
   X,
   ChevronDown,
+  Bell,
 } from "lucide-react";
 
 import heroImage from "@/assets/hero.png";
 
 import { apiRequest } from "@/services/api";
 import { mismoRol, rolesDe } from "@/services/session";
-import { formatearFechaHora, formatearFechaViaje } from "@/utils/fechaViaje";
+import {
+  formatearFechaHora,
+  formatearFechaViaje,
+  formatearHoraViaje,
+} from "@/utils/fechaViaje";
 
 function Home({
   onLogout,
@@ -42,6 +47,41 @@ function Home({
 }) {
   const [menuPerfil, setMenuPerfil] = useState(false);
   const [confirmarCierreSesion, setConfirmarCierreSesion] = useState(false);
+  const [hayNotificacionesNuevas, setHayNotificacionesNuevas] = useState(false);
+  const [errorNotificaciones, setErrorNotificaciones] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId;
+
+    const loadNotifications = async () => {
+      try {
+        const data = await apiRequest("/api/notifications");
+        if (!cancelled) {
+          setHayNotificacionesNuevas(
+            (data.notifications || []).some((notification) => !notification.leida)
+          );
+          setErrorNotificaciones("");
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setErrorNotificaciones(
+            requestError.message || "No se pudieron comprobar las notificaciones."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          timeoutId = window.setTimeout(loadNotifications, 30000);
+        }
+      }
+    };
+
+    void loadNotifications();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   // ============================================================
   // FILTROS
@@ -501,26 +541,7 @@ function Home({
   // FORMATEAR HORA
   // ============================================================
 
-  const formatearHora = (fecha) => {
-    if (!fecha) {
-      return "Hora no disponible";
-    }
-
-    const date = new Date(fecha);
-
-    if (Number.isNaN(date.getTime())) {
-      return "";
-    }
-
-    return new Intl.DateTimeFormat(
-      "es-MX",
-      {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }
-    ).format(date);
-  };
+  const formatearHora = formatearHoraViaje;
 
   // ============================================================
   // RENDER
@@ -568,11 +589,6 @@ function Home({
               Inicio
 
             </a>
-            {onNotificaciones && (
-              <button type="button" onClick={onNotificaciones} className="text-sm font-medium text-slate-600 transition hover:text-emerald-600">
-                Notificaciones
-              </button>
-            )}
             {modoPasajero && onMisSolicitudes && (
               <button
                 type="button"
@@ -624,6 +640,33 @@ function Home({
           {/* PERFIL Y CERRAR SESIÓN */}
 
           <div className="flex items-center gap-2">
+
+            {onNotificaciones && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onNotificaciones}
+                className={`relative flex h-10 w-10 items-center justify-center rounded-full p-0 ${
+                  hayNotificacionesNuevas
+                    ? "text-red-600 hover:bg-red-50 hover:text-red-700"
+                    : "text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
+                }`}
+                aria-label={
+                  hayNotificacionesNuevas
+                    ? "Notificaciones (nuevas)"
+                    : "Notificaciones"
+                }
+                title="Notificaciones"
+              >
+                <Bell size={20} />
+                {hayNotificacionesNuevas && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-600"
+                  />
+                )}
+              </Button>
+            )}
 
             {/* MODO */}
 
@@ -942,6 +985,12 @@ function Home({
 
         </div>
       </nav>
+
+      {errorNotificaciones && (
+        <p role="alert" className="mx-auto w-full max-w-7xl px-6 pt-3 text-sm text-red-700">
+          {errorNotificaciones}
+        </p>
+      )}
 
       {/* ========================================================
           BIENVENIDA

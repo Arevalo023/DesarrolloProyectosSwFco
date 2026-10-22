@@ -42,6 +42,26 @@ export function formatearFechaViaje(fecha) {
   }).format(fechaUTC);
 }
 
+export function formatearHoraViaje(fecha, horaSeparada) {
+  const valorHora = typeof horaSeparada === "string" ? horaSeparada.trim() : "";
+  const valorFecha = typeof fecha === "string" ? fecha.trim() : "";
+  const coincidencia =
+    /^(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(valorHora) ||
+    /(?:T|\s)(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?/.exec(valorFecha);
+
+  if (!coincidencia) {
+    return "Hora no disponible";
+  }
+
+  const horas = Number(coincidencia[1]);
+  const minutos = Number(coincidencia[2]);
+  if (horas > 23 || minutos > 59) {
+    return "Hora no disponible";
+  }
+
+  return `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
+}
+
 export function formatearFechaHora(fecha) {
   if (typeof fecha !== "string" || !fecha.trim()) {
     return "Fecha no disponible";
@@ -53,8 +73,8 @@ export function formatearFechaHora(fecha) {
     return "Fecha no disponible";
   }
 
-  const hora = /T(\d{2}:\d{2})/.exec(valor)?.[1];
-  return hora
+  const hora = formatearHoraViaje(valor);
+  return hora !== "Hora no disponible"
     ? `${formatearFechaViaje(valor)} ${hora}`
     : formatearFechaViaje(valor);
 }

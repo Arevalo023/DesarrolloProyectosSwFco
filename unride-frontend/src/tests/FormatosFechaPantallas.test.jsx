@@ -14,7 +14,6 @@ const viaje = (id, fecha_salida) => ({
   origen: `Origen ${id}`,
   destino: `Destino ${id}`,
   fecha_salida,
-  hora_salida: "10:30",
   cupo_disponible: 2,
   estado: "programado",
 });
@@ -25,7 +24,6 @@ const reservacion = (id, fecha_salida) => ({
   origen: `Campus ${id}`,
   destino: `Centro ${id}`,
   fecha_salida,
-  hora_salida: "10:30",
   conductor_nombre: "Conductora Prueba",
 });
 
@@ -51,6 +49,17 @@ describe("Issue #101 - MisViajes: fechas recibidas de la API", () => {
     expect(await screen.findByText(FECHA_ESPERADA)).toBeTruthy();
     expect(screen.queryByText(/invalid date|fecha inválida/i)).toBeNull();
     expect(apiRequest).toHaveBeenCalledWith("/api/trips/driver");
+  });
+
+  it("muestra la hora extraída de fecha_salida cuando el viaje no trae hora_salida", async () => {
+    apiRequest.mockImplementation(async (url) =>
+      url === "/api/trips/driver"
+        ? { trips: [viaje(110, "2026-10-12T10:30:00.000Z")] }
+        : { requests: [] }
+    );
+
+    render(<MisViajes onBackHome={vi.fn()} />);
+    expect(await screen.findByText("10:30")).toBeTruthy();
   });
 
   it.each(["2026-02-30", "texto-invalido", null])(
@@ -83,6 +92,15 @@ describe("Issue #101 - MisReservaciones: fechas recibidas de la API", () => {
     expect(await screen.findByText(FECHA_ESPERADA)).toBeTruthy();
     expect(screen.queryByText(/invalid date|fecha inválida/i)).toBeNull();
     expect(apiRequest).toHaveBeenCalledWith("/api/trips/reservations");
+  });
+
+  it("muestra la hora extraída de fecha_salida en las solicitudes", async () => {
+    apiRequest.mockResolvedValue({
+      reservations: [reservacion(210, "2026-10-12T10:30:00.000Z")],
+    });
+
+    render(<MisReservaciones onBack={vi.fn()} user={{ nombre: "Prueba" }} />);
+    expect(await screen.findByText("10:30")).toBeTruthy();
   });
 
   it.each(["2026-02-30", "texto-invalido", null])(

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Star } from "lucide-react";
+import { ArrowLeft, CalendarDays, Star, UserRound } from "lucide-react";
 import Logo from "@/components/Logo";
 import { apiRequest } from "@/services/api";
+import { formatearFechaViaje } from "@/utils/fechaViaje";
 
 export function FormularioCalificacion({ viajeId, pasajeroId, conductor = false }) {
   const [puntuacion, setPuntuacion] = useState("");
@@ -79,7 +80,28 @@ export default function Calificaciones({ user, onBack }) {
               <span className="text-slate-500">({datos.total_calificaciones || 0} calificaciones)</span>
             </div>
             {datos.calificaciones?.length ? (
-              <ul className="mt-5 space-y-3">{datos.calificaciones.map((calificacion) => <li key={calificacion.id} className="rounded-xl border bg-white p-4"><strong>{calificacion.puntuacion}/5</strong><p className="mt-1 text-slate-600">{calificacion.comentario || "Sin comentario"}</p></li>)}</ul>
+              <ul className="mt-5 space-y-3">
+                {datos.calificaciones.map((calificacion) => (
+                  <li key={calificacion.id} className="rounded-xl border bg-white p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <strong>{calificacion.puntuacion}/5</strong>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500">
+                        <span className="flex items-center gap-1.5">
+                          <UserRound size={16} />
+                          {calificacion.calificador_nombre || "Usuario"}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <CalendarDays size={16} />
+                          {formatearFechaViaje(calificacion.fecha_creacion)}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-slate-600">
+                      {calificacion.comentario || "Sin comentario"}
+                    </p>
+                  </li>
+                ))}
+              </ul>
             ) : <p className="mt-5 rounded-xl border border-dashed bg-white p-6 text-slate-600">Aún no tienes calificaciones.</p>}
           </>
         )}
