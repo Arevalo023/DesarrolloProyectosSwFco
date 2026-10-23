@@ -280,21 +280,13 @@ const tripModel = {
         throw err;
       }
 
-      const currentStatus = String(trip.estado || "").toLowerCase();
+      const currentStatus = String(trip.estado || "").trim().toLowerCase();
 
-      // Idempotencia: si ya está en curso, retornar sin error
-      if (currentStatus === "en_curso" || currentStatus === "en curso") {
+      if (currentStatus !== "programado") {
         await transaction.rollback();
-        return {
-          trip,
-          alreadyInProgress: true,
-        };
-      }
-
-      // Solo se permite iniciar si el estado actual es programado o activo
-      if (!["programado", "activo"].includes(currentStatus)) {
-        await transaction.rollback();
-        const err = new Error(`No es posible iniciar un viaje con estado '${trip.estado}'.`);
+        const err = new Error(
+          `No es posible iniciar un viaje con estado '${trip.estado}'. El viaje debe estar 'programado'.`
+        );
         err.statusCode = 400;
         throw err;
       }
@@ -314,7 +306,6 @@ const tripModel = {
       await transaction.commit();
       return {
         trip: updatedTrip.recordset[0],
-        alreadyInProgress: false,
       };
     } catch (error) {
       if (transaction._acquiredConnection) {
@@ -353,21 +344,14 @@ const tripModel = {
         throw err;
       }
 
-      const currentStatus = String(trip.estado || "").toLowerCase();
-
-      // Idempotencia: si ya está finalizado, retornar sin error
-      if (currentStatus === "finalizado") {
-        await transaction.rollback();
-        return {
-          trip,
-          alreadyFinished: true,
-        };
-      }
+      const currentStatus = String(trip.estado || "").trim().toLowerCase();
 
       // Solo se puede finalizar si el viaje está en curso
       if (currentStatus !== "en_curso" && currentStatus !== "en curso") {
         await transaction.rollback();
-        const err = new Error(`No es posible finalizar un viaje con estado '${trip.estado}'. El viaje debe estar 'en_curso'.`);
+        const err = new Error(
+          `No es posible finalizar un viaje con estado '${trip.estado}'. El viaje debe estar 'en curso'.`
+        );
         err.statusCode = 400;
         throw err;
       }
@@ -387,7 +371,6 @@ const tripModel = {
       await transaction.commit();
       return {
         trip: updatedTrip.recordset[0],
-        alreadyFinished: false,
       };
     } catch (error) {
       if (transaction._acquiredConnection) {

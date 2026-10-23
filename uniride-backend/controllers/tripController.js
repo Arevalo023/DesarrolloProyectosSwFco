@@ -125,9 +125,7 @@ const tripController = {
       const result = await tripService.start(tripId, req.user.id);
 
       return res.status(200).json({
-        message: result.alreadyInProgress
-          ? "El viaje ya se encuentra en curso."
-          : "Viaje iniciado correctamente.",
+        message: "Viaje iniciado correctamente.",
         trip: result.trip,
       });
     } catch (error) {
@@ -149,9 +147,7 @@ const tripController = {
       const result = await tripService.finish(tripId, req.user.id);
 
       return res.status(200).json({
-        message: result.alreadyFinished
-          ? "El viaje ya se encuentra finalizado."
-          : "Viaje finalizado correctamente.",
+        message: "Viaje finalizado correctamente.",
         trip: result.trip,
       });
     } catch (error) {

@@ -21,8 +21,6 @@ import {
   Bell,
 } from "lucide-react";
 
-import heroImage from "@/assets/hero.png";
-
 import { apiRequest } from "@/services/api";
 import { mismoRol, rolesDe } from "@/services/session";
 import {
@@ -1084,20 +1082,14 @@ function Home({
 
           </div>
 
-          {/* IMAGEN */}
-
-          <div className="flex justify-center">
-
-            <img
-              src={heroImage}
-              alt="UniRide"
-              className="
-                w-full
-                max-w-lg
-                object-contain
-              "
-            />
-
+          <div className="flex justify-center md:justify-end">
+            <div className="w-full max-w-xl rounded-3xl border border-emerald-100 bg-white p-2 shadow-xl shadow-emerald-950/10">
+              <img
+                src="/homeimage.jpg"
+                alt="Estudiantes compartiendo un viaje en automóvil"
+                className="aspect-[4/3] w-full rounded-2xl object-cover"
+              />
+            </div>
           </div>
 
         </div>

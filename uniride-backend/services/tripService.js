@@ -148,7 +148,7 @@ const tripService = {
   async start(tripId, conductorId) {
     const result = await tripModel.start(tripId, conductorId);
 
-    if (!result.alreadyInProgress && typeof notificationService.notifyTripStarted === "function") {
+    if (typeof notificationService.notifyTripStarted === "function") {
       try {
         await notificationService.notifyTripStarted(result.trip);
       } catch (err) {
@@ -162,7 +162,7 @@ const tripService = {
   async finish(tripId, conductorId) {
     const result = await tripModel.finish(tripId, conductorId);
 
-    if (!result.alreadyFinished && typeof notificationService.notifyTripFinished === "function") {
+    if (typeof notificationService.notifyTripFinished === "function") {
       try {
         await notificationService.notifyTripFinished(result.trip);
       } catch (err) {

@@ -594,9 +594,8 @@ Permite al dueño del vehículo modificar sus datos.
 ---
 
 #### 3.4.6. Iniciar Viaje (`PATCH /api/trips/:id/start`)
-Permite al conductor propietario iniciar un viaje programado, cambiando su estado a `en_curso`.
-> **Idempotencia:** Si el viaje ya se encuentra en estado `en_curso`, la petición responde `200 OK` informando que ya está en curso, garantizando que reintentos o clics duplicados no causen errores.
-> **Notificación:** Al iniciar el viaje (no en reintentos idempotentes) se crea una notificación `viaje_iniciado` para cada pasajero con solicitud en estado `aceptada`. Las solicitudes `pendiente`, `rechazada` o `cancelada` no reciben notificación. Si el registro de la notificación falla, el viaje se inicia de todos modos.
+Permite únicamente al conductor propietario cambiar el estado de `programado` a `en_curso`. Cualquier estado de origen distinto de `programado`, incluidos `activo` y `en_curso`, se rechaza con `400 Bad Request`.
+> **Notificación:** Al iniciar el viaje se crea una notificación `viaje_iniciado` para cada pasajero con solicitud en estado `aceptada`. Las solicitudes `pendiente`, `rechazada` o `cancelada` no reciben notificación. Si el registro de la notificación falla, el viaje se inicia de todos modos.
 
 - **Acceso:** Privado (`Conductor`), solo el dueño del viaje.
 - **Parámetros de Ruta:** `id` (entero positivo, ID del viaje).
@@ -618,17 +617,15 @@ Permite al conductor propietario iniciar un viaje programado, cambiando su estad
   ```
 - **`400 Bad Request`**:
   - `"El ID del viaje debe ser un número entero positivo."`
-  - `"No es posible iniciar un viaje con estado 'cancelado'."`
-  - `"No es posible iniciar un viaje con estado 'finalizado'."`
+  - `"No es posible iniciar un viaje con estado '<estado>'. El viaje debe estar 'programado'."`
 - **`403 Forbidden`**: `"No tienes permiso para iniciar este viaje."`
 - **`404 Not Found`**: `"El viaje no existe."`
 
 ---
 
 #### 3.4.7. Finalizar Viaje (`PATCH /api/trips/:id/finish`)
-Permite al conductor propietario dar por concluido un viaje que se encuentra `en_curso`, cambiando su estado a `finalizado`.
-> **Idempotencia:** Si el viaje ya ha sido finalizado previamente, responde `200 OK` sin duplicar efectos ni generar errores.
-> **Notificación:** Al finalizar el viaje (no en reintentos idempotentes) se crea una notificación `viaje_finalizado` para cada pasajero con solicitud en estado `aceptada`. Las demás solicitudes no reciben notificación.
+Permite únicamente al conductor propietario cambiar el estado de `en_curso` a `finalizado`. Cualquier estado de origen distinto de `en_curso`, incluido `finalizado`, se rechaza con `400 Bad Request`.
+> **Notificación:** Al finalizar el viaje se crea una notificación `viaje_finalizado` para cada pasajero con solicitud en estado `aceptada`. Las demás solicitudes no reciben notificación.
 
 - **Acceso:** Privado (`Conductor`), solo el dueño del viaje.
 - **Parámetros de Ruta:** `id` (entero positivo, ID del viaje).
@@ -650,8 +647,7 @@ Permite al conductor propietario dar por concluido un viaje que se encuentra `en
   ```
 - **`400 Bad Request`**:
   - `"El ID del viaje debe ser un número entero positivo."`
-  - `"No es posible finalizar un viaje con estado 'programado'. El viaje debe estar 'en_curso'."`
-  - `"No es posible finalizar un viaje con estado 'cancelado'."`
+  - `"No es posible finalizar un viaje con estado '<estado>'. El viaje debe estar 'en curso'."`
 - **`403 Forbidden`**: `"No tienes permiso para finalizar este viaje."`
 - **`404 Not Found`**: `"El viaje no existe."`
 

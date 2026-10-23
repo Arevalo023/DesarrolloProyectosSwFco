@@ -28,7 +28,8 @@ import { guardarUsuario, obtenerToken, rolesDe } from "@/services/session";
 export default function Profile({
   user,
   onBackHome,
-  onUserUpdated
+  onUserUpdated,
+  backLabel = "Regresar al inicio",
 }) {
 
   // ============================================================
@@ -450,7 +451,7 @@ export default function Profile({
                 <ArrowLeft size={17} />
 
                 <span>
-                  Regresar al inicio
+                  {backLabel}
                 </span>
 
               </Button>

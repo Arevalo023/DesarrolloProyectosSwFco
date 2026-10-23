@@ -37,10 +37,7 @@ describe("Controlador: PATCH /api/trips/:id/start", () => {
 
   test("inicia viaje exitosamente con 200", async () => {
     const mockTrip = { id: 10, estado: "en_curso", conductor_id: 1 };
-    jest.spyOn(tripService, "start").mockResolvedValue({
-      trip: mockTrip,
-      alreadyInProgress: false,
-    });
+    jest.spyOn(tripService, "start").mockResolvedValue({ trip: mockTrip });
 
     const res = createMockRes();
     await tripController.start({ params: { id: "10" }, user: { id: 1 } }, res);
@@ -53,20 +50,19 @@ describe("Controlador: PATCH /api/trips/:id/start", () => {
     });
   });
 
-  test("es idempotente: si ya estaba en curso responde 200 informando el estado", async () => {
-    const mockTrip = { id: 10, estado: "en_curso", conductor_id: 1 };
-    jest.spyOn(tripService, "start").mockResolvedValue({
-      trip: mockTrip,
-      alreadyInProgress: true,
-    });
+  test("rechaza iniciar un viaje que ya está en curso", async () => {
+    const error = Object.assign(
+      new Error("No es posible iniciar un viaje con estado 'en_curso'. El viaje debe estar 'programado'."),
+      { statusCode: 400 }
+    );
+    jest.spyOn(tripService, "start").mockRejectedValue(error);
 
     const res = createMockRes();
     await tripController.start({ params: { id: "10" }, user: { id: 1 } }, res);
 
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
-      message: "El viaje ya se encuentra en curso.",
-      trip: mockTrip,
+      message: error.message,
     });
   });
 
@@ -97,10 +93,7 @@ describe("Controlador: PATCH /api/trips/:id/finish", () => {
 
   test("finaliza viaje exitosamente con 200", async () => {
     const mockTrip = { id: 10, estado: "finalizado", conductor_id: 1 };
-    jest.spyOn(tripService, "finish").mockResolvedValue({
-      trip: mockTrip,
-      alreadyFinished: false,
-    });
+    jest.spyOn(tripService, "finish").mockResolvedValue({ trip: mockTrip });
 
     const res = createMockRes();
     await tripController.finish({ params: { id: "10" }, user: { id: 1 } }, res);
@@ -113,25 +106,24 @@ describe("Controlador: PATCH /api/trips/:id/finish", () => {
     });
   });
 
-  test("es idempotente: si ya estaba finalizado responde 200", async () => {
-    const mockTrip = { id: 10, estado: "finalizado", conductor_id: 1 };
-    jest.spyOn(tripService, "finish").mockResolvedValue({
-      trip: mockTrip,
-      alreadyFinished: true,
-    });
+  test("rechaza finalizar un viaje que ya está finalizado", async () => {
+    const error = Object.assign(
+      new Error("No es posible finalizar un viaje con estado 'finalizado'. El viaje debe estar 'en curso'."),
+      { statusCode: 400 }
+    );
+    jest.spyOn(tripService, "finish").mockRejectedValue(error);
 
     const res = createMockRes();
     await tripController.finish({ params: { id: "10" }, user: { id: 1 } }, res);
 
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
-      message: "El viaje ya se encuentra finalizado.",
-      trip: mockTrip,
+      message: error.message,
     });
   });
 
   test("propaga errores 400 cuando el viaje no está en curso", async () => {
-    const error400 = new Error("No es posible finalizar un viaje con estado 'programado'. El viaje debe estar 'en_curso'.");
+    const error400 = new Error("No es posible finalizar un viaje con estado 'programado'. El viaje debe estar 'en curso'.");
     error400.statusCode = 400;
     jest.spyOn(tripService, "finish").mockRejectedValue(error400);
 
@@ -140,7 +132,7 @@ describe("Controlador: PATCH /api/trips/:id/finish", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
-      message: "No es posible finalizar un viaje con estado 'programado'. El viaje debe estar 'en_curso'.",
+      message: "No es posible finalizar un viaje con estado 'programado'. El viaje debe estar 'en curso'.",
     });
   });
 });
@@ -166,23 +158,19 @@ describe("Modelo: tripModel.start", () => {
     expect(db.lastTransaction).toMatchObject({ committed: false, rolledBack: true });
   });
 
-  test("idempotencia: si ya está en_curso devuelve alreadyInProgress: true sin UPDATE", async () => {
-    const trip = { id: 10, conductor_id: 1, estado: "en_curso" };
-    db.queueResult({ recordset: [trip] });
+  test.each(["en_curso", "activo", "cancelado", "finalizado"])(
+    "lanza 400 si el viaje está en estado '%s'",
+    async (estado) => {
+      db.queueResult({ recordset: [{ id: 10, conductor_id: 1, estado }] });
 
-    const result = await tripModel.start(10, 1);
-    expect(result).toEqual({ trip, alreadyInProgress: true });
-    expect(db.requests.some((r) => /UPDATE Viajes/.test(r.text))).toBe(false);
-  });
-
-  test("lanza 400 si el viaje está cancelado o finalizado", async () => {
-    db.queueResult({ recordset: [{ id: 10, conductor_id: 1, estado: "cancelado" }] });
-
-    await expect(tripModel.start(10, 1)).rejects.toMatchObject({
-      statusCode: 400,
-      message: "No es posible iniciar un viaje con estado 'cancelado'.",
-    });
-  });
+      await expect(tripModel.start(10, 1)).rejects.toMatchObject({
+        statusCode: 400,
+        message: `No es posible iniciar un viaje con estado '${estado}'. El viaje debe estar 'programado'.`,
+      });
+      expect(db.lastTransaction).toMatchObject({ committed: false, rolledBack: true });
+      expect(db.requests.some((r) => /UPDATE Viajes/.test(r.text))).toBe(false);
+    }
+  );
 
   test("cambia estado a 'en_curso' y hace commit en la transacción", async () => {
     const trip = { id: 10, conductor_id: 1, estado: "programado" };
@@ -193,7 +181,7 @@ describe("Modelo: tripModel.start", () => {
 
     const result = await tripModel.start(10, 1);
 
-    expect(result).toEqual({ trip: updated, alreadyInProgress: false });
+    expect(result).toEqual({ trip: updated });
     expect(db.lastTransaction).toMatchObject({ committed: true, rolledBack: false });
     expect(db.requests[1].text).toMatch(/UPDATE Viajes/);
     expect(db.requests[1].text).toMatch(/estado = 'en_curso'/);
@@ -219,23 +207,19 @@ describe("Modelo: tripModel.finish", () => {
     });
   });
 
-  test("idempotencia: si ya está finalizado devuelve alreadyFinished: true sin UPDATE", async () => {
-    const trip = { id: 10, conductor_id: 1, estado: "finalizado" };
-    db.queueResult({ recordset: [trip] });
+  test.each(["programado", "finalizado", "cancelado"])(
+    "lanza 400 si el viaje está en estado '%s'",
+    async (estado) => {
+      db.queueResult({ recordset: [{ id: 10, conductor_id: 1, estado }] });
 
-    const result = await tripModel.finish(10, 1);
-    expect(result).toEqual({ trip, alreadyFinished: true });
-    expect(db.requests.some((r) => /UPDATE Viajes/.test(r.text))).toBe(false);
-  });
-
-  test("lanza 400 si el viaje está programado (no ha iniciado)", async () => {
-    db.queueResult({ recordset: [{ id: 10, conductor_id: 1, estado: "programado" }] });
-
-    await expect(tripModel.finish(10, 1)).rejects.toMatchObject({
-      statusCode: 400,
-      message: "No es posible finalizar un viaje con estado 'programado'. El viaje debe estar 'en_curso'.",
-    });
-  });
+      await expect(tripModel.finish(10, 1)).rejects.toMatchObject({
+        statusCode: 400,
+        message: `No es posible finalizar un viaje con estado '${estado}'. El viaje debe estar 'en curso'.`,
+      });
+      expect(db.lastTransaction).toMatchObject({ committed: false, rolledBack: true });
+      expect(db.requests.some((r) => /UPDATE Viajes/.test(r.text))).toBe(false);
+    }
+  );
 
   test("cambia estado a 'finalizado' y hace commit en la transacción", async () => {
     const trip = { id: 10, conductor_id: 1, estado: "en_curso" };
@@ -246,7 +230,7 @@ describe("Modelo: tripModel.finish", () => {
 
     const result = await tripModel.finish(10, 1);
 
-    expect(result).toEqual({ trip: updated, alreadyFinished: false });
+    expect(result).toEqual({ trip: updated });
     expect(db.lastTransaction).toMatchObject({ committed: true, rolledBack: false });
     expect(db.requests[1].text).toMatch(/UPDATE Viajes/);
     expect(db.requests[1].text).toMatch(/estado = 'finalizado'/);

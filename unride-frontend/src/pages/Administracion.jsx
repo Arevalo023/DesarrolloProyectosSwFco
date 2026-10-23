@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  ArrowLeft, BarChart3, ChevronRight, ClipboardList, LayoutDashboard,
-  Menu, Settings, ShieldCheck, Users, X,
+  BarChart3, ChevronRight, ClipboardList, LayoutDashboard, LogOut,
+  Menu, Settings, ShieldCheck, UserRound, Users, X,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 
@@ -14,7 +14,7 @@ const secciones = [
   { id: "configuracion", nombre: "Configuración", icono: Settings, descripcion: "Espacio reservado para la configuración administrativa." },
 ];
 
-export default function Administracion({ onBack }) {
+export default function Administracion({ onProfile, onLogout }) {
   const [seccionActiva, setSeccionActiva] = useState("resumen");
   const [menuAbierto, setMenuAbierto] = useState(false);
   const seccion = secciones.find((item) => item.id === seccionActiva) ?? secciones[0];
@@ -34,8 +34,8 @@ export default function Administracion({ onBack }) {
             <span className="hidden border-l border-slate-200 pl-4 text-sm font-semibold text-emerald-700 sm:block">Panel de administración</span>
           </div>
           <div className="flex items-center gap-3">
-            <button type="button" onClick={onBack} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-              <ArrowLeft size={18} /> Volver al inicio
+            <button type="button" onClick={onLogout} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+              <LogOut size={18} /> Cerrar sesión
             </button>
             <button type="button" aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"} aria-expanded={menuAbierto} onClick={() => setMenuAbierto((valor) => !valor)} className="rounded-lg border border-slate-200 p-2 text-slate-700 md:hidden">
               {menuAbierto ? <X size={20} /> : <Menu size={20} />}
@@ -48,6 +48,16 @@ export default function Administracion({ onBack }) {
         <aside aria-label="Navegación de administración" className={`${menuAbierto ? "block" : "hidden"} w-full shrink-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:block md:w-64`}>
           <p className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-slate-400">Menú administrativo</p>
           <nav className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setMenuAbierto(false);
+                onProfile?.();
+              }}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            >
+              <UserRound size={19} /> <span className="flex-1">Mi perfil</span>
+            </button>
             {secciones.map((item) => {
               const ItemIcon = item.icono;
               const activo = seccionActiva === item.id;

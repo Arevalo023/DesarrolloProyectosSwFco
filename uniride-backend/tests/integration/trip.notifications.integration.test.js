@@ -158,9 +158,9 @@ describe("#99 Notificaciones de inicio y finalización", () => {
     );
   });
 
-  test("3. Iniciar de nuevo (idempotente) no duplica la notificación", async () => {
+  test("3. Rechazar un segundo inicio y no duplicar la notificación", async () => {
     const res = await driverPatch("start");
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
     expect(await countNotifs(ctx.acceptedId, "viaje_iniciado")).toBe(1);
   });
 
@@ -171,11 +171,12 @@ describe("#99 Notificaciones de inicio y finalización", () => {
     expect(await countNotifs(ctx.acceptedId, "viaje_finalizado")).toBe(1);
     expect(await countNotifs(ctx.pendingId, "viaje_finalizado")).toBe(0);
     expect(await countNotifs(ctx.rejectedId, "viaje_finalizado")).toBe(0);
+    expect(await countNotifs(ctx.driverId, "viaje_finalizado")).toBe(0);
   });
 
-  test("5. Finalizar de nuevo (idempotente) no duplica la notificación", async () => {
+  test("5. Rechazar una segunda finalización y no duplicar la notificación", async () => {
     const res = await driverPatch("finish");
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
     expect(await countNotifs(ctx.acceptedId, "viaje_finalizado")).toBe(1);
   });
 });
