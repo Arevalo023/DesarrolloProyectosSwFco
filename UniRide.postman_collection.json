@@ -487,7 +487,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "trips", "1", "start"]
             },
-            "description": "Inicia un viaje programado, cambiando su estado a en_curso. Es idempotente."
+            "description": "Solo el conductor propietario puede cambiar el estado de programado a en_curso. Otros estados se rechazan."
           },
           "response": []
         },
@@ -510,7 +510,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "trips", "1", "finish"]
             },
-            "description": "Finaliza un viaje en curso, cambiando su estado a finalizado. Es idempotente."
+            "description": "Solo el conductor propietario puede cambiar el estado de en_curso a finalizado. Otros estados se rechazan."
           },
           "response": []
         }

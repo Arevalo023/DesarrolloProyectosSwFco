@@ -17,6 +17,7 @@ jest.mock("../../models/notificationModel", () => ({
 }));
 jest.mock("../../models/tripModel", () => ({
   book: jest.fn(),
+  cancel: jest.fn(),
   findById: jest.fn(),
   start: jest.fn(),
   finish: jest.fn(),
@@ -155,6 +156,29 @@ describe("notificationService", () => {
     });
   });
 
+  describe("notifyTripCancelled", () => {
+    test("notifica al pasajero afectado y no al conductor", async () => {
+      notificationModel.create.mockResolvedValue({ id: 6 });
+      await notificationService.notifyTripCancelled(
+        { id: 12, viaje_id: 4, pasajero_id: 9 },
+        { conductor_id: 8, origen: "Campus Arteaga", destino: "Campus Central" }
+      );
+
+      expect(notificationModel.create).toHaveBeenCalledTimes(1);
+      expect(notificationModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          usuarioId: 9,
+          solicitudId: 12,
+          viajeId: 4,
+          tipo: "viaje_cancelado",
+        })
+      );
+      expect(notificationModel.create).not.toHaveBeenCalledWith(
+        expect.objectContaining({ usuarioId: 8 })
+      );
+    });
+  });
+
   describe("getUserNotifications", () => {
     test("delega al modelo con usuario y opciones", async () => {
       notificationModel.findByUser.mockResolvedValue([{ id: 1 }]);
@@ -207,6 +231,52 @@ describe("tripService.book + notificación", () => {
     tripModel.findById.mockResolvedValue(null);
 
     await expect(tripService.book(4, 9)).resolves.toBe(reservation);
+    expect(notificationModel.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("tripService.cancel + notificación", () => {
+  test("notifica a cada pasajero afectado, sin notificar al conductor", async () => {
+    const trip = { id: 4, conductor_id: 8, origen: "A", destino: "B" };
+    const cancelledReservations = [
+      { id: 11, viaje_id: 4, pasajero_id: 9 },
+      { id: 12, viaje_id: 4, pasajero_id: 10 },
+    ];
+    tripModel.cancel.mockResolvedValue({ trip, cancelledReservations });
+    notificationModel.create.mockResolvedValue({ id: 1 });
+
+    const result = await tripService.cancel(4, 8, "Cambio de planes");
+
+    expect(result).toBe(trip);
+    expect(notificationModel.create).toHaveBeenCalledTimes(2);
+    expect(notificationModel.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        usuarioId: 9,
+        solicitudId: 11,
+        viajeId: 4,
+        tipo: "viaje_cancelado",
+      })
+    );
+    expect(notificationModel.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        usuarioId: 10,
+        solicitudId: 12,
+        viajeId: 4,
+        tipo: "viaje_cancelado",
+      })
+    );
+    expect(notificationModel.create).not.toHaveBeenCalledWith(
+      expect.objectContaining({ usuarioId: 8 })
+    );
+  });
+
+  test("viaje no cancelado -> no envía notificaciones", async () => {
+    tripModel.cancel.mockResolvedValue(null);
+
+    await expect(tripService.cancel(4, 8, null)).resolves.toBeNull();
+
     expect(notificationModel.create).not.toHaveBeenCalled();
   });
 });
@@ -373,7 +443,7 @@ describe("#99 notificaciones de inicio y finalización de viaje", () => {
 
   describe("tripService", () => {
     test("start -> notifica al iniciar", async () => {
-      tripModel.start.mockResolvedValue({ trip, alreadyInProgress: false });
+      tripModel.start.mockResolvedValue({ trip });
       notificationModel.createForAcceptedPassengers.mockResolvedValue([]);
 
       await tripService.start(5, 2);
@@ -382,15 +452,16 @@ describe("#99 notificaciones de inicio y finalización de viaje", () => {
       );
     });
 
-    test("start idempotente (ya en curso) -> no duplica notificación", async () => {
-      tripModel.start.mockResolvedValue({ trip, alreadyInProgress: true });
+    test("start con transición inválida -> propaga el error sin notificar", async () => {
+      const error = Object.assign(new Error("El viaje ya está en curso."), { statusCode: 400 });
+      tripModel.start.mockRejectedValue(error);
 
-      await tripService.start(5, 2);
+      await expect(tripService.start(5, 2)).rejects.toBe(error);
       expect(notificationModel.createForAcceptedPassengers).not.toHaveBeenCalled();
     });
 
     test("start -> si falla la notificación, el inicio no se rompe", async () => {
-      tripModel.start.mockResolvedValue({ trip, alreadyInProgress: false });
+      tripModel.start.mockResolvedValue({ trip });
       notificationModel.createForAcceptedPassengers.mockRejectedValue(new Error("db down"));
 
       const out = await tripService.start(5, 2);
@@ -399,7 +470,7 @@ describe("#99 notificaciones de inicio y finalización de viaje", () => {
     });
 
     test("finish -> notifica al finalizar", async () => {
-      tripModel.finish.mockResolvedValue({ trip, alreadyFinished: false });
+      tripModel.finish.mockResolvedValue({ trip });
       notificationModel.createForAcceptedPassengers.mockResolvedValue([]);
 
       await tripService.finish(5, 2);
@@ -408,10 +479,11 @@ describe("#99 notificaciones de inicio y finalización de viaje", () => {
       );
     });
 
-    test("finish idempotente (ya finalizado) -> no duplica notificación", async () => {
-      tripModel.finish.mockResolvedValue({ trip, alreadyFinished: true });
+    test("finish con transición inválida -> propaga el error sin notificar", async () => {
+      const error = Object.assign(new Error("El viaje ya está finalizado."), { statusCode: 400 });
+      tripModel.finish.mockRejectedValue(error);
 
-      await tripService.finish(5, 2);
+      await expect(tripService.finish(5, 2)).rejects.toBe(error);
       expect(notificationModel.createForAcceptedPassengers).not.toHaveBeenCalled();
     });
   });

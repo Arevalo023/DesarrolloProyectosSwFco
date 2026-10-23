@@ -27,15 +27,20 @@ import {
   rolesDe,
 } from "./services/session";
 
+const esAdministrador = (usuario) =>
+  rolesDe(usuario).some((rol) => mismoRol(rol, "Administrador"));
+
 function App() {
   // ============================================================
   // ESTADOS PRINCIPALES
   // ============================================================
 
   const [pantalla, setPantalla] = useState(() =>
-  obtenerToken() && obtenerUsuario()
-    ? window.location.pathname.replace(/\/$/, "") === "/administracion" ? "administracion" : "home"
-    : "login"
+    obtenerToken() && obtenerUsuario()
+      ? esAdministrador(obtenerUsuario()) || window.location.pathname.replace(/\/$/, "") === "/administracion"
+        ? "administracion"
+        : "home"
+      : "login"
   );
   const [usuario, setUsuario] = useState(() => obtenerUsuario());
 
@@ -58,8 +63,21 @@ function App() {
   useEffect(() => {
     const sincronizarRuta = () => {
       const rutaAdmin = window.location.pathname.replace(/\/$/, "") === "/administracion";
-      setPantalla(obtenerToken() && obtenerUsuario() ? (rutaAdmin ? "administracion" : "home") : "login");
+      const usuarioActual = obtenerUsuario();
+      const tieneSesion = Boolean(obtenerToken() && usuarioActual);
+
+      if (tieneSesion && esAdministrador(usuarioActual)) {
+        if (!rutaAdmin) window.history.replaceState({}, "", "/administracion");
+        setPantalla("administracion");
+        return;
+      }
+
+      if (rutaAdmin && tieneSesion) {
+        window.history.replaceState({}, "", "/");
+      }
+      setPantalla(tieneSesion ? "home" : "login");
     };
+    sincronizarRuta();
     window.addEventListener("popstate", sincronizarRuta);
     return () => window.removeEventListener("popstate", sincronizarRuta);
   }, []);
@@ -162,22 +180,24 @@ function App() {
 
     setUsuario(respuesta.user);
 
+    const rolAdministrador = rolesDe(respuesta.user).find((rolDisponible) =>
+      mismoRol(rolDisponible, "Administrador")
+    );
     const rol =
-      rolesDe(respuesta.user).find(
-        (rolDisponible) =>
-          mismoRol(
-            rolDisponible,
-            obtenerRolActivo()
-          )
-      ) || rolPrincipal(respuesta.user);
+      rolAdministrador ||
+      rolesDe(respuesta.user).find((rolDisponible) =>
+        mismoRol(rolDisponible, obtenerRolActivo())
+      ) ||
+      rolPrincipal(respuesta.user);
 
     guardarRolActivo(rol);
 
     setRolActivo(rol);
     setSesionExpirada(false);
     setViajeSeleccionado(null);
-    window.history.replaceState({}, "", "/");
-    setPantalla("home");
+    const destino = rolAdministrador ? "/administracion" : "/";
+    window.history.replaceState({}, "", destino);
+    setPantalla(rolAdministrador ? "administracion" : "home");
   };
 
   // ============================================================
@@ -223,6 +243,15 @@ function App() {
         onBackToLogin={() => {
           setPantalla("login");
         }}
+      />
+    );
+  }
+
+  if (esAdministrador(usuario) && !["administracion", "perfil"].includes(pantalla)) {
+    return (
+      <Administracion
+        onProfile={() => setPantalla("perfil")}
+        onLogout={manejarLogout}
       />
     );
   }
@@ -355,12 +384,16 @@ function App() {
   }
 
   if (pantalla === "administracion") {
-    const esAdministrador = rolesDe(usuario).some((rol) => mismoRol(rol, "Administrador"));
-    if (!obtenerToken() || !usuario || !esAdministrador) {
+    if (!obtenerToken() || !usuario || !esAdministrador(usuario)) {
       // No renderizar información administrativa a usuarios sin permiso.
       return <div className="min-h-screen bg-slate-50 p-8 text-center"><p className="mb-4 text-slate-700">Acceso restringido a Administradores.</p><button type="button" onClick={volverDeAdministracion} className="rounded-lg bg-emerald-700 px-4 py-2 text-white">Volver al inicio</button></div>;
     }
-    return <Administracion onBack={volverDeAdministracion} />;
+    return (
+      <Administracion
+        onProfile={() => setPantalla("perfil")}
+        onLogout={manejarLogout}
+      />
+    );
   }
 
   // ============================================================
@@ -417,8 +450,9 @@ function App() {
       <Profile
         user={usuario}
         onBackHome={() => {
-          setPantalla("home");
+          setPantalla(esAdministrador(usuario) ? "administracion" : "home");
         }}
+        backLabel={esAdministrador(usuario) ? "Volver al panel" : "Regresar al inicio"}
         onUserUpdated={(
           usuarioActualizado
         ) => {

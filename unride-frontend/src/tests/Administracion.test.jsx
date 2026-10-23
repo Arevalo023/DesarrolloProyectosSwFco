@@ -13,10 +13,16 @@ describe("Estructura del módulo de administración", () => {
     expect(screen.getByText("Espacio reservado para la administración de usuarios.")).toBeTruthy();
   });
 
-  test("permite volver al inicio", () => {
-    const onBack = vi.fn();
-    render(<Administracion onBack={onBack} />);
-    fireEvent.click(screen.getByRole("button", { name: /Volver al inicio/i }));
-    expect(onBack).toHaveBeenCalledTimes(1);
+  test("permite abrir el perfil y cerrar sesión desde el menú", () => {
+    const onProfile = vi.fn();
+    const onLogout = vi.fn();
+    render(<Administracion onProfile={onProfile} onLogout={onLogout} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mi perfil" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar sesión" }));
+
+    expect(onProfile).toHaveBeenCalledTimes(1);
+    expect(onLogout).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /Volver al inicio/i })).toBeNull();
   });
 });
