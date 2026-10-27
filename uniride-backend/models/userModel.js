@@ -46,6 +46,14 @@ const formatUserFromRows = (rows) => {
   };
 };
 
+/**
+ * Escapa los comodines de LIKE en SQL Server (%, _ y [) para que el texto
+ * de búsqueda se trate de forma literal. Se usa junto con ESCAPE '\'.
+ * @param {string} text
+ * @returns {string}
+ */
+const escapeLike = (text) => String(text).replace(/[\\%_[]/g, (ch) => `\\${ch}`);
+
 const userModel = {
   /**
    * Busca un usuario por correo electrónico incluyendo sus roles (soporte M:N) y campus.
@@ -337,6 +345,122 @@ const userModel = {
       `);
 
     return this.findById(id);
+  },
+
+  /**
+   * Lista usuarios con búsqueda, filtro por rol y paginación (vista de Administrador).
+   * Nunca selecciona password_hash ni el teléfono.
+   * @param {object} params
+   * @param {string} [params.search] - Texto a buscar en nombre, apellido o correo
+   * @param {number} [params.roleId] - Filtra usuarios que tengan este rol
+   * @param {number} params.limit - Registros por página
+   * @param {number} params.offset - Registros a omitir
+   * @returns {Promise<{ users: object[], total: number }>}
+   */
+  async findAll({ search = '', roleId = null, limit, offset }) {
+    const pool = await poolPromise;
+    const term = String(search || '').trim();
+    const conditions = [];
+
+    if (term) {
+      conditions.push(`(
+        u.nombre LIKE @search ESCAPE '\\'
+        OR u.apellido LIKE @search ESCAPE '\\'
+        OR (u.nombre + ' ' + u.apellido) LIKE @search ESCAPE '\\'
+        OR u.correo LIKE @search ESCAPE '\\'
+      )`);
+    }
+
+    if (roleId) {
+      // Un usuario tiene el rol si está en UsuariosRoles; si no tiene filas ahí
+      // (datos antiguos), se toma el rol principal de Usuarios.rol_id.
+      conditions.push(`(
+        EXISTS (SELECT 1 FROM UsuariosRoles ur WHERE ur.usuario_id = u.id AND ur.rol_id = @rol_id)
+        OR (u.rol_id = @rol_id AND NOT EXISTS (SELECT 1 FROM UsuariosRoles ur2 WHERE ur2.usuario_id = u.id))
+      )`);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const bindFilters = (request) => {
+      if (term) request.input('search', sql.VarChar(255), `%${escapeLike(term)}%`);
+      if (roleId) request.input('rol_id', sql.Int, roleId);
+      return request;
+    };
+
+    const countResult = await bindFilters(pool.request())
+      .query(`SELECT COUNT(*) AS total FROM Usuarios u ${where}`);
+    const total = Number(countResult.recordset[0]?.total) || 0;
+
+    if (total === 0) return { users: [], total: 0 };
+
+    const pageResult = await bindFilters(pool.request())
+      .input('offset', sql.Int, offset)
+      .input('limit', sql.Int, limit)
+      .query(`
+        SELECT
+          u.id,
+          u.nombre,
+          u.apellido,
+          u.correo,
+          u.fecha_registro,
+          u.campus_id,
+          c.nombre AS campus_nombre,
+          univ.nombre AS universidad_nombre,
+          u.rol_id AS legacy_rol_id,
+          rLegacy.nombre AS legacy_rol_nombre
+        FROM Usuarios u
+        LEFT JOIN Campus c ON u.campus_id = c.id
+        LEFT JOIN Universidades univ ON c.universidad_id = univ.id
+        LEFT JOIN Roles rLegacy ON u.rol_id = rLegacy.id
+        ${where}
+        ORDER BY u.id
+        OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+      `);
+
+    const rows = pageResult.recordset;
+    if (rows.length === 0) return { users: [], total };
+
+    // Roles M:N de los usuarios de esta página (una sola consulta)
+    const rolesByUser = new Map();
+    const rolesRequest = pool.request();
+    const idParams = rows.map((row, index) => {
+      rolesRequest.input(`id${index}`, sql.Int, row.id);
+      return `@id${index}`;
+    });
+    const rolesResult = await rolesRequest.query(`
+      SELECT ur.usuario_id, r.id, r.nombre
+      FROM UsuariosRoles ur
+      INNER JOIN Roles r ON ur.rol_id = r.id
+      WHERE ur.usuario_id IN (${idParams.join(', ')})
+      ORDER BY ur.usuario_id, r.id
+    `);
+
+    for (const role of rolesResult.recordset) {
+      if (!rolesByUser.has(role.usuario_id)) rolesByUser.set(role.usuario_id, []);
+      rolesByUser.get(role.usuario_id).push({ id: Number(role.id), nombre: role.nombre });
+    }
+
+    const users = rows.map((row) => {
+      let roles = rolesByUser.get(row.id) || [];
+      if (roles.length === 0 && row.legacy_rol_nombre) {
+        roles = [{ id: Number(row.legacy_rol_id), nombre: row.legacy_rol_nombre }];
+      }
+      return {
+        id: row.id,
+        nombre: row.nombre,
+        apellido: row.apellido,
+        correo: row.correo,
+        fecha_registro: row.fecha_registro,
+        campus_id: row.campus_id,
+        campus: row.campus_nombre || null,
+        universidad: row.universidad_nombre || null,
+        roles: roles.map((role) => role.nombre),
+        roles_detalle: roles
+      };
+    });
+
+    return { users, total };
   },
 
   async findCampuses() {

@@ -259,6 +259,50 @@ Verifica que el backend esté operativo.
 
 ---
 
+#### 3.2.6. Listar Usuarios (`GET /users`)
+Lista los usuarios registrados con búsqueda, filtro por rol y paginación. Nunca devuelve contraseñas ni teléfonos.
+
+- **Acceso:** Privado (`Authorization: Bearer <token>`), solo rol activo `Administrador`.
+- **Query params (todos opcionales):**
+  | Parámetro | Tipo | Reglas |
+  |---|---|---|
+  | `q` | string | Búsqueda por nombre, apellido o correo (parcial, sin distinguir mayúsculas). Máximo 100 caracteres. |
+  | `rol` | string | Nombre del rol: `Pasajero`, `Conductor`, `Administrador`, `Moderador`. Máximo 50 caracteres. |
+  | `page` | number | Entero `>= 1`. Por defecto `1`. |
+  | `limit` | number | Entero entre `1` y `50`. Por defecto `20`. |
+
+- **Ejemplo:** `GET /users?q=lopez&rol=Conductor&page=1&limit=20`
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "usuarios": [
+      {
+        "id": 7,
+        "nombre": "María",
+        "apellido": "López",
+        "correo": "maria.lopez@uadec.edu.mx",
+        "fecha_registro": "2026-01-01T00:00:00.000Z",
+        "campus_id": 1,
+        "campus": "Campus Arteaga",
+        "universidad": "Universidad Autónoma de Coahuila",
+        "roles": ["Pasajero", "Conductor"],
+        "roles_detalle": [
+          { "id": 1, "nombre": "Pasajero" },
+          { "id": 2, "nombre": "Conductor" }
+        ]
+      }
+    ],
+    "paginacion": { "pagina": 1, "limite": 20, "total": 1, "total_paginas": 1 }
+  }
+  ```
+- **`400 Bad Request`**: Parámetro inválido (`page`, `limit`, `q`, `rol`) o rol inexistente.
+- **`401 Unauthorized`**: Token no válido o ausente.
+- **`403 Forbidden`**: El rol activo no es `Administrador`.
+
+---
+
 ### 3.3. Módulo de Vehículos (`/api/vehicles`)
 
 Todos los endpoints requieren `Authorization: Bearer <token>`.
