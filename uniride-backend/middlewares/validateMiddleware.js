@@ -108,6 +108,44 @@ const validateMiddleware = {
   },
 
   /**
+   * Valida los parámetros de consulta del listado de usuarios (GET /users).
+   * - q: texto opcional, máximo 100 caracteres
+   * - rol: nombre de rol opcional, máximo 50 caracteres
+   * - page: entero >= 1 (opcional)
+   * - limit: entero entre 1 y 50 (opcional, 20 por defecto)
+   */
+  validateListUsers(req, res, next) {
+    const { q, rol, page, limit } = req.query;
+    const isPositiveInt = (value) => /^\d+$/.test(String(value).trim()) && Number(value) >= 1;
+
+    if (q !== undefined && (typeof q !== 'string' || q.trim().length > 100)) {
+      return res.status(400).json({
+        message: 'El parámetro q debe ser texto de máximo 100 caracteres.'
+      });
+    }
+
+    if (rol !== undefined && (typeof rol !== 'string' || rol.trim().length > 50)) {
+      return res.status(400).json({
+        message: 'El parámetro rol debe ser texto de máximo 50 caracteres.'
+      });
+    }
+
+    if (page !== undefined && (typeof page !== 'string' || !isPositiveInt(page))) {
+      return res.status(400).json({
+        message: 'El parámetro page debe ser un número entero mayor o igual a 1.'
+      });
+    }
+
+    if (limit !== undefined && (typeof limit !== 'string' || !isPositiveInt(limit) || Number(limit) > 50)) {
+      return res.status(400).json({
+        message: 'El parámetro limit debe ser un número entero entre 1 y 50.'
+      });
+    }
+
+    next();
+  },
+
+  /**
    * Valida los datos recibidos para el inicio de sesión.
    */
   validateLogin(req, res, next) {

@@ -2,8 +2,24 @@ const express = require('express');
 const router = express.Router();
 
 const authController = require('../controllers/authController');
+const userController = require('../controllers/userController');
 const validateMiddleware = require('../middlewares/validateMiddleware');
 const authMiddleware = require('../middlewares/authMiddleware');
+const roleMiddleware = require('../middlewares/roleMiddleware');
+
+/**
+ * @route   GET /users
+ * @desc    Listar usuarios registrados con búsqueda (q), filtro por rol (rol)
+ *          y paginación (page, limit: 20 por defecto, máximo 50)
+ * @access  Privado (requiere Bearer Token y rol Administrador)
+ */
+router.get(
+  '/',
+  authMiddleware.verifyToken,
+  roleMiddleware('Administrador'),
+  validateMiddleware.validateListUsers,
+  userController.list
+);
 
 /**
  * @route   POST /users/register
