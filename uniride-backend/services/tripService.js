@@ -192,6 +192,55 @@ const tripService = {
 
     return reservation;
   },
+
+  /**
+   * Lista todos los viajes registrados para administración con filtros y paginación.
+   * @param {object} params
+   * @param {string} [params.estado]
+   * @param {string} [params.fecha]
+   * @param {string} [params.conductor]
+   * @param {number|string} [params.page]
+   * @param {number|string} [params.limit]
+   * @returns {Promise<{ viajes: object[], trips: object[], paginacion: object }>}
+   */
+  async listTripsAdmin({ estado, fecha, conductor, page, limit } = {}) {
+    const pagina = Number(page) || 1;
+    const limite = Math.min(Number(limit) || 20, 50);
+
+    const { trips, total } = await tripModel.findAllAdmin({
+      estado: (estado || '').trim(),
+      fecha: (fecha || '').trim(),
+      conductor: (conductor || '').trim(),
+      limit: limite,
+      offset: (pagina - 1) * limite,
+    });
+
+    return {
+      viajes: trips,
+      trips,
+      paginacion: {
+        pagina,
+        limite,
+        total,
+        total_paginas: Math.ceil(total / limite),
+      },
+    };
+  },
+
+  /**
+   * Obtiene el detalle de un viaje con sus reservaciones para administración.
+   * @param {number} tripId
+   * @returns {Promise<object>}
+   */
+  async getTripDetailAdmin(tripId) {
+    const trip = await tripModel.findDetailWithReservations(tripId);
+    if (!trip) {
+      const error = new Error('El viaje no existe.');
+      error.statusCode = 404;
+      throw error;
+    }
+    return trip;
+  },
 };
 
 module.exports = tripService;

@@ -1,5 +1,7 @@
 const { sql, poolPromise } = require("../config/db");
 
+const escapeLike = (text) => String(text).replace(/[\\%_[]/g, (ch) => `\\${ch}`);
+
 const tripModel = {
   /**
    * Consulta los viajes disponibles que tengan cupo mayor a 0,
@@ -468,6 +470,294 @@ const tripModel = {
       await transaction.rollback();
       throw error;
     }
+  },
+
+  /**
+   * Lista todos los viajes registrados para la vista de administración con filtros y paginación.
+   * Permite filtrar por:
+   * - estado: 'programado', 'en_curso', 'finalizado', 'cancelado' (o variantes)
+   * - fecha: YYYY-MM-DD
+   * - conductor: nombre, apellido, correo o id del conductor
+   *
+   * @param {object} params
+   * @param {string} [params.estado]
+   * @param {string} [params.fecha]
+   * @param {string} [params.conductor]
+   * @param {number} params.limit
+   * @param {number} params.offset
+   * @returns {Promise<{ trips: object[], total: number }>}
+   */
+  async findAllAdmin({ estado, fecha, conductor, limit = 20, offset = 0 } = {}) {
+    const pool = await poolPromise;
+    const conditions = [];
+
+    const estadoNorm = String(estado || '').trim().toLowerCase();
+    if (estadoNorm) {
+      if (estadoNorm === 'activos' || estadoNorm === 'activo') {
+        conditions.push("LOWER(v.estado) IN ('programado', 'en_curso', 'activo')");
+      } else if (estadoNorm === 'cancelados' || estadoNorm === 'cancelado') {
+        conditions.push("LOWER(v.estado) = 'cancelado'");
+      } else if (estadoNorm === 'completados' || estadoNorm === 'completado' || estadoNorm === 'finalizado') {
+        conditions.push("LOWER(v.estado) = 'finalizado'");
+      } else if (estadoNorm === 'historial') {
+        conditions.push("LOWER(v.estado) IN ('cancelado', 'finalizado')");
+      } else {
+        conditions.push("LOWER(v.estado) = LOWER(@estadoFiltro)");
+      }
+    }
+
+    const fechaNorm = String(fecha || '').trim();
+    if (fechaNorm) {
+      conditions.push("CAST(v.fecha_salida AS DATE) = @fechaFiltro");
+    }
+
+    const conductorNorm = String(conductor || '').trim();
+    const isConductorNumeric = /^\d+$/.test(conductorNorm);
+    if (conductorNorm) {
+      if (isConductorNumeric) {
+        conditions.push("v.conductor_id = @conductorIdFiltro");
+      } else {
+        conditions.push(`(
+          u.nombre LIKE @conductorFiltro ESCAPE '\\'
+          OR u.apellido LIKE @conductorFiltro ESCAPE '\\'
+          OR (u.nombre + ' ' + u.apellido) LIKE @conductorFiltro ESCAPE '\\'
+          OR u.correo LIKE @conductorFiltro ESCAPE '\\'
+        )`);
+      }
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const bindFilters = (request) => {
+      if (estadoNorm && !['activos', 'activo', 'cancelados', 'cancelado', 'completados', 'completado', 'finalizado', 'historial'].includes(estadoNorm)) {
+        request.input('estadoFiltro', sql.VarChar(50), estadoNorm);
+      }
+      if (fechaNorm) {
+        request.input('fechaFiltro', sql.Date, fechaNorm);
+      }
+      if (conductorNorm) {
+        if (isConductorNumeric) {
+          request.input('conductorIdFiltro', sql.Int, Number(conductorNorm));
+        } else {
+          request.input('conductorFiltro', sql.VarChar(255), `%${escapeLike(conductorNorm)}%`);
+        }
+      }
+      return request;
+    };
+
+    const countResult = await bindFilters(pool.request())
+      .query(`
+        SELECT COUNT(*) AS total
+        FROM Viajes v
+        INNER JOIN Usuarios u ON u.id = v.conductor_id
+        ${where}
+      `);
+
+    const total = Number(countResult.recordset[0]?.total) || 0;
+    if (total === 0) {
+      return { trips: [], total: 0 };
+    }
+
+    const pageRequest = bindFilters(pool.request())
+      .input('offset', sql.Int, offset)
+      .input('limit', sql.Int, limit);
+
+    const pageResult = await pageRequest.query(`
+      SELECT
+        v.id,
+        v.conductor_id,
+        v.vehiculo_id,
+        v.origen,
+        v.destino,
+        v.fecha_salida,
+        v.cupo_disponible,
+        v.cupo_disponible AS asientos_disponibles,
+        v.costo_por_pasajero,
+        v.estado,
+        v.motivo_cancelacion,
+        u.nombre AS conductor_nombre_pila,
+        u.apellido AS conductor_apellido,
+        CONCAT(u.nombre, ' ', u.apellido) AS conductor_nombre,
+        u.correo AS conductor_correo,
+        u.telefono AS conductor_telefono,
+        ve.marca AS vehiculo_marca,
+        ve.modelo AS vehiculo_modelo,
+        ve.anio AS vehiculo_anio,
+        ve.color AS vehiculo_color,
+        ve.placa AS vehiculo_placa,
+        COALESCE((
+          SELECT COUNT(*)
+          FROM SolicitudesViaje sv
+          WHERE sv.viaje_id = v.id
+        ), 0) AS total_reservaciones
+      FROM Viajes v
+      INNER JOIN Usuarios u ON u.id = v.conductor_id
+      LEFT JOIN Vehiculos ve ON ve.id = v.vehiculo_id
+      ${where}
+      ORDER BY v.fecha_salida DESC, v.id DESC
+      OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+    `);
+
+    const trips = pageResult.recordset.map((row) => ({
+      id: row.id,
+      origen: row.origen,
+      destino: row.destino,
+      fecha_salida: row.fecha_salida,
+      cupo_disponible: row.cupo_disponible,
+      asientos_disponibles: row.asientos_disponibles,
+      costo_por_pasajero: Number(row.costo_por_pasajero),
+      estado: row.estado,
+      motivo_cancelacion: row.motivo_cancelacion || null,
+      total_reservaciones: Number(row.total_reservaciones || 0),
+      conductor_id: row.conductor_id,
+      conductor_nombre: row.conductor_nombre,
+      conductor_correo: row.conductor_correo,
+      conductor_telefono: row.conductor_telefono,
+      conductor: {
+        id: row.conductor_id,
+        nombre: row.conductor_nombre_pila,
+        apellido: row.conductor_apellido,
+        nombre_completo: row.conductor_nombre,
+        correo: row.conductor_correo,
+        telefono: row.conductor_telefono,
+      },
+      vehiculo_id: row.vehiculo_id,
+      vehiculo_marca: row.vehiculo_marca,
+      vehiculo_modelo: row.vehiculo_modelo,
+      vehiculo_placa: row.vehiculo_placa,
+      vehiculo: row.vehiculo_id
+        ? {
+            id: row.vehiculo_id,
+            marca: row.vehiculo_marca,
+            modelo: row.vehiculo_modelo,
+            anio: row.vehiculo_anio,
+            color: row.vehiculo_color,
+            placa: row.vehiculo_placa,
+          }
+        : null,
+    }));
+
+    return { trips, total };
+  },
+
+  /**
+   * Consulta el detalle completo de un viaje y sus reservaciones para administración.
+   * @param {number} id
+   * @returns {Promise<object|null>}
+   */
+  async findDetailWithReservations(id) {
+    const pool = await poolPromise;
+    const tripResult = await pool.request()
+      .input("id", sql.Int, id)
+      .query(`
+        SELECT
+          v.id,
+          v.conductor_id,
+          v.vehiculo_id,
+          v.origen,
+          v.destino,
+          v.fecha_salida,
+          v.cupo_disponible,
+          v.cupo_disponible AS asientos_disponibles,
+          v.costo_por_pasajero,
+          v.estado,
+          v.motivo_cancelacion,
+          u.nombre AS conductor_nombre_pila,
+          u.apellido AS conductor_apellido,
+          CONCAT(u.nombre, ' ', u.apellido) AS conductor_nombre,
+          u.correo AS conductor_correo,
+          u.telefono AS conductor_telefono,
+          ve.marca AS vehiculo_marca,
+          ve.modelo AS vehiculo_modelo,
+          ve.anio AS vehiculo_anio,
+          ve.color AS vehiculo_color,
+          ve.placa AS vehiculo_placa
+        FROM Viajes v
+        INNER JOIN Usuarios u ON u.id = v.conductor_id
+        LEFT JOIN Vehiculos ve ON ve.id = v.vehiculo_id
+        WHERE v.id = @id
+      `);
+
+    const tripRow = tripResult.recordset[0];
+    if (!tripRow) return null;
+
+    const reservationsResult = await pool.request()
+      .input("viaje_id", sql.Int, id)
+      .query(`
+        SELECT
+          sv.id,
+          sv.viaje_id,
+          sv.pasajero_id,
+          sv.estado,
+          sv.fecha_solicitud,
+          p.nombre AS pasajero_nombre_pila,
+          p.apellido AS pasajero_apellido,
+          CONCAT(p.nombre, ' ', p.apellido) AS pasajero_nombre,
+          p.correo AS pasajero_correo,
+          p.telefono AS pasajero_telefono
+        FROM SolicitudesViaje sv
+        INNER JOIN Usuarios p ON p.id = sv.pasajero_id
+        WHERE sv.viaje_id = @viaje_id
+        ORDER BY sv.fecha_solicitud ASC, sv.id ASC
+      `);
+
+    const reservaciones = reservationsResult.recordset.map((r) => ({
+      id: r.id,
+      viaje_id: r.viaje_id,
+      pasajero_id: r.pasajero_id,
+      estado: r.estado,
+      fecha_solicitud: r.fecha_solicitud,
+      pasajero_nombre: r.pasajero_nombre,
+      pasajero_correo: r.pasajero_correo,
+      pasajero_telefono: r.pasajero_telefono,
+      pasajero: {
+        id: r.pasajero_id,
+        nombre: r.pasajero_nombre_pila,
+        apellido: r.pasajero_apellido,
+        nombre_completo: r.pasajero_nombre,
+        correo: r.pasajero_correo,
+        telefono: r.pasajero_telefono,
+      },
+    }));
+
+    return {
+      id: tripRow.id,
+      origen: tripRow.origen,
+      destino: tripRow.destino,
+      fecha_salida: tripRow.fecha_salida,
+      cupo_disponible: tripRow.cupo_disponible,
+      asientos_disponibles: tripRow.asientos_disponibles,
+      costo_por_pasajero: Number(tripRow.costo_por_pasajero),
+      estado: tripRow.estado,
+      motivo_cancelacion: tripRow.motivo_cancelacion || null,
+      conductor_id: tripRow.conductor_id,
+      conductor_nombre: tripRow.conductor_nombre,
+      conductor_correo: tripRow.conductor_correo,
+      conductor_telefono: tripRow.conductor_telefono,
+      conductor: {
+        id: tripRow.conductor_id,
+        nombre: tripRow.conductor_nombre_pila,
+        apellido: tripRow.conductor_apellido,
+        nombre_completo: tripRow.conductor_nombre,
+        correo: tripRow.conductor_correo,
+        telefono: tripRow.conductor_telefono,
+      },
+      vehiculo_id: tripRow.vehiculo_id,
+      vehiculo_marca: tripRow.vehiculo_marca,
+      vehiculo_modelo: tripRow.vehiculo_modelo,
+      vehiculo_placa: tripRow.vehiculo_placa,
+      vehiculo: tripRow.vehiculo_id
+        ? {
+            id: tripRow.vehiculo_id,
+            marca: tripRow.vehiculo_marca,
+            modelo: tripRow.vehiculo_modelo,
+            anio: tripRow.vehiculo_anio,
+            color: tripRow.vehiculo_color,
+            placa: tripRow.vehiculo_placa,
+          }
+        : null,
+      reservaciones,
+    };
   },
 };
 

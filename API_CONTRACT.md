@@ -908,6 +908,149 @@ Permite al conductor propietario de un viaje finalizado evaluar a un pasajero co
 
 ---
 
+#### 3.4.12. Listar Viajes Registrados — Administración (`GET /api/trips/admin`)
+Lista los viajes registrados en el sistema para el panel de administración, con filtros por estado, fecha y conductor, y paginación.
+
+- **Acceso:** Privado (`Authorization: Bearer <token>`), solo rol activo `Administrador`.
+- **Query params (todos opcionales):**
+  | Parámetro | Tipo | Reglas |
+  |---|---|---|
+  | `estado` | string | Estado del viaje: `programado`, `en_curso`, `finalizado`, `cancelado` (o categorías `activos`, `historial`). Máximo 50 caracteres. |
+  | `fecha` | string | Formato `YYYY-MM-DD`. Filtra viajes cuya fecha de salida coincida con esa fecha. |
+  | `conductor` | string | Nombre, apellido, correo o ID numérico del conductor. Máximo 100 caracteres. |
+  | `page` | number | Entero `>= 1`. Por defecto `1`. |
+  | `limit` | number | Entero entre `1` y `50`. Por defecto `20`. |
+
+- **Ejemplo:** `GET /api/trips/admin?estado=programado&fecha=2026-11-01&page=1&limit=20`
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "viajes": [
+      {
+        "id": 10,
+        "origen": "Campus Arteaga",
+        "destino": "Rectoría",
+        "fecha_salida": "2026-11-01T08:00:00.000Z",
+        "cupo_disponible": 3,
+        "asientos_disponibles": 3,
+        "costo_por_pasajero": 25.00,
+        "estado": "programado",
+        "motivo_cancelacion": null,
+        "total_reservaciones": 1,
+        "conductor_id": 5,
+        "conductor_nombre": "Carlos Gómez",
+        "conductor_correo": "carlos.gomez@uadec.edu.mx",
+        "conductor_telefono": "8441112233",
+        "conductor": {
+          "id": 5,
+          "nombre": "Carlos",
+          "apellido": "Gómez",
+          "nombre_completo": "Carlos Gómez",
+          "correo": "carlos.gomez@uadec.edu.mx",
+          "telefono": "8441112233"
+        },
+        "vehiculo_id": 2,
+        "vehiculo_marca": "Nissan",
+        "vehiculo_modelo": "Versa",
+        "vehiculo_placa": "ABC-123",
+        "vehiculo": {
+          "id": 2,
+          "marca": "Nissan",
+          "modelo": "Versa",
+          "anio": 2022,
+          "color": "Rojo",
+          "placa": "ABC-123"
+        }
+      }
+    ],
+    "paginacion": {
+      "pagina": 1,
+      "limite": 20,
+      "total": 1,
+      "total_paginas": 1
+    }
+  }
+  ```
+- **`400 Bad Request`**: Parámetro inválido (`page`, `limit`, `fecha`, `estado`, `conductor`).
+- **`401 Unauthorized`**: Token ausente o inválido.
+- **`403 Forbidden`**: El rol activo no es `Administrador`.
+
+---
+
+#### 3.4.13. Consultar Detalle de Viaje con Reservaciones — Administración (`GET /api/trips/admin/:id` / `GET /api/trips/:id`)
+Devuelve la información detallada de un viaje específico con sus reservaciones asociadas.
+
+- **Acceso:** Privado (`Authorization: Bearer <token>`), solo rol activo `Administrador`.
+- **Parámetros de ruta:**
+  - `id` (`integer`): ID del viaje (entero positivo).
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "viaje": {
+      "id": 10,
+      "origen": "Campus Arteaga",
+      "destino": "Rectoría",
+      "fecha_salida": "2026-11-01T08:00:00.000Z",
+      "cupo_disponible": 3,
+      "asientos_disponibles": 3,
+      "costo_por_pasajero": 25.00,
+      "estado": "programado",
+      "motivo_cancelacion": null,
+      "conductor_id": 5,
+      "conductor_nombre": "Carlos Gómez",
+      "conductor_correo": "carlos.gomez@uadec.edu.mx",
+      "conductor_telefono": "8441112233",
+      "conductor": {
+        "id": 5,
+        "nombre": "Carlos",
+        "apellido": "Gómez",
+        "nombre_completo": "Carlos Gómez",
+        "correo": "carlos.gomez@uadec.edu.mx",
+        "telefono": "8441112233"
+      },
+      "vehiculo_id": 2,
+      "vehiculo": {
+        "id": 2,
+        "marca": "Nissan",
+        "modelo": "Versa",
+        "anio": 2022,
+        "color": "Rojo",
+        "placa": "ABC-123"
+      },
+      "reservaciones": [
+        {
+          "id": 101,
+          "viaje_id": 10,
+          "pasajero_id": 8,
+          "estado": "aceptada",
+          "fecha_solicitud": "2026-10-27T10:00:00.000Z",
+          "pasajero_nombre": "Laura Sánchez",
+          "pasajero_correo": "laura.sanchez@uadec.edu.mx",
+          "pasajero_telefono": "8449998877",
+          "pasajero": {
+            "id": 8,
+            "nombre": "Laura",
+            "apellido": "Sánchez",
+            "nombre_completo": "Laura Sánchez",
+            "correo": "laura.sanchez@uadec.edu.mx",
+            "telefono": "8449998877"
+          }
+        }
+      ]
+    }
+  }
+  ```
+- **`400 Bad Request`**: ID del viaje no es un entero positivo.
+- **`401 Unauthorized`**: Token ausente o inválido.
+- **`403 Forbidden`**: El rol activo no es `Administrador`.
+- **`404 Not Found`**: `"El viaje no existe."`
+
+---
+
 ### 3.5. Módulo de Reservaciones (`/api/reservations`)
 
 #### 3.5.1. Aceptar o Rechazar Solicitud de Reserva (`PATCH /api/reservations/:id`)

@@ -204,15 +204,83 @@ const validateMiddleware = {
 
     next();
   },
-  /*
-}  * Valida los datos recibidos para cambiar el estado de un vehículo.
+  /**
+   * Valida los datos recibidos para cambiar el estado de un vehículo.
    */
-    validateVehicleStatus(req, res, next) {
+  validateVehicleStatus(req, res, next) {
     const { activo } = req.body;
 
     if (typeof activo !== 'boolean') {
       return res.status(400).json({
         message: 'El campo activo es obligatorio y debe ser true o false.'
+      });
+    }
+
+    next();
+  },
+
+  /**
+   * Valida los parámetros de consulta para el listado administrativo de viajes:
+   * - estado: texto de máximo 50 caracteres (opcional)
+   * - fecha: formato YYYY-MM-DD (opcional)
+   * - conductor: texto de máximo 100 caracteres (opcional)
+   * - page: entero >= 1 (opcional, 1 por defecto)
+   * - limit: entero entre 1 y 50 (opcional, 20 por defecto)
+   */
+  validateListTripsAdmin(req, res, next) {
+    const { estado, fecha, conductor, page, limit } = req.query;
+    const isPositiveInt = (value) => /^\d+$/.test(String(value).trim()) && Number(value) >= 1;
+
+    if (estado !== undefined && (typeof estado !== 'string' || estado.trim().length > 50)) {
+      return res.status(400).json({
+        message: 'El parámetro estado debe ser texto de máximo 50 caracteres.'
+      });
+    }
+
+    if (conductor !== undefined && (typeof conductor !== 'string' || conductor.trim().length > 100)) {
+      return res.status(400).json({
+        message: 'El parámetro conductor debe ser texto de máximo 100 caracteres.'
+      });
+    }
+
+    if (fecha !== undefined) {
+      const fechaStr = String(fecha).trim();
+      const isDateValid = /^\d{4}-\d{2}-\d{2}$/.test(fechaStr) &&
+        !Number.isNaN(new Date(`${fechaStr}T00:00:00.000Z`).getTime()) &&
+        new Date(`${fechaStr}T00:00:00.000Z`).toISOString().slice(0, 10) === fechaStr;
+
+      if (!isDateValid) {
+        return res.status(400).json({
+          message: 'El formato de fecha debe ser YYYY-MM-DD.'
+        });
+      }
+    }
+
+    if (page !== undefined && (typeof page !== 'string' || !isPositiveInt(page))) {
+      return res.status(400).json({
+        message: 'El parámetro page debe ser un número entero mayor o igual a 1.'
+      });
+    }
+
+    if (limit !== undefined && (typeof limit !== 'string' || !isPositiveInt(limit) || Number(limit) > 50)) {
+      return res.status(400).json({
+        message: 'El parámetro limit debe ser un número entero entre 1 y 50.'
+      });
+    }
+
+    next();
+  },
+
+  /**
+   * Valida que el parámetro :id de la ruta sea un número entero positivo.
+   */
+  validateTripIdParam(req, res, next) {
+    const { id } = req.params;
+    const isPositiveInt = /^\d+$/.test(String(id).trim()) && Number(id) >= 1;
+
+    if (!isPositiveInt) {
+      return res.status(400).json({
+        message: 'El ID del viaje debe ser un número entero positivo.'
       });
     }
 

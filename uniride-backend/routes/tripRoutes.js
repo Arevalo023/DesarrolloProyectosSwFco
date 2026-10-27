@@ -4,8 +4,35 @@ const tripController = require("../controllers/tripController");
 const ratingController = require("../controllers/ratingController");
 const authMiddleware = require("../middlewares/authMiddleware");
 const roleMiddleware = require("../middlewares/roleMiddleware");
+const validateMiddleware = require("../middlewares/validateMiddleware");
 
 const router = express.Router();
+
+/**
+ * @route   GET /api/trips/admin
+ * @desc    Listar viajes registrados con filtros (estado, fecha, conductor) y paginación
+ * @access  Privado (requiere Bearer Token y rol Administrador)
+ */
+router.get(
+	"/admin",
+	authMiddleware.verifyToken,
+	roleMiddleware("Administrador"),
+	validateMiddleware.validateListTripsAdmin,
+	tripController.listAdmin
+);
+
+/**
+ * @route   GET /api/trips/admin/:id
+ * @desc    Consultar detalle de un viaje con sus reservaciones
+ * @access  Privado (requiere Bearer Token y rol Administrador)
+ */
+router.get(
+	"/admin/:id",
+	authMiddleware.verifyToken,
+	roleMiddleware("Administrador"),
+	validateMiddleware.validateTripIdParam,
+	tripController.getDetailAdmin
+);
 
 router.post(
 	"/",
@@ -27,6 +54,20 @@ router.get(
 );
 router.get("/reservations", authMiddleware.verifyToken, tripController.listReservations);
 router.get("/", authMiddleware.verifyToken, tripController.listAvailable);
+
+/**
+ * @route   GET /api/trips/:id
+ * @desc    Consultar detalle de un viaje con sus reservaciones (alias)
+ * @access  Privado (requiere Bearer Token y rol Administrador)
+ */
+router.get(
+	"/:id",
+	authMiddleware.verifyToken,
+	roleMiddleware("Administrador"),
+	validateMiddleware.validateTripIdParam,
+	tripController.getDetailAdmin
+);
+
 router.patch(
 	"/:id/cancel",
 	authMiddleware.verifyToken,
