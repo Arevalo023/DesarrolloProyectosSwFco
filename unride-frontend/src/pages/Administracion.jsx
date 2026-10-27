@@ -4,6 +4,7 @@ import {
   Menu, Settings, ShieldCheck, UserRound, Users, X,
 } from "lucide-react";
 import Logo from "@/components/Logo";
+import ListadoAdministrativo from "@/components/admin/ListadoAdministrativo";
 
 // Estructura y navegación solamente. Los módulos funcionales son otros issues.
 const secciones = [
@@ -84,10 +85,11 @@ export default function Administracion({ onProfile, onLogout }) {
               <h2 id="titulo-seccion" className="text-xl font-semibold">{seccion.nombre}</h2>
             </div>
             <p className="mt-4 text-slate-600">{seccion.descripcion}</p>
-            <div className="mt-6 rounded-lg border border-dashed border-emerald-200 bg-emerald-50 p-5">
+            {(seccionActiva === "usuarios" || seccionActiva === "viajes") && <ListadoAdministrativo key={seccionActiva} tipo={seccionActiva} />}
+            {seccionActiva !== "usuarios" && seccionActiva !== "viajes" && <div className="mt-6 rounded-lg border border-dashed border-emerald-200 bg-emerald-50 p-5">
               <p className="font-medium text-emerald-900">Estructura disponible</p>
               <p className="mt-1 text-sm text-emerald-800">La navegación está lista. El contenido y las operaciones de esta sección se implementarán en próximos sprints.</p>
-            </div>
+            </div>}
           </section>
         </main>
       </div>
