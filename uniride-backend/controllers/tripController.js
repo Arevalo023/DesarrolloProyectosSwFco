@@ -329,6 +329,44 @@ const tripController = {
       });
     }
   },
+
+  /**
+   * Lista los viajes registrados para el panel de administración con filtros y paginación.
+   * GET /api/trips/admin?estado=&fecha=&conductor=&page=&limit=
+   */
+  async listAdmin(req, res) {
+    try {
+      const { estado, fecha, conductor, page, limit } = req.query;
+      const result = await tripService.listTripsAdmin({ estado, fecha, conductor, page, limit });
+      return res.status(200).json(result);
+    } catch (error) {
+      const statusCode = error.statusCode || 500;
+      return res.status(statusCode).json({
+        message: statusCode === 500
+          ? 'Error interno del servidor al consultar los viajes.'
+          : error.message,
+      });
+    }
+  },
+
+  /**
+   * Consulta el detalle de un viaje con sus reservaciones (solo Administrador).
+   * GET /api/trips/admin/:id o GET /api/trips/:id
+   */
+  async getDetailAdmin(req, res) {
+    try {
+      const tripId = parseInt(req.params.id, 10);
+      const trip = await tripService.getTripDetailAdmin(tripId);
+      return res.status(200).json({ viaje: trip, trip });
+    } catch (error) {
+      const statusCode = error.statusCode || 500;
+      return res.status(statusCode).json({
+        message: statusCode === 500
+          ? 'Error interno del servidor al consultar el detalle del viaje.'
+          : error.message,
+      });
+    }
+  },
 };
 
 module.exports = tripController;
