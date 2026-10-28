@@ -1,4 +1,7 @@
 const userModel = require('../models/userModel');
+const tripModel = require('../models/tripModel');
+const reservationModel = require('../models/reservationModel');
+const ratingService = require('./ratingService');
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -48,6 +51,55 @@ const userService = {
         total,
         total_paginas: Math.ceil(total / limite)
       }
+    };
+  },
+
+  /**
+   * Obtiene el detalle de un usuario para administración: datos básicos
+   * (sin contraseña ni teléfono), reputación, viajes publicados y reservaciones.
+   * El id ya llega validado por validateMiddleware.validateUserIdParam.
+   * @param {number|string} userId
+   * @returns {Promise<{ usuario: object, reputacion: object, viajes: object[], reservaciones: object[] }>}
+   */
+  async getUserDetail(userId) {
+    const id = Number(userId);
+    const user = await userModel.findById(id);
+
+    if (!user) {
+      const error = new Error('El usuario no existe.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const [ratings, viajes, reservaciones] = await Promise.all([
+      ratingService.getUserRatings(id),
+      tripModel.findByDriver(id),
+      reservationModel.findByPassenger(id, { order: 'desc' })
+    ]);
+
+    // Lista blanca de campos: nunca se expone password_hash ni el teléfono.
+    const roles = Array.isArray(user.roles_detalle) ? user.roles_detalle : [];
+
+    return {
+      usuario: {
+        id: user.id,
+        nombre: user.nombre,
+        apellido: user.apellido,
+        correo: user.correo,
+        fecha_registro: user.fecha_registro,
+        campus_id: user.campus_id,
+        campus: user.campus_nombre || null,
+        universidad: user.universidad_nombre || null,
+        roles: roles.map((role) => role.nombre),
+        roles_detalle: roles
+      },
+      reputacion: {
+        promedio: ratings.promedio,
+        total_calificaciones: ratings.total_calificaciones,
+        calificaciones: ratings.calificaciones
+      },
+      viajes: viajes || [],
+      reservaciones: reservaciones || []
     };
   }
 };
