@@ -68,11 +68,46 @@ router.get(
 	tripController.getDetailAdmin
 );
 
+/**
+ * @route   PATCH /api/trips/admin/:id/cancel
+ * @desc    Cancelar un viaje programado como administrador
+ * @access  Privado (requiere Bearer Token y rol Administrador)
+ */
+router.patch(
+	"/admin/:id/cancel",
+	authMiddleware.verifyToken,
+	roleMiddleware("Administrador"),
+	validateMiddleware.validateTripIdParam,
+	validateMiddleware.validateCancelTripAdmin,
+	tripController.cancelAdmin
+);
+
+/**
+ * @route   PATCH /api/trips/:id/cancel-admin
+ * @desc    Cancelar un viaje programado como administrador (alias)
+ * @access  Privado (requiere Bearer Token y rol Administrador)
+ */
+router.patch(
+	"/:id/cancel-admin",
+	authMiddleware.verifyToken,
+	roleMiddleware("Administrador"),
+	validateMiddleware.validateTripIdParam,
+	validateMiddleware.validateCancelTripAdmin,
+	tripController.cancelAdmin
+);
+
 router.patch(
 	"/:id/cancel",
 	authMiddleware.verifyToken,
-	roleMiddleware(["Conductor"]),
-	tripController.cancel
+	roleMiddleware(["Conductor", "Administrador"]),
+	(req, res, next) => {
+		if (req.activeRole === "Administrador") {
+			return validateMiddleware.validateCancelTripAdmin(req, res, () =>
+				tripController.cancelAdmin(req, res)
+			);
+		}
+		return tripController.cancel(req, res);
+	}
 );
 router.patch(
 	"/:id/start",

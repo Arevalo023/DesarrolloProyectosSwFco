@@ -90,6 +90,18 @@ const notificationService = {
     });
   },
 
+  /** Viaje cancelado por la administración -> avisa al pasajero con reservación aceptada. */
+  async notifyTripCancelledByAdmin(reservation, trip, motivo) {
+    const motivoTexto = motivo?.trim() ? ` Motivo: ${motivo.trim()}` : "";
+    return send({
+      usuarioId: reservation.pasajero_id,
+      reservation,
+      tipo: "viaje_cancelado",
+      titulo: "Viaje cancelado por administración",
+      mensaje: `La administración canceló el viaje de ${trip.origen} a ${trip.destino}.${motivoTexto}`,
+    });
+  },
+
   /** Viaje iniciado -> avisa a cada pasajero con reservación aceptada. */
   async notifyTripStarted(trip) {
     return notificationModel.createForAcceptedPassengers({
