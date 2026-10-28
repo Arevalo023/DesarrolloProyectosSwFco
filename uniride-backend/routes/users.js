@@ -72,4 +72,19 @@ router.patch(
   authController.updateMe
 );
 
+/**
+ * @route   GET /users/:id
+ * @desc    Consultar el detalle de un usuario con su reputación (promedio y
+ *          calificaciones recibidas), viajes publicados y reservaciones
+ * @access  Privado (requiere Bearer Token y rol Administrador)
+ * @note    Se declara al final para no capturar /me ni /campuses.
+ */
+router.get(
+  '/:id',
+  authMiddleware.verifyToken,
+  roleMiddleware('Administrador'),
+  validateMiddleware.validateUserIdParam,
+  userController.getDetail
+);
+
 module.exports = router;

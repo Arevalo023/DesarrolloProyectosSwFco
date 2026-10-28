@@ -303,6 +303,112 @@ Lista los usuarios registrados con búsqueda, filtro por rol y paginación. Nunc
 
 ---
 
+#### 3.2.7. Detalle de Usuario (`GET /users/:id`)
+Devuelve los datos básicos de un usuario junto con su reputación (promedio y calificaciones recibidas), los viajes que ha publicado como conductor y sus reservaciones como pasajero. Es de solo lectura y nunca devuelve la contraseña ni el teléfono del usuario.
+
+- **Acceso:** Privado (`Authorization: Bearer <token>`), solo rol activo `Administrador`.
+- **Path params:** `id` — entero `>= 1`.
+- **Ejemplo:** `GET /users/7`
+
+**Notas:**
+- `reputacion` se obtiene con la misma lógica que `GET /api/ratings/user/:id` (ver 3.7.2). Si el usuario no tiene calificaciones, `promedio` es `0` y `calificaciones` es `[]`.
+- `viajes` tiene la misma forma que `GET /api/trips/driver` (ordenados por `fecha_salida` ascendente).
+- `reservaciones` tiene la misma forma que `GET /api/trips/reservations` (ordenadas por `fecha_salida` descendente).
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "usuario": {
+      "id": 7,
+      "nombre": "María",
+      "apellido": "López",
+      "correo": "maria.lopez@uadec.edu.mx",
+      "fecha_registro": "2026-01-01T00:00:00.000Z",
+      "campus_id": 1,
+      "campus": "Campus Arteaga",
+      "universidad": "Universidad Autónoma de Coahuila",
+      "roles": ["Pasajero", "Conductor"],
+      "roles_detalle": [
+        { "id": 1, "nombre": "Pasajero" },
+        { "id": 2, "nombre": "Conductor" }
+      ]
+    },
+    "reputacion": {
+      "promedio": 4.5,
+      "total_calificaciones": 2,
+      "calificaciones": [
+        {
+          "id": 11,
+          "viaje_id": 20,
+          "calificador_id": 9,
+          "calificado_id": 7,
+          "puntuacion": 5,
+          "comentario": "Muy puntual",
+          "fecha_creacion": "2026-03-10T18:00:00.000Z",
+          "calificador_nombre": "Luis Pérez",
+          "origen": "Campus Arteaga",
+          "destino": "Centro de Saltillo",
+          "fecha_salida": "2026-03-10T14:00:00.000Z"
+        }
+      ]
+    },
+    "viajes": [
+      {
+        "id": 20,
+        "conductor_id": 7,
+        "vehiculo_id": 3,
+        "origen": "Campus Arteaga",
+        "destino": "Centro de Saltillo",
+        "fecha_salida": "2026-03-10T14:00:00.000Z",
+        "cupo_disponible": 0,
+        "asientos_disponibles": 0,
+        "costo_por_pasajero": 35,
+        "estado": "finalizado",
+        "motivo_cancelacion": null,
+        "usuarios_separaron_asiento": 3,
+        "vehiculo_marca": "Nissan",
+        "vehiculo_modelo": "Versa",
+        "vehiculo_anio": 2020,
+        "vehiculo_color": "Gris",
+        "vehiculo_placa": "ABC-123",
+        "vehiculo_asientos_disponibles": 4,
+        "vehiculo_activo": true
+      }
+    ],
+    "reservaciones": [
+      {
+        "id": 30,
+        "viaje_id": 40,
+        "pasajero_id": 7,
+        "estado": "aceptada",
+        "fecha_solicitud": "2026-03-12T10:00:00.000Z",
+        "origen": "Centro de Saltillo",
+        "destino": "Campus Arteaga",
+        "fecha_salida": "2026-03-15T07:00:00.000Z",
+        "cupo_disponible": 2,
+        "asientos_disponibles": 2,
+        "costo_por_pasajero": 30,
+        "viaje_estado": "programado",
+        "conductor_id": 12,
+        "conductor_nombre": "Carlos Ruiz",
+        "conductor_telefono": "8440000000",
+        "vehiculo_id": 5,
+        "vehiculo_marca": "Chevrolet",
+        "vehiculo_modelo": "Aveo",
+        "vehiculo_color": "Blanco",
+        "vehiculo_placa": "XYZ-987"
+      }
+    ]
+  }
+  ```
+- **`400 Bad Request`**: `"El ID del usuario debe ser un número entero positivo."`
+- **`401 Unauthorized`**: Token no válido o ausente.
+- **`403 Forbidden`**: El rol activo no es `Administrador`.
+- **`404 Not Found`**: `"El usuario no existe."`
+
+---
+
 ### 3.3. Módulo de Vehículos (`/api/vehicles`)
 
 Todos los endpoints requieren `Authorization: Bearer <token>`.

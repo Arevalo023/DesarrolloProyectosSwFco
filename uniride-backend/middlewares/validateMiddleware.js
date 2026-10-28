@@ -285,6 +285,22 @@ const validateMiddleware = {
     }
 
     next();
+  },
+
+  /**
+   * Valida que el parámetro :id de usuario sea un entero positivo.
+   */
+  validateUserIdParam(req, res, next) {
+    const { id } = req.params;
+    const isPositiveInt = /^\d+$/.test(String(id).trim()) && Number(id) >= 1;
+
+    if (!isPositiveInt) {
+      return res.status(400).json({
+        message: 'El ID del usuario debe ser un número entero positivo.'
+      });
+    }
+
+    next();
   }
 };
 
