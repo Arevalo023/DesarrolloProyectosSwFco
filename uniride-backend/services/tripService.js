@@ -1,6 +1,7 @@
 const tripModel = require("../models/tripModel");
 const vehicleModel = require("../models/vehicleModel");
 const notificationService = require("./notificationService");
+const auditService = require("./auditService");
 
 const validationError = (message) => {
   const error = new Error(message);
@@ -240,6 +241,51 @@ const tripService = {
       throw error;
     }
     return trip;
+  },
+
+  /**
+   * Cancela un viaje programado por solicitud de un administrador.
+   * Reglas:
+   * 1. Solo permite cancelar viajes programados (manejado por el modelo).
+   * 2. Notifica exclusivamente a los pasajeros con reservación aceptada.
+   * 3. Registra la acción sensible en el log del servidor mediante auditService.
+   * @param {number} tripId - ID del viaje
+   * @param {number} adminId - ID del administrador
+   * @param {string} motivo - Motivo obligatorio
+   * @returns {Promise<object>} El viaje cancelado
+   */
+  async cancelAdmin(tripId, adminId, motivo) {
+    const result = await tripModel.cancelAdmin(tripId, motivo.trim());
+
+    // Notificar solo a los pasajeros con reservación aceptada
+    if (Array.isArray(result?.acceptedReservations)) {
+      for (const reservation of result.acceptedReservations) {
+        try {
+          await notificationService.notifyTripCancelledByAdmin(
+            reservation,
+            result.trip,
+            motivo.trim()
+          );
+        } catch (err) {
+          console.error(
+            "[notifications] Error al notificar cancelación admin a pasajero",
+            reservation.pasajero_id,
+            err
+          );
+        }
+      }
+    }
+
+    // Registrar en el log del servidor la acción sensible
+    auditService.logAction({
+      adminId,
+      entidad: "Viajes",
+      entidadId: tripId,
+      accion: "CANCELAR_VIAJE",
+      motivo: motivo.trim(),
+    });
+
+    return result.trip;
   },
 };
 

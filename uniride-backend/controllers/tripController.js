@@ -367,6 +367,32 @@ const tripController = {
       });
     }
   },
+
+  /**
+   * Cancela un viaje programado por acción de un administrador.
+   * PATCH /api/trips/admin/:id/cancel o PATCH /api/trips/:id/cancel-admin
+   */
+  async cancelAdmin(req, res) {
+    try {
+      const tripId = parseInt(req.params.id, 10);
+      const motivo = req.body?.motivo ?? req.body?.motivo_cancelacion;
+
+      const trip = await tripService.cancelAdmin(tripId, req.user.id, motivo);
+
+      return res.status(200).json({
+        message: "Viaje cancelado correctamente por administración.",
+        viaje: trip,
+        trip,
+      });
+    } catch (error) {
+      const statusCode = error.statusCode || 500;
+      return res.status(statusCode).json({
+        message: statusCode === 500
+          ? "Error interno del servidor al cancelar el viaje."
+          : error.message,
+      });
+    }
+  },
 };
 
 module.exports = tripController;

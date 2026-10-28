@@ -301,6 +301,28 @@ const validateMiddleware = {
     }
 
     next();
+  },
+
+  /**
+   * Valida el cuerpo para la cancelación administrativa de un viaje.
+   * Exige motivo de cancelación (no vacío, máx. 250 caracteres).
+   */
+  validateCancelTripAdmin(req, res, next) {
+    const motivo = req.body?.motivo ?? req.body?.motivo_cancelacion;
+
+    if (!motivo || typeof motivo !== 'string' || motivo.trim().length === 0) {
+      return res.status(400).json({
+        message: 'El motivo de cancelación es obligatorio.'
+      });
+    }
+
+    if (motivo.trim().length > 250) {
+      return res.status(400).json({
+        message: 'El motivo de cancelación no puede exceder los 250 caracteres.'
+      });
+    }
+
+    next();
   }
 };
 

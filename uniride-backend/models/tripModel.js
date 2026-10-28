@@ -253,6 +253,102 @@ const tripModel = {
     }
   },
 
+  /**
+   * Cancelación de un viaje programado por parte de un administrador.
+   * Reglas:
+   * - Solo permite cancelar si el viaje está en estado 'programado'.
+   * - Rechaza viajes en curso, finalizados o cancelados con error explícito de negocio.
+   * - Retorna las reservaciones aceptadas para notificar exclusivamente a esos pasajeros.
+   * - Cambia a 'cancelada' las reservaciones pendientes y aceptadas.
+   * @param {number} id - ID del viaje
+   * @param {string} motivoCancelacion - Motivo obligatorio de la cancelación
+   * @returns {Promise<{ trip: object, acceptedReservations: object[] }>}
+   */
+  async cancelAdmin(id, motivoCancelacion) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      const found = await transaction.request()
+        .input("id", sql.Int, id)
+        .query(`
+          SELECT id, conductor_id, origen, destino, fecha_salida, estado
+          FROM Viajes WITH (UPDLOCK, ROWLOCK)
+          WHERE id = @id
+        `);
+      const trip = found.recordset[0];
+
+      if (!trip) {
+        await transaction.rollback();
+        const err = new Error("El viaje no existe.");
+        err.statusCode = 404;
+        throw err;
+      }
+
+      const currentStatus = String(trip.estado || "").trim().toLowerCase();
+      if (currentStatus !== "programado") {
+        await transaction.rollback();
+        let message = `Solo es posible cancelar viajes en estado 'programado'. El estado actual del viaje es '${trip.estado}'.`;
+        if (currentStatus === "cancelado") {
+          message = "El viaje ya se encuentra cancelado.";
+        } else if (currentStatus === "en_curso" || currentStatus === "en curso") {
+          message = "No es posible cancelar un viaje que ya se encuentra en curso. Solo se pueden cancelar viajes programados.";
+        } else if (currentStatus === "finalizado" || currentStatus === "completado") {
+          message = "No es posible cancelar un viaje que ya ha finalizado. Solo se pueden cancelar viajes programados.";
+        }
+        const err = new Error(message);
+        err.statusCode = 400;
+        throw err;
+      }
+
+      // Obtener reservaciones aceptadas antes de actualizar para notificar únicamente a ellas
+      const acceptedResult = await transaction.request()
+        .input("viaje_id", sql.Int, id)
+        .query(`
+          SELECT id, viaje_id, pasajero_id, estado
+          FROM SolicitudesViaje WITH (UPDLOCK, ROWLOCK)
+          WHERE viaje_id = @viaje_id
+            AND estado = 'aceptada'
+        `);
+
+      const updatedTrip = await transaction.request()
+        .input("id", sql.Int, id)
+        .input("motivo_cancelacion", sql.VarChar(250), motivoCancelacion)
+        .query(`
+          UPDATE Viajes
+          SET estado = 'cancelado', motivo_cancelacion = @motivo_cancelacion
+          OUTPUT INSERTED.id, INSERTED.conductor_id, INSERTED.vehiculo_id,
+                 INSERTED.origen, INSERTED.destino, INSERTED.fecha_salida,
+                 INSERTED.cupo_disponible, INSERTED.costo_por_pasajero,
+                 INSERTED.estado, INSERTED.motivo_cancelacion
+          WHERE id = @id
+        `);
+
+      await transaction.request()
+        .input("viaje_id", sql.Int, id)
+        .query(`
+          UPDATE SolicitudesViaje
+          SET estado = 'cancelada'
+          WHERE viaje_id = @viaje_id
+            AND estado IN ('pendiente', 'aceptada')
+        `);
+
+      await transaction.commit();
+      return {
+        trip: updatedTrip.recordset[0],
+        acceptedReservations: acceptedResult.recordset,
+      };
+    } catch (error) {
+      if (transaction.record?.begun && !transaction.record?.committed && !transaction.record?.rolledBack) {
+        await transaction.rollback().catch(() => {});
+      } else if (transaction._acquiredConnection) {
+        await transaction.rollback().catch(() => {});
+      }
+      throw error;
+    }
+  },
+
   async start(id, conductorId) {
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);

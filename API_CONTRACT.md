@@ -1157,6 +1157,60 @@ Devuelve la información detallada de un viaje específico con sus reservaciones
 
 ---
 
+#### 3.4.14. Cancelar Viaje — Administración (`PATCH /api/trips/admin/:id/cancel` / `PATCH /api/trips/:id/cancel`)
+Permite a un administrador cancelar un viaje programado especificando un motivo obligatorio, notificando a los pasajeros aceptados y registrando la acción en el log del servidor.
+
+- **Acceso:** Privado (`Authorization: Bearer <token>`), solo rol activo `Administrador`.
+- **Parámetros de ruta:**
+  - `id` (`integer`): ID del viaje (entero positivo).
+- **Body (JSON):**
+  ```json
+  {
+    "motivo": "Condiciones climáticas adversas en la zona del campus"
+  }
+  ```
+  *(También se admite `"motivo_cancelacion"` como alias)*
+
+**Reglas de Negocio:**
+- Solo se permite cancelar viajes en estado `programado`.
+- Si el viaje se encuentra en cualquier otro estado (`en_curso`, `finalizado`, `cancelado`), se rechaza con un error de negocio explícito (`400 Bad Request`).
+- El motivo es obligatorio (mínimo 1 carácter sin espacios en blanco, máximo 250 caracteres).
+- Notifica exclusivamente a los pasajeros con reservación `aceptada`. Las reservaciones pasan a estado `cancelada`.
+- La acción se registra en el log del servidor (auditoría administrativa) con administrador, fecha, motivo y viaje afectado.
+- El viaje queda en estado `cancelado` y se muestra en la sección de viajes cancelados.
+
+**Respuestas:**
+- **`200 OK`**:
+  ```json
+  {
+    "message": "Viaje cancelado correctamente por administración.",
+    "viaje": {
+      "id": 10,
+      "conductor_id": 5,
+      "vehiculo_id": 2,
+      "origen": "Campus Arteaga",
+      "destino": "Rectoría",
+      "fecha_salida": "2026-11-01T08:00:00.000Z",
+      "cupo_disponible": 3,
+      "costo_por_pasajero": 25.00,
+      "estado": "cancelado",
+      "motivo_cancelacion": "Condiciones climáticas adversas en la zona del campus"
+    }
+  }
+  ```
+- **`400 Bad Request`**:
+  - `"El motivo de cancelación es obligatorio."`
+  - `"El motivo de cancelación no puede exceder los 250 caracteres."`
+  - `"El ID del viaje debe ser un número entero positivo."`
+  - `"No es posible cancelar un viaje que ya se encuentra en curso. Solo se pueden cancelar viajes programados."`
+  - `"No es posible cancelar un viaje que ya ha finalizado. Solo se pueden cancelar viajes programados."`
+  - `"El viaje ya se encuentra cancelado."`
+- **`401 Unauthorized`**: Token ausente o inválido.
+- **`403 Forbidden`**: El rol activo no es `Administrador`.
+- **`404 Not Found`**: `"El viaje no existe."`
+
+---
+
 ### 3.5. Módulo de Reservaciones (`/api/reservations`)
 
 #### 3.5.1. Aceptar o Rechazar Solicitud de Reserva (`PATCH /api/reservations/:id`)
