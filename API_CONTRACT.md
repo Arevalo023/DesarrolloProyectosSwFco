@@ -1211,6 +1211,24 @@ Permite a un administrador cancelar un viaje programado especificando un motivo 
 
 ---
 
+#### 3.4.15. Resumen administrativo (`GET /api/admin/summary`)
+
+Consulta las métricas globales mostradas en el panel de administración.
+
+- **Acceso:** Privado (solo rol activo `Administrador`).
+- **Respuesta `200 OK`:**
+  ```json
+  {
+    "metricas": {
+      "usuarios": 12,
+      "viajes": 8,
+      "reservaciones": 21
+    }
+  }
+  ```
+- **`401 Unauthorized`:** Token ausente o inválido.
+- **`403 Forbidden`:** El rol activo no es `Administrador`.
+
 ### 3.5. Módulo de Reservaciones (`/api/reservations`)
 
 #### 3.5.1. Aceptar o Rechazar Solicitud de Reserva (`PATCH /api/reservations/:id`)

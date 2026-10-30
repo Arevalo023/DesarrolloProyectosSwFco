@@ -13,6 +13,7 @@ const tripsRouter = require('./routes/tripRoutes');
 const reservationsRouter = require('./routes/reservationRoutes');
 const notificationsRouter = require('./routes/notificationRoutes');
 const ratingsRouter = require('./routes/ratingRoutes');
+const adminRouter = require('./routes/adminRoutes');
 
 
 const app = express();
@@ -36,5 +37,6 @@ app.use('/api/trips', tripsRouter);
 app.use('/api/reservations', reservationsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/ratings', ratingsRouter);
+app.use('/api/admin', adminRouter);
 
 module.exports = app;

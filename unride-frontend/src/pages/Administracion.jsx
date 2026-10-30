@@ -1,25 +1,52 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart3, ChevronRight, ClipboardList, LayoutDashboard, LogOut,
-  Menu, Settings, ShieldCheck, UserRound, Users, X,
+  Menu, ShieldCheck, UserRound, Users, X,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import ListadoAdministrativo from "@/components/admin/ListadoAdministrativo";
+import { apiRequest } from "@/services/api";
 
-// Estructura y navegación solamente. Los módulos funcionales son otros issues.
 const secciones = [
   { id: "resumen", nombre: "Resumen", icono: LayoutDashboard, descripcion: "Vista general del panel administrativo." },
-  { id: "usuarios", nombre: "Usuarios", icono: Users, descripcion: "Espacio reservado para la administración de usuarios." },
-  { id: "viajes", nombre: "Viajes", icono: ClipboardList, descripcion: "Espacio reservado para la administración de viajes." },
-  { id: "reportes", nombre: "Reportes", icono: BarChart3, descripcion: "Espacio reservado para los reportes del sistema." },
-  { id: "configuracion", nombre: "Configuración", icono: Settings, descripcion: "Espacio reservado para la configuración administrativa." },
+  { id: "usuarios", nombre: "Usuarios", icono: Users, descripcion: "Consulta y búsqueda de usuarios registrados." },
+  { id: "viajes", nombre: "Viajes", icono: ClipboardList, descripcion: "Consulta de viajes registrados." },
+];
+
+const metricas = [
+  { key: "usuarios", label: "Usuarios registrados", icon: Users },
+  { key: "viajes", label: "Viajes registrados", icon: ClipboardList },
+  { key: "reservaciones", label: "Reservaciones", icon: BarChart3 },
 ];
 
 export default function Administracion({ onProfile, onLogout }) {
   const [seccionActiva, setSeccionActiva] = useState("resumen");
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [resumen, setResumen] = useState(null);
+  const [cargandoResumen, setCargandoResumen] = useState(true);
+  const [errorResumen, setErrorResumen] = useState("");
+  const [reintento, setReintento] = useState(0);
   const seccion = secciones.find((item) => item.id === seccionActiva) ?? secciones[0];
   const Icono = seccion.icono;
+
+  useEffect(() => {
+    let activo = true;
+
+    apiRequest("/api/admin/summary")
+      .then((respuesta) => {
+        if (activo) setResumen(respuesta.metricas ?? respuesta);
+      })
+      .catch((error) => {
+        if (activo) setErrorResumen(error.message || "No se pudo cargar el resumen administrativo.");
+      })
+      .finally(() => {
+        if (activo) setCargandoResumen(false);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [reintento]);
 
   const cambiarSeccion = (id) => {
     setSeccionActiva(id);
@@ -85,11 +112,29 @@ export default function Administracion({ onProfile, onLogout }) {
               <h2 id="titulo-seccion" className="text-xl font-semibold">{seccion.nombre}</h2>
             </div>
             <p className="mt-4 text-slate-600">{seccion.descripcion}</p>
+            {seccionActiva === "resumen" && (
+              <div className="mt-6">
+                {cargandoResumen ? (
+                  <p role="status" className="py-8 text-center text-slate-500">Cargando resumen...</p>
+                ) : errorResumen ? (
+                  <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+                    <p>{errorResumen}</p>
+                    <button type="button" className="mt-3 underline" onClick={() => setReintento((valor) => valor + 1)}>Reintentar</button>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {metricas.map(({ key, label, icon: MetricIcon }) => (
+                      <button key={key} type="button" onClick={() => key === "usuarios" ? cambiarSeccion("usuarios") : key === "viajes" ? cambiarSeccion("viajes") : undefined} className="rounded-xl border border-slate-200 p-5 text-left transition hover:border-emerald-300 hover:bg-emerald-50">
+                        <MetricIcon className="text-emerald-700" size={24} />
+                        <p className="mt-4 text-sm text-slate-500">{label}</p>
+                        <p className="mt-1 text-3xl font-bold text-slate-900">{Number(resumen?.[key] ?? 0).toLocaleString("es-MX")}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {(seccionActiva === "usuarios" || seccionActiva === "viajes") && <ListadoAdministrativo key={seccionActiva} tipo={seccionActiva} />}
-            {seccionActiva !== "usuarios" && seccionActiva !== "viajes" && <div className="mt-6 rounded-lg border border-dashed border-emerald-200 bg-emerald-50 p-5">
-              <p className="font-medium text-emerald-900">Estructura disponible</p>
-              <p className="mt-1 text-sm text-emerald-800">La navegación está lista. El contenido y las operaciones de esta sección se implementarán en próximos sprints.</p>
-            </div>}
           </section>
         </main>
       </div>

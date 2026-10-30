@@ -58,8 +58,7 @@ export default function VistaDetalleUsuario({
   usuario,
   onVolver,
 }) {
-  const [calificaciones, setCalificaciones] = useState([]);
-  const [promedio, setPromedio] = useState(null);
+  const [detalle, setDetalle] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [reintento, setReintento] = useState(0);
@@ -69,23 +68,11 @@ export default function VistaDetalleUsuario({
 
     async function obtener() {
       try {
-        const respuesta = await apiRequest(
-          `/api/ratings/user/${encodeURIComponent(usuario.id)}`
-        );
+        const respuesta = await apiRequest(`/users/${encodeURIComponent(usuario.id)}`);
 
         if (!activo) return;
 
-        const lista = Array.isArray(respuesta.calificaciones)
-          ? respuesta.calificaciones
-          : [];
-
-        setCalificaciones(lista);
-
-        const p = Number(respuesta.promedio);
-
-        setPromedio(
-          lista.length && Number.isFinite(p) ? p : null
-        );
+        setDetalle(respuesta);
 
         setError("");
       } catch (e) {
@@ -117,11 +104,14 @@ export default function VistaDetalleUsuario({
       .filter(Boolean)
       .join(" ") || `Usuario #${usuario.id}`;
 
-  const roles = Array.isArray(usuario.roles)
-    ? usuario.roles.join(", ")
-    : usuario.rol_nombre ||
+  const datosUsuario = detalle?.usuario ?? usuario;
+  const calificaciones = detalle?.reputacion?.calificaciones ?? [];
+  const promedio = detalle?.reputacion?.promedio ?? null;
+  const roles = Array.isArray(datosUsuario.roles)
+    ? datosUsuario.roles.join(", ")
+    : datosUsuario.rol_nombre ||
       ({ 1: "Pasajero", 2: "Conductor", 3: "Administrador" }[
-        usuario.rol_id
+        datosUsuario.rol_id
       ] ?? "—");
 
   return (
@@ -141,11 +131,11 @@ export default function VistaDetalleUsuario({
         </h3>
 
         <p className="mt-1 break-all text-sm text-slate-600">
-          {usuario.correo}
+          {datosUsuario.correo}
         </p>
 
         <p className="mt-2 text-sm text-slate-500">
-          ID: {usuario.id} · Rol: {roles}
+          ID: {datosUsuario.id} · Rol: {roles}
         </p>
       </section>
 
@@ -217,21 +207,11 @@ export default function VistaDetalleUsuario({
       </Seccion>
 
       <Seccion titulo="Viajes del usuario">
-        <p className="text-sm text-amber-800">
-          Consulta pendiente: el backend todavía no ofrece
-          un historial administrativo de viajes filtrado
-          por usuario. No es posible determinar si existen
-          registros.
-        </p>
+        <p className="text-sm text-slate-600">{detalle?.viajes?.length ?? 0} viajes publicados.</p>
       </Seccion>
 
       <Seccion titulo="Reservaciones del usuario">
-        <p className="text-sm text-amber-800">
-          Consulta pendiente: el backend todavía no ofrece
-          un historial administrativo de reservaciones
-          filtrado por usuario. No es posible determinar
-          si existen registros.
-        </p>
+        <p className="text-sm text-slate-600">{detalle?.reservaciones?.length ?? 0} reservaciones registradas.</p>
       </Seccion>
     </div>
   );

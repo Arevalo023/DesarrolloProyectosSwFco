@@ -146,13 +146,9 @@ export default function ListadoAdministrativo({ tipo }) {
 
         if (!activo) return;
 
-        setDatos(
-          Array.isArray(respuesta[config.key])
-            ? respuesta[config.key]
-            : []
-        );
+        setDatos(Array.isArray(respuesta[config.key]) ? respuesta[config.key] : []);
 
-        setTotal(Number(respuesta.paginacion?.total ?? 0));
+        setTotal(Number(respuesta.paginacion?.total ?? respuesta.total ?? 0));
       } catch (e) {
         if (activo) {
           setDatos([]);

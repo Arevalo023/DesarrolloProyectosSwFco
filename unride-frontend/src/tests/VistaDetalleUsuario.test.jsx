@@ -42,8 +42,10 @@ describe("Issue #146 / HU-11 - Vista de detalle de usuario", () => {
 
   it("muestra los datos del usuario y permite volver al listado", async () => {
     apiRequest.mockResolvedValue({
-      promedio: null,
-      calificaciones: [],
+      usuario,
+      reputacion: { promedio: null, calificaciones: [] },
+      viajes: [],
+      reservaciones: [],
     });
 
     const onVolver = vi.fn();
@@ -64,7 +66,7 @@ describe("Issue #146 / HU-11 - Vista de detalle de usuario", () => {
 
     await waitFor(() => {
       expect(apiRequest).toHaveBeenCalledWith(
-        "/api/ratings/user/5"
+        "/users/5"
       );
     });
 
@@ -106,8 +108,8 @@ describe("Issue #146 / HU-11 - Vista de detalle de usuario", () => {
 
   it("muestra el promedio y la lista real de calificaciones recibidas", async () => {
     apiRequest.mockResolvedValue({
-      promedio: 4.5,
-      calificaciones: [
+      usuario,
+      reputacion: { promedio: 4.5, calificaciones: [
         {
           id: 11,
           puntuacion: 5,
@@ -124,7 +126,9 @@ describe("Issue #146 / HU-11 - Vista de detalle de usuario", () => {
           viaje_id: 32,
           fecha_creacion: "2026-10-22T12:00:00Z",
         },
-      ],
+      ] },
+      viajes: [],
+      reservaciones: [],
     });
 
     render(
@@ -193,8 +197,10 @@ describe("Issue #146 / HU-11 - Vista de detalle de usuario", () => {
         new Error("Servicio no disponible")
       )
       .mockResolvedValueOnce({
-        promedio: null,
-        calificaciones: [],
+        usuario,
+        reputacion: { promedio: null, calificaciones: [] },
+        viajes: [],
+        reservaciones: [],
       });
 
     render(
@@ -252,11 +258,8 @@ describe("Issue #146 / HU-11 - Vista de detalle de usuario", () => {
       screen.getByText("Reservaciones del usuario")
     ).toBeTruthy();
 
-    expect(
-      screen.getAllByText(
-        /Consulta pendiente: el backend todavía no ofrece/
-      )
-    ).toHaveLength(2);
+    expect(screen.getByText("0 viajes publicados.")).toBeTruthy();
+    expect(screen.getByText("0 reservaciones registradas.")).toBeTruthy();
 
     // Corrección de la advertencia act(...):
     // Esperar a que React termine la actualización asíncrona.
