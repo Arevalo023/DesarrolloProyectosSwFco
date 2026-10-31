@@ -255,16 +255,27 @@ const tripService = {
    * @returns {Promise<object>} El viaje cancelado
    */
   async cancelAdmin(tripId, adminId, motivo) {
-    const result = await tripModel.cancelAdmin(tripId, motivo.trim());
+    if (typeof motivo !== "string" || motivo.trim().length === 0) {
+      const error = new Error("El motivo de cancelación es obligatorio.");
+      error.statusCode = 400;
+      throw error;
+    }
+    const motivoLimpio = motivo.trim();
 
-    // Notificar solo a los pasajeros con reservación aceptada
+    const result = await tripModel.cancelAdmin(tripId, motivoLimpio);
+
+    // Notificar solo a los pasajeros con reservación aceptada, una vez por pasajero
     if (Array.isArray(result?.acceptedReservations)) {
+      const notificados = new Set();
       for (const reservation of result.acceptedReservations) {
+        if (String(reservation?.estado || "").toLowerCase() !== "aceptada") continue;
+        if (notificados.has(reservation.pasajero_id)) continue;
+        notificados.add(reservation.pasajero_id);
         try {
           await notificationService.notifyTripCancelledByAdmin(
             reservation,
             result.trip,
-            motivo.trim()
+            motivoLimpio
           );
         } catch (err) {
           console.error(
@@ -282,7 +293,7 @@ const tripService = {
       entidad: "Viajes",
       entidadId: tripId,
       accion: "CANCELAR_VIAJE",
-      motivo: motivo.trim(),
+      motivo: motivoLimpio,
     });
 
     return result.trip;
