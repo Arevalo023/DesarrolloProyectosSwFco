@@ -78,6 +78,19 @@ Para rutas con roles requeridos:
   - **Código:** `403 Forbidden`
   - **Cuerpo:** `{ "message": "Acceso denegado: No cuentas con los permisos necesarios para realizar esta acción." }`
 
+### 2.3. Contrato de respuestas administrativas
+Todas las respuestas exitosas (`2xx`) de los endpoints administrativos incluyen el sobre uniforme:
+```json
+{
+  "success": true,
+  "data": {}
+}
+```
+- `data` contiene el resultado del endpoint: listado/detalle, métricas o viaje afectado.
+- Por compatibilidad, se conservan en la raíz las propiedades que ya devolvía cada ruta (`usuarios`, `viajes`, `metricas`, `viaje`, entre otras).
+- Los errores conservan el formato estándar `{ "message": "..." }`; `code` y `requiredRole` aparecen cuando corresponda.
+- Las rutas administrativas responden `401 Unauthorized` sin token o con token inválido y `403 Forbidden` si el rol activo no es `Administrador`.
+
 ---
 
 ## 📡 3. Especificación Detallada de Endpoints
@@ -297,9 +310,11 @@ Lista los usuarios registrados con búsqueda, filtro por rol y paginación. Nunc
     "paginacion": { "pagina": 1, "limite": 20, "total": 1, "total_paginas": 1 }
   }
   ```
+- **Sobre `200 OK`:** `data` contiene el mismo objeto del ejemplo; las propiedades originales permanecen en la raíz.
 - **`400 Bad Request`**: Parámetro inválido (`page`, `limit`, `q`, `rol`) o rol inexistente.
 - **`401 Unauthorized`**: Token no válido o ausente.
 - **`403 Forbidden`**: El rol activo no es `Administrador`.
+- **`500 Internal Server Error`**: Error interno al consultar los usuarios.
 
 ---
 
@@ -309,6 +324,7 @@ Devuelve los datos básicos de un usuario junto con su reputación (promedio y c
 - **Acceso:** Privado (`Authorization: Bearer <token>`), solo rol activo `Administrador`.
 - **Path params:** `id` — entero `>= 1`.
 - **Ejemplo:** `GET /users/7`
+- **Sobre `200 OK`:** `data` contiene el mismo objeto del ejemplo; las propiedades originales permanecen en la raíz.
 
 **Notas:**
 - `reputacion` se obtiene con la misma lógica que `GET /api/ratings/user/:id` (ver 3.7.2). Si el usuario no tiene calificaciones, `promedio` es `0` y `calificaciones` es `[]`.
@@ -406,6 +422,7 @@ Devuelve los datos básicos de un usuario junto con su reputación (promedio y c
 - **`401 Unauthorized`**: Token no válido o ausente.
 - **`403 Forbidden`**: El rol activo no es `Administrador`.
 - **`404 Not Found`**: `"El usuario no existe."`
+- **`500 Internal Server Error`**: Error interno al consultar el detalle del usuario.
 
 ---
 
@@ -1028,6 +1045,8 @@ Lista los viajes registrados en el sistema para el panel de administración, con
   | `limit` | number | Entero entre `1` y `50`. Por defecto `20`. |
 
 - **Ejemplo:** `GET /api/trips/admin?estado=programado&fecha=2026-11-01&page=1&limit=20`
+- **Sobre `200 OK`:** `data` contiene el objeto listado y paginación del ejemplo; sus propiedades originales permanecen en la raíz.
+- La propiedad histórica `trips` también se incluye junto a `viajes`, tanto dentro de `data` como en la raíz.
 
 **Respuestas:**
 - **`200 OK`**:
@@ -1082,6 +1101,7 @@ Lista los viajes registrados en el sistema para el panel de administración, con
 - **`400 Bad Request`**: Parámetro inválido (`page`, `limit`, `fecha`, `estado`, `conductor`).
 - **`401 Unauthorized`**: Token ausente o inválido.
 - **`403 Forbidden`**: El rol activo no es `Administrador`.
+- **`500 Internal Server Error`**: Error interno al consultar los viajes.
 
 ---
 
@@ -1091,6 +1111,7 @@ Devuelve la información detallada de un viaje específico con sus reservaciones
 - **Acceso:** Privado (`Authorization: Bearer <token>`), solo rol activo `Administrador`.
 - **Parámetros de ruta:**
   - `id` (`integer`): ID del viaje (entero positivo).
+- **Sobre `200 OK`:** `data` contiene `{ "viaje": <detalle> }`; `viaje` y `trip` se conservan en la raíz por compatibilidad.
 
 **Respuestas:**
 - **`200 OK`**:
@@ -1154,15 +1175,17 @@ Devuelve la información detallada de un viaje específico con sus reservaciones
 - **`401 Unauthorized`**: Token ausente o inválido.
 - **`403 Forbidden`**: El rol activo no es `Administrador`.
 - **`404 Not Found`**: `"El viaje no existe."`
+- **`500 Internal Server Error`**: Error interno al consultar el detalle del viaje.
 
 ---
 
-#### 3.4.14. Cancelar Viaje — Administración (`PATCH /api/trips/admin/:id/cancel` / `PATCH /api/trips/:id/cancel`)
+#### 3.4.14. Cancelar Viaje — Administración (`PATCH /api/trips/admin/:id/cancel` / `PATCH /api/trips/:id/cancel-admin` / `PATCH /api/trips/:id/cancel`)
 Permite a un administrador cancelar un viaje programado especificando un motivo obligatorio, notificando a los pasajeros aceptados y registrando la acción en el log del servidor.
 
 - **Acceso:** Privado (`Authorization: Bearer <token>`), solo rol activo `Administrador`.
 - **Parámetros de ruta:**
   - `id` (`integer`): ID del viaje (entero positivo).
+- **Alias:** `PATCH /api/trips/:id/cancel-admin`. La ruta compartida `PATCH /api/trips/:id/cancel` atiende a Administradores y Conductores según el rol activo; el middleware exige uno de esos roles y aplica las reglas de cancelación administrativa al Administrador.
 - **Body (JSON):**
   ```json
   {
@@ -1183,6 +1206,21 @@ Permite a un administrador cancelar un viaje programado especificando un motivo 
 - **`200 OK`**:
   ```json
   {
+    "success": true,
+    "data": {
+      "viaje": {
+        "id": 10,
+        "conductor_id": 5,
+        "vehiculo_id": 2,
+        "origen": "Campus Arteaga",
+        "destino": "Rectoría",
+        "fecha_salida": "2026-11-01T08:00:00.000Z",
+        "cupo_disponible": 3,
+        "costo_por_pasajero": 25.00,
+        "estado": "cancelado",
+        "motivo_cancelacion": "Condiciones climáticas adversas en la zona del campus"
+      }
+    },
     "message": "Viaje cancelado correctamente por administración.",
     "viaje": {
       "id": 10,
@@ -1198,6 +1236,7 @@ Permite a un administrador cancelar un viaje programado especificando un motivo 
     }
   }
   ```
+  *(La respuesta también incluye `trip` en la raíz, igual a `viaje`, para mantener compatibilidad.)*
 - **`400 Bad Request`**:
   - `"El motivo de cancelación es obligatorio."`
   - `"El motivo de cancelación no puede exceder los 250 caracteres."`
@@ -1206,8 +1245,9 @@ Permite a un administrador cancelar un viaje programado especificando un motivo 
   - `"No es posible cancelar un viaje que ya ha finalizado. Solo se pueden cancelar viajes programados."`
   - `"El viaje ya se encuentra cancelado."`
 - **`401 Unauthorized`**: Token ausente o inválido.
-- **`403 Forbidden`**: El rol activo no es `Administrador`.
+- **`403 Forbidden`**: El rol activo no es `Administrador` en las rutas administrativas, ni `Conductor` o `Administrador` en la ruta compartida.
 - **`404 Not Found`**: `"El viaje no existe."`
+- **`500 Internal Server Error`**: Error interno al cancelar el viaje.
 
 ---
 
@@ -1215,10 +1255,20 @@ Permite a un administrador cancelar un viaje programado especificando un motivo 
 
 Consulta las métricas globales mostradas en el panel de administración.
 
+- **Método:** `GET`.
+- **Parámetros:** No recibe parámetros de ruta, query ni body.
 - **Acceso:** Privado (solo rol activo `Administrador`).
 - **Respuesta `200 OK`:**
   ```json
   {
+    "success": true,
+    "data": {
+      "metricas": {
+        "usuarios": 12,
+        "viajes": 8,
+        "reservaciones": 21
+      }
+    },
     "metricas": {
       "usuarios": 12,
       "viajes": 8,
@@ -1228,6 +1278,7 @@ Consulta las métricas globales mostradas en el panel de administración.
   ```
 - **`401 Unauthorized`:** Token ausente o inválido.
 - **`403 Forbidden`:** El rol activo no es `Administrador`.
+- **`500 Internal Server Error`:** Error interno al consultar el resumen administrativo.
 
 ### 3.5. Módulo de Reservaciones (`/api/reservations`)
 

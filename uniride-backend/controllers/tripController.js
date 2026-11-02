@@ -338,7 +338,11 @@ const tripController = {
     try {
       const { estado, fecha, conductor, page, limit } = req.query;
       const result = await tripService.listTripsAdmin({ estado, fecha, conductor, page, limit });
-      return res.status(200).json(result);
+      return res.status(200).json({
+        success: true,
+        data: result,
+        ...result,
+      });
     } catch (error) {
       const statusCode = error.statusCode || 500;
       return res.status(statusCode).json({
@@ -357,7 +361,13 @@ const tripController = {
     try {
       const tripId = parseInt(req.params.id, 10);
       const trip = await tripService.getTripDetailAdmin(tripId);
-      return res.status(200).json({ viaje: trip, trip });
+      const data = { viaje: trip };
+      return res.status(200).json({
+        success: true,
+        data,
+        viaje: trip,
+        trip,
+      });
     } catch (error) {
       const statusCode = error.statusCode || 500;
       return res.status(statusCode).json({
@@ -379,7 +389,10 @@ const tripController = {
 
       const trip = await tripService.cancelAdmin(tripId, req.user.id, motivo);
 
+      const data = { viaje: trip };
       return res.status(200).json({
+        success: true,
+        data,
         message: "Viaje cancelado correctamente por administración.",
         viaje: trip,
         trip,

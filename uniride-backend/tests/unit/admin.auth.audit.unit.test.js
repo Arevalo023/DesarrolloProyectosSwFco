@@ -37,6 +37,7 @@ const userService = require("../../services/userService");
 const tripService = require("../../services/tripService");
 const tripModel = require("../../models/tripModel");
 const tripController = require("../../controllers/tripController");
+const adminService = require("../../services/adminService");
 
 const JWT_SECRET = process.env.JWT_SECRET || "uniride_default_secret_key";
 
@@ -121,6 +122,7 @@ const mockCancelledTripEntity = {
 const adminRoutes = [
   { method: "get", path: "/users", description: "GET /users (Listar usuarios)" },
   { method: "get", path: "/users/5", description: "GET /users/:id (Detalle de usuario)" },
+  { method: "get", path: "/api/admin/summary", description: "GET /api/admin/summary (Resumen administrativo)" },
   { method: "get", path: "/api/trips/admin", description: "GET /api/trips/admin (Listar viajes admin)" },
   { method: "get", path: "/api/trips/admin/10", description: "GET /api/trips/admin/:id (Detalle de viaje admin)" },
   { method: "get", path: "/api/trips/10", description: "GET /api/trips/:id (Alias detalle de viaje admin)" },
@@ -129,6 +131,12 @@ const adminRoutes = [
     path: "/api/trips/admin/10/cancel",
     body: { motivo: "Cierre de vialidad" },
     description: "PATCH /api/trips/admin/:id/cancel (Cancelación admin)",
+  },
+  {
+    method: "patch",
+    path: "/api/trips/10/cancel-admin",
+    body: { motivo: "Cierre de vialidad" },
+    description: "PATCH /api/trips/:id/cancel-admin (Alias cancelación admin)",
   },
   {
     method: "patch",
@@ -347,7 +355,11 @@ describe("Issue #153: Pruebas de autorización y registro (BE) — HU-09", () =>
           .set("Authorization", `Bearer ${adminToken}`);
 
         expect(res.status).toBe(200);
-        expect(res.body).toEqual(mockUserListResponse);
+        expect(res.body).toMatchObject({
+          success: true,
+          data: mockUserListResponse,
+          ...mockUserListResponse,
+        });
       });
 
       test("GET /users/:id responde 200 con detalle de usuario para Administrador", async () => {
@@ -358,7 +370,27 @@ describe("Issue #153: Pruebas de autorización y registro (BE) — HU-09", () =>
           .set("Authorization", `Bearer ${adminToken}`);
 
         expect(res.status).toBe(200);
-        expect(res.body).toEqual(mockUserDetailResponse);
+        expect(res.body).toMatchObject({
+          success: true,
+          data: mockUserDetailResponse,
+          ...mockUserDetailResponse,
+        });
+      });
+
+      test("GET /api/admin/summary responde con el sobre uniforme para Administrador", async () => {
+        const summary = { usuarios: 12, viajes: 8, reservaciones: 21 };
+        jest.spyOn(adminService, "getSummary").mockResolvedValue(summary);
+
+        const res = await request(app)
+          .get("/api/admin/summary")
+          .set("Authorization", `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual({
+          success: true,
+          data: { metricas: summary },
+          metricas: summary,
+        });
       });
 
       test("GET /api/trips/admin responde 200 con listado de viajes para Administrador", async () => {
@@ -369,7 +401,11 @@ describe("Issue #153: Pruebas de autorización y registro (BE) — HU-09", () =>
           .set("Authorization", `Bearer ${adminToken}`);
 
         expect(res.status).toBe(200);
-        expect(res.body).toEqual(mockTripListResponse);
+        expect(res.body).toMatchObject({
+          success: true,
+          data: mockTripListResponse,
+          ...mockTripListResponse,
+        });
       });
 
       test("GET /api/trips/admin/:id responde 200 con detalle de viaje para Administrador", async () => {
@@ -380,6 +416,8 @@ describe("Issue #153: Pruebas de autorización y registro (BE) — HU-09", () =>
           .set("Authorization", `Bearer ${adminToken}`);
 
         expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data).toEqual({ viaje: mockTripDetailResponse });
         expect(res.body.viaje).toEqual(mockTripDetailResponse);
         expect(res.body.trip).toEqual(mockTripDetailResponse);
       });
@@ -392,6 +430,8 @@ describe("Issue #153: Pruebas de autorización y registro (BE) — HU-09", () =>
           .set("Authorization", `Bearer ${adminToken}`);
 
         expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data).toEqual({ viaje: mockTripDetailResponse });
         expect(res.body.viaje).toEqual(mockTripDetailResponse);
         expect(res.body.trip).toEqual(mockTripDetailResponse);
       });
@@ -405,6 +445,8 @@ describe("Issue #153: Pruebas de autorización y registro (BE) — HU-09", () =>
           .send({ motivo: "Cierre temporal de vialidad universitaria" });
 
         expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data).toEqual({ viaje: mockCancelledTripEntity });
         expect(res.body.message).toBe("Viaje cancelado correctamente por administración.");
         expect(res.body.viaje).toEqual(mockCancelledTripEntity);
       });
@@ -418,6 +460,8 @@ describe("Issue #153: Pruebas de autorización y registro (BE) — HU-09", () =>
           .send({ motivo: "Cierre temporal de vialidad universitaria" });
 
         expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data).toEqual({ viaje: mockCancelledTripEntity });
         expect(res.body.message).toBe("Viaje cancelado correctamente por administración.");
         expect(res.body.viaje).toEqual(mockCancelledTripEntity);
       });
@@ -431,6 +475,8 @@ describe("Issue #153: Pruebas de autorización y registro (BE) — HU-09", () =>
           .send({ motivo: "Cierre temporal de vialidad universitaria" });
 
         expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data).toEqual({ viaje: mockCancelledTripEntity });
         expect(res.body.message).toBe("Viaje cancelado correctamente por administración.");
         expect(res.body.viaje).toEqual(mockCancelledTripEntity);
       });
@@ -472,6 +518,22 @@ describe("Issue #153: Pruebas de autorización y registro (BE) — HU-09", () =>
 
         expect(res.status).toBe(200);
         expect(res.body.viaje.estado).toBe("cancelado");
+      });
+
+      test("el alias de rol admin activa la cancelación administrativa en la ruta compartida", async () => {
+        jest.spyOn(tripService, "cancelAdmin").mockResolvedValue(mockCancelledTripEntity);
+
+        const res = await request(app)
+          .patch("/api/trips/10/cancel")
+          .set("Authorization", `Bearer ${adminAliasToken}`)
+          .send({ motivo: "Cierre temporal de vialidad universitaria" });
+
+        expect(res.status).toBe(200);
+        expect(tripService.cancelAdmin).toHaveBeenCalledWith(
+          10,
+          1,
+          "Cierre temporal de vialidad universitaria"
+        );
       });
     });
   });
