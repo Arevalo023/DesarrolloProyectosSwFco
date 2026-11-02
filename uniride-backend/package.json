@@ -10,7 +10,8 @@
     "db:init:test": "DB_NAME=uniride_test node scripts/db-init.js",
     "test": "jest tests/unit",
     "test:unit": "jest tests/unit",
-    "test:integration": "jest tests/integration --runInBand --forceExit"
+    "test:integration": "jest tests/integration --runInBand --forceExit",
+    "test:e2e": "node tests/e2e/run.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

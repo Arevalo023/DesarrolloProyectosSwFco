@@ -60,3 +60,71 @@ jobs:
 
       - name: Ejecutar pruebas unitarias (Jest)
         run: npm test
+
+  e2e:
+    name: Pruebas E2E - Backend y Frontend
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: UniRide_CI_Db_2026!
+          MSSQL_PID: Developer
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'UniRide_CI_Db_2026!' -C -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 30s
+    env:
+      DB_USER: sa
+      DB_PASSWORD: UniRide_CI_Db_2026!
+      DB_SERVER: localhost
+      DB_PORT: 1433
+      DB_NAME: uniride_ci_test
+      DB_NAME_TEST: uniride_ci_test
+      JWT_SECRET: ci-only-secret-not-for-production
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            ./uniride-backend/package-lock.json
+            ./unride-frontend/package-lock.json
+
+      - name: Instalar dependencias del backend
+        working-directory: ./uniride-backend
+        run: npm ci
+
+      - name: Instalar dependencias del frontend
+        working-directory: ./unride-frontend
+        run: npm ci
+
+      - name: Instalar Chromium para Playwright
+        working-directory: ./unride-frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Ejecutar E2E del backend
+        working-directory: ./uniride-backend
+        run: npm run test:e2e
+
+      - name: Ejecutar E2E del frontend
+        working-directory: ./unride-frontend
+        run: npm run test:e2e
+
+      - name: Guardar resultados Playwright si falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: ./unride-frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

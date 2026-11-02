@@ -254,6 +254,37 @@ describe("Controlador y Modelo — Reglas de negocio de cancelación", () => {
     expect(db.lastTransaction?.rolledBack).toBe(true);
   });
 
+  test("no duplica el registro de auditoría al repetir una cancelación sin cambios", async () => {
+    db.queueResult({ recordset: [mockProgrammedTrip] });
+    db.queueResult({ recordset: [] });
+    db.queueResult({
+      recordset: [{
+        ...mockProgrammedTrip,
+        estado: "cancelado",
+        motivo_cancelacion: "Lluvia severa",
+      }],
+    });
+    db.queueResult({ recordset: [] });
+    db.queueResult({
+      recordset: [{ ...mockProgrammedTrip, estado: "cancelado" }],
+    });
+
+    const auditSpy = jest.spyOn(auditService, "logAction").mockReturnValue({});
+    const firstResponse = await request(app)
+      .patch("/api/trips/admin/15/cancel")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ motivo: "Lluvia severa" });
+    const repeatedResponse = await request(app)
+      .patch("/api/trips/admin/15/cancel")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ motivo: "Lluvia severa" });
+
+    expect(firstResponse.status).toBe(200);
+    expect(repeatedResponse.status).toBe(400);
+    expect(repeatedResponse.body.message).toBe("El viaje ya se encuentra cancelado.");
+    expect(auditSpy).toHaveBeenCalledTimes(1);
+  });
+
   test("200 y actualiza viaje y reservaciones si está en estado 'programado'", async () => {
     // 1. SELECT del viaje
     db.queueResult({ recordset: [mockProgrammedTrip] });

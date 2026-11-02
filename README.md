@@ -141,11 +141,14 @@ Desde `uniride-backend/`:
 ```bash
 npm test
 npm run test:integration
+npm run test:e2e
 ```
 
-Las pruebas de integración requieren SQL Server y una base de datos de prueba
-con un nombre que termine en `_test`. No las ejecutes contra una base con datos
-reales.
+Las pruebas de integración y E2E requieren SQL Server y una base de datos de
+prueba con un nombre que termine en `_test`. `test:e2e` inicializa de forma
+idempotente la base `uniride_admin_e2e_test` y elimina sus registros de prueba
+al finalizar. Puedes elegir otra base con `DB_NAME_TEST`, siempre que termine
+en `_test`. No ejecutes estas pruebas contra una base con datos reales.
 
 ### Frontend
 
@@ -153,9 +156,20 @@ Desde `unride-frontend/`:
 
 ```bash
 npm test
+npx playwright install chromium
+npm run test:e2e
 npm run lint
 npm run build
 ```
+
+Las pruebas E2E del navegador usan Playwright con Chromium y recorren el inicio
+de sesión administrativo, el resumen, la consulta de usuarios y la lista de
+viajes contra el backend y SQL Server reales. Requieren las variables de entorno
+del backend y una base de pruebas terminada en `_test`.
+
+El workflow de GitHub Actions ejecuta ambas suites E2E en un job independiente
+con SQL Server efímero y Chromium. Los resultados de Playwright se conservan
+como artifact cuando falla ese job.
 
 ## Estructura del repositorio
 
@@ -169,7 +183,7 @@ npm run build
 │   ├── models/             # Consultas y acceso a datos
 │   ├── routes/             # Rutas de la API
 │   ├── services/           # Lógica de negocio
-│   └── tests/              # Pruebas unitarias y de integración
+│   └── tests/              # Pruebas unitarias, integración y E2E API
 ├── unride-frontend/
 │   └── src/
 │       ├── components/     # Componentes reutilizables

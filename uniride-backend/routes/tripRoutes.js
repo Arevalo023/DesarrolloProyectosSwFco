@@ -101,7 +101,7 @@ router.patch(
 	authMiddleware.verifyToken,
 	roleMiddleware(["Conductor", "Administrador"]),
 	(req, res, next) => {
-		if (req.activeRole === "Administrador") {
+		if (roleMiddleware.expandRoleAliases(req.activeRole).includes("administrador")) {
 			return validateMiddleware.validateCancelTripAdmin(req, res, () =>
 				tripController.cancelAdmin(req, res)
 			);

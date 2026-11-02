@@ -9,7 +9,11 @@ const userController = {
     try {
       const { q, rol, page, limit } = req.query;
       const result = await userService.listUsers({ q, rol, page, limit });
-      return res.status(200).json(result);
+      return res.status(200).json({
+        success: true,
+        data: result,
+        ...result
+      });
     } catch (error) {
       const statusCode = error.statusCode || 500;
       return res.status(statusCode).json({
@@ -27,7 +31,11 @@ const userController = {
   async getDetail(req, res) {
     try {
       const result = await userService.getUserDetail(req.params.id);
-      return res.status(200).json(result);
+      return res.status(200).json({
+        success: true,
+        data: result,
+        ...result
+      });
     } catch (error) {
       const statusCode = error.statusCode || 500;
       return res.status(statusCode).json({
