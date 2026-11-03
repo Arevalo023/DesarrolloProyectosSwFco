@@ -95,6 +95,46 @@ Todas las respuestas exitosas (`2xx`) de los endpoints administrativos incluyen 
 
 ## 📡 3. Especificación Detallada de Endpoints
 
+### 3.0. Índice de Endpoints por Módulo
+
+| Módulo | Método | Endpoint | Acceso / Rol | Descripción |
+|---|---|---|---|---|
+| **Health** | `GET` | `/health` | Público | Verificación del estado del backend |
+| **Usuarios** | `POST` | `/users/register` | Público | Registro de nuevos usuarios institucionales |
+| | `POST` | `/users/login` | Público | Inicio de sesión y generación de JWT |
+| | `GET` | `/users/me` | Privado | Perfil del usuario autenticado |
+| | `PATCH` | `/users/me` | Privado | Actualización de datos de perfil |
+| | `GET` | `/users/campuses` | Privado | Catálogo de campus universitarios |
+| | `GET` | `/users` | `Administrador` | Listar usuarios con filtros y paginación |
+| | `GET` | `/users/:id` | `Administrador` | Detalle de usuario, reputación, viajes y reservas |
+| **Vehículos** | `POST` | `/api/vehicles` | `Conductor` | Registrar vehículo para viajes |
+| | `GET` | `/api/vehicles/user` | Privado | Listar vehículos propios del usuario |
+| | `GET` | `/api/vehicles/:id` | Privado | Detalle de un vehículo propio |
+| | `PUT` | `/api/vehicles/:id` | `Conductor` | Actualizar datos de un vehículo propio |
+| | `PATCH` | `/api/vehicles/:id/status` | `Conductor` | Activar o desactivar vehículo propio |
+| **Viajes** | `POST` | `/api/trips` | `Conductor` | Publicar nuevo viaje programado |
+| | `GET` | `/api/trips/driver` | `Conductor` | Historial y viajes publicados del conductor |
+| | `GET` | `/api/trips/driver/requests` | `Conductor` | Solicitudes de reservación recibidas |
+| | `GET` | `/api/trips` | Privado | Buscar viajes disponibles con filtros |
+| | `GET` | `/api/trips/reservations` | Privado | Mis reservaciones de viaje |
+| | `PATCH` | `/api/trips/:id/cancel` | `Conductor` / `Administrador` | Cancelar viaje (ordinaria o administrativa) |
+| | `PATCH` | `/api/trips/:id/start` | `Conductor` | Iniciar viaje programado |
+| | `PATCH` | `/api/trips/:id/finish` | `Conductor` | Finalizar viaje en curso |
+| | `POST` | `/api/trips/:id/book` | `Pasajero` | Solicitar asiento en viaje |
+| | `POST` | `/api/trips/:id/rate-driver`| Privado | Calificar al conductor del viaje |
+| | `POST` | `/api/trips/:id/rate-passenger`| `Conductor` | Calificar al pasajero del viaje |
+| | `GET` | `/api/trips/admin` | `Administrador` | Listar viajes para administración con filtros |
+| | `GET` | `/api/trips/admin/:id` | `Administrador` | Detalle administrativo de viaje con reservaciones |
+| | `PATCH` | `/api/trips/admin/:id/cancel` | `Administrador` | Cancelación administrativa con motivo obligatorio |
+| **Reservaciones**| `PATCH`| `/api/reservations/:id` | `Conductor` | Aceptar o rechazar solicitud de reserva |
+| | `PATCH` | `/api/reservations/:id/cancel`| `Pasajero` / `Conductor` | Cancelar solicitud o reservación de viaje |
+| | `GET` | `/api/reservations` | Privado | Alias para mis reservaciones de viaje |
+| **Notificaciones**| `GET` | `/api/notifications` | Privado | Consultar notificaciones del usuario |
+| **Calificaciones**| `POST` | `/api/ratings/driver` | Privado | Calificar conductor (módulo calificaciones) |
+| | `GET` | `/api/ratings/user/:id` | Privado | Consultar perfil de reputación y reseñas |
+| | `POST` | `/api/ratings/passenger` | `Conductor` | Calificar pasajero (módulo calificaciones) |
+| **Administración**| `GET` | `/api/admin/summary` | `Administrador` | Métricas globales del sistema (usuarios, viajes, reservas) |
+
 ---
 
 ### 3.1. Health Check
@@ -1254,6 +1294,7 @@ Permite a un administrador cancelar un viaje programado especificando un motivo 
 #### 3.4.15. Resumen administrativo (`GET /api/admin/summary`)
 
 Consulta las métricas globales mostradas en el panel de administración.
+*(Véase también la sección canónica [3.8.1. Módulo de Administración](#381-resumen-administrativo-get-apiadminsummary)).*
 
 - **Método:** `GET`.
 - **Parámetros:** No recibe parámetros de ruta, query ni body.
@@ -1487,6 +1528,42 @@ Permite al conductor propietario calificar a un pasajero enviando el identificad
 
 ---
 
+### 3.8. Módulo de Administración (`/api/admin`)
+
+Proporciona servicios centrales y métricas globales para el panel de control administrativo.
+
+#### 3.8.1. Resumen Administrativo (`GET /api/admin/summary`)
+
+Consulta las métricas globales del sistema mostradas en el panel de control de administración (total acumulado de usuarios, viajes publicados y reservaciones registradas).
+
+- **Método:** `GET`
+- **Ruta:** `/api/admin/summary`
+- **Parámetros:** No recibe parámetros de ruta, query ni body.
+- **Acceso:** Privado (requiere Bearer Token y rol activo `Administrador`).
+- **Respuesta `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "metricas": {
+        "usuarios": 12,
+        "viajes": 8,
+        "reservaciones": 21
+      }
+    },
+    "metricas": {
+      "usuarios": 12,
+      "viajes": 8,
+      "reservaciones": 21
+    }
+  }
+  ```
+- **`401 Unauthorized`:** Token ausente, inválido o expirado.
+- **`403 Forbidden`:** El rol activo no es `Administrador`.
+- **`500 Internal Server Error`:** Error interno del servidor al consultar el resumen administrativo.
+
+---
+
 ## 📊 4. Matriz de Códigos de Estado HTTP
 
 | Código | Significado | Escenario Típico en UniRide |
@@ -1552,4 +1629,36 @@ curl -X PATCH http://localhost:3000/api/reservations/2/cancel \
 # 10. Consultar Notificaciones
 curl -X GET http://localhost:3000/api/notifications \
   -H "Authorization: Bearer <TOKEN>"
+
+# 11. Resumen Administrativo (Métricas Globales)
+curl -X GET http://localhost:3000/api/admin/summary \
+  -H "Authorization: Bearer <TOKEN_ADMINISTRADOR>" \
+  -H "X-Active-Role: Administrador"
+
+# 12. Listar Usuarios (Panel de Administración)
+curl -X GET "http://localhost:3000/users?rol=Conductor&page=1&limit=20" \
+  -H "Authorization: Bearer <TOKEN_ADMINISTRADOR>" \
+  -H "X-Active-Role: Administrador"
+
+# 13. Detalle de Usuario (Panel de Administración)
+curl -X GET http://localhost:3000/users/7 \
+  -H "Authorization: Bearer <TOKEN_ADMINISTRADOR>" \
+  -H "X-Active-Role: Administrador"
+
+# 14. Listar Viajes (Panel de Administración)
+curl -X GET "http://localhost:3000/api/trips/admin?estado=programado&page=1&limit=20" \
+  -H "Authorization: Bearer <TOKEN_ADMINISTRADOR>" \
+  -H "X-Active-Role: Administrador"
+
+# 15. Detalle de Viaje con Reservaciones (Panel de Administración)
+curl -X GET http://localhost:3000/api/trips/admin/10 \
+  -H "Authorization: Bearer <TOKEN_ADMINISTRADOR>" \
+  -H "X-Active-Role: Administrador"
+
+# 16. Cancelación Administrativa de Viaje
+curl -X PATCH http://localhost:3000/api/trips/admin/10/cancel \
+  -H "Authorization: Bearer <TOKEN_ADMINISTRADOR>" \
+  -H "X-Active-Role: Administrador" \
+  -H "Content-Type: application/json" \
+  -d '{"motivo":"Condiciones climáticas adversas en la zona del campus universitario"}'
 ```

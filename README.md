@@ -134,42 +134,69 @@ Abre la URL local que muestre Vite, normalmente `http://localhost:5173`.
 
 ## Pruebas y validaciones
 
+### Resumen de Suites y Runners
+
+| Suite | Comando | Runner | Ámbito | ¿Requiere SQL Server? |
+|---|---|---|---|:---:|
+| **Backend Unitarias** | `npm test` o `npm run test:unit` | **Jest** | `tests/unit/` (Modelos, servicios, controladores, validaciones y RBAC) | ❌ No (Utiliza `mockDb` en memoria) |
+| **Backend Integración** | `npm run test:integration` | **Jest** | `tests/integration/` (Persistencia real y transacciones) | ✅ Sí (`DB_NAME=*_test`) |
+| **Backend End-to-End** | `npm run test:e2e` | **Jest** (vía `run.js`) | `tests/e2e/` (Flujos administrativos de API) | ✅ Sí (Inicializa `uniride_admin_e2e_test`) |
+| **Frontend Unitarias** | `npm test` o `npm run test:run` | **Vitest** | `src/tests/` (Renderizado de componentes y lógica UI) | ❌ No (Utiliza JSDOM) |
+| **Frontend End-to-End** | `npm run test:e2e` | **Playwright** | `e2e/specs/` (Navegador Chromium interactuando con frontend y backend) | ✅ Sí (Backend activo + SQL Server `*_test`) |
+
 ### Backend
+
+El backend utiliza **Jest** como runner oficial de pruebas para todas sus suites (`unit`, `integration` y `e2e`).
 
 Desde `uniride-backend/`:
 
 ```bash
+# 1. Pruebas unitarias (Jest + mockDb en memoria - NO requiere base de datos)
 npm test
+
+# 2. Pruebas de integración (Jest - Requiere SQL Server y base terminada en _test)
 npm run test:integration
+
+# 3. Pruebas End-to-End de API (Jest - Requiere SQL Server; auto-provisiona uniride_admin_e2e_test)
 npm run test:e2e
 ```
 
-Las pruebas de integración y E2E requieren SQL Server y una base de datos de
-prueba con un nombre que termine en `_test`. `test:e2e` inicializa de forma
-idempotente la base `uniride_admin_e2e_test` y elimina sus registros de prueba
-al finalizar. Puedes elegir otra base con `DB_NAME_TEST`, siempre que termine
-en `_test`. No ejecutes estas pruebas contra una base con datos reales.
+#### Requisitos de Base de Datos para Pruebas del Backend:
+- **Pruebas Unitarias (`npm test` / `npm run test:unit`):**
+  - **No requieren SQL Server ni Docker en ejecución.**
+  - Emplean un doble de prueba en memoria (`tests/helpers/mockDb.js`) que simula el pool de conexiones, transacciones y consultas SQL de `mssql`. Se ejecutan de manera aislada y rápida en cualquier entorno o pipeline de CI.
+- **Pruebas de Integración (`npm run test:integration`):**
+  - **Requieren SQL Server activo.**
+  - Por seguridad, exigen conectarse a una base de datos dedicada cuyo nombre termine obligatoriamente en `_test` (por ejemplo `uniride_test`), configurada en `.env` mediante `DB_NAME` o por variable de entorno. Nunca deben ejecutarse contra una base de datos con datos reales o de producción.
+- **Pruebas E2E de API (`npm run test:e2e`):**
+  - **Requieren SQL Server activo.**
+  - El orquestador `node tests/e2e/run.js` inicializa de forma idempotente la base `uniride_admin_e2e_test` ejecutando el esquema `database/uniride.sql`, corre la suite de Jest en `tests/e2e` (`admin.authorization.e2e.test.js`, `admin.users.e2e.test.js`, `admin.trips.e2e.test.js`), y elimina los registros de prueba al finalizar. Se puede definir otra base con `DB_NAME_TEST` siempre que termine en `_test`.
 
 ### Frontend
+
+El frontend utiliza **Vitest** con JSDOM para pruebas unitarias de componentes y **Playwright** para pruebas E2E de interfaz de usuario.
 
 Desde `unride-frontend/`:
 
 ```bash
+# 1. Pruebas unitarias de componentes (Vitest - NO requiere backend ni SQL Server)
 npm test
+
+# 2. Instalación de navegadores para Playwright (solo la primera vez)
 npx playwright install chromium
+
+# 3. Pruebas E2E del navegador (Playwright - Requiere backend activo y SQL Server)
 npm run test:e2e
+
+# 4. Linteo y build de producción
 npm run lint
 npm run build
 ```
 
-Las pruebas E2E del navegador usan Playwright con Chromium y recorren el inicio
-de sesión administrativo, el resumen, la consulta de usuarios y la lista de
-viajes contra el backend y SQL Server reales. Requieren las variables de entorno
-del backend y una base de pruebas terminada en `_test`.
+- **Pruebas Unitarias (`npm test`):** Validan el renderizado de vistas, modales, componentes administrativos, accesibilidad y manejo de sesión en memoria mediante mocks de API y Vitest.
+- **Pruebas E2E (`npm run test:e2e`):** Lanzan Chromium con Playwright para validar de extremo a extremo el inicio de sesión del administrador, navegación del panel de administración, filtros de usuarios, consulta de viajes y métricas globales contra el backend y SQL Server reales.
 
-El workflow de GitHub Actions ejecuta ambas suites E2E en un job independiente
-con SQL Server efímero y Chromium. Los resultados de Playwright se conservan
-como artifact cuando falla ese job.
+El workflow de CI en GitHub Actions ejecuta automáticamente todas las suites unitarias en cada push y PR, y corre las suites E2E en un job independiente con SQL Server efímero en contenedor y Chromium.
 
 ## Estructura del repositorio
 

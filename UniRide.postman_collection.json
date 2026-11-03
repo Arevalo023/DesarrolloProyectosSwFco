@@ -33,8 +33,12 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["health"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
             },
             "description": "Verifica que el servidor backend esté encendido y operativo."
           },
@@ -61,8 +65,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/users/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["users", "register"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "register"
+              ]
             },
             "description": "Registra una nueva cuenta de usuario institucional."
           },
@@ -84,12 +93,33 @@
             },
             "url": {
               "raw": "{{baseUrl}}/users/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["users", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "login"
+              ]
             },
             "description": "Autentica al usuario y obtiene el JWT de sesión."
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.token) {",
+                  "        pm.collectionVariables.set(\"token\", jsonData.token);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Obtener Perfil Autenticado",
@@ -103,8 +133,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/users/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["users", "me"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
             },
             "description": "Devuelve la información del usuario autenticado a partir del JWT."
           },
@@ -130,8 +165,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/users/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["users", "me"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
             },
             "description": "Modifica los datos editables del perfil del usuario."
           },
@@ -149,8 +189,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/users/campuses",
-              "host": ["{{baseUrl}}"],
-              "path": ["users", "campuses"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "campuses"
+              ]
             },
             "description": "Lista los campus disponibles registrados en la base de datos."
           },
@@ -181,8 +226,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/vehicles",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "vehicles"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vehicles"
+              ]
             },
             "description": "Registra un vehículo propio. Si el usuario no era Conductor, se le añade automáticamente el rol."
           },
@@ -200,8 +250,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/vehicles/user",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "vehicles", "user"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vehicles",
+                "user"
+              ]
             },
             "description": "Obtiene la lista de vehículos pertenecientes al usuario autenticado."
           },
@@ -219,8 +275,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/vehicles/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "vehicles", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vehicles",
+                "1"
+              ]
             },
             "description": "Obtiene la información de un vehículo específico por su ID."
           },
@@ -246,8 +308,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/vehicles/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "vehicles", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vehicles",
+                "1"
+              ]
             },
             "description": "Modifica los datos de un vehículo propio."
           },
@@ -273,8 +341,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/vehicles/1/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "vehicles", "1", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vehicles",
+                "1",
+                "status"
+              ]
             },
             "description": "Activa o desactiva un vehículo para ser usado en la publicación de viajes."
           },
@@ -309,8 +384,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/trips",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "trips"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips"
+              ]
             },
             "description": "Publica un nuevo viaje para otros estudiantes. Requiere rol Conductor."
           },
@@ -332,8 +412,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/trips/driver",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "trips", "driver"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "driver"
+              ],
               "query": [
                 {
                   "key": "classified",
@@ -354,6 +440,36 @@
           "response": []
         },
         {
+          "name": "Consultar Solicitudes Recibidas (Conductor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Conductor"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/driver/requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "driver",
+                "requests"
+              ]
+            },
+            "description": "Permite al conductor consultar todas las solicitudes de reservación recibidas para sus viajes."
+          },
+          "response": []
+        },
+        {
           "name": "Buscar Viajes Disponibles",
           "request": {
             "method": "GET",
@@ -365,8 +481,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/trips?origen=Arteaga&destino=Centro",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "trips"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips"
+              ],
               "query": [
                 {
                   "key": "origen",
@@ -405,8 +526,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/trips/1/book",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "trips", "1", "book"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "1",
+                "book"
+              ]
             },
             "description": "Crea una solicitud de reserva en estado pendiente sin descontar cupo anticipadamente."
           },
@@ -424,8 +552,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/trips/reservations?order=asc",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "trips", "reservations"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "reservations"
+              ],
               "query": [
                 {
                   "key": "order",
@@ -461,8 +595,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/trips/1/cancel",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "trips", "1", "cancel"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "1",
+                "cancel"
+              ]
             },
             "description": "Cancela un viaje activo/programado antes de su fecha de salida."
           },
@@ -484,8 +625,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/trips/1/start",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "trips", "1", "start"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "1",
+                "start"
+              ]
             },
             "description": "Solo el conductor propietario puede cambiar el estado de programado a en_curso. Otros estados se rechazan."
           },
@@ -507,8 +655,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/trips/1/finish",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "trips", "1", "finish"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "1",
+                "finish"
+              ]
             },
             "description": "Solo el conductor propietario puede cambiar el estado de en_curso a finalizado. Otros estados se rechazan."
           },
@@ -531,8 +686,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/reservations",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reservations"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservations"
+              ]
             },
             "description": "Alias para consultar las reservaciones del pasajero autenticado."
           },
@@ -558,8 +718,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/reservations/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reservations", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservations",
+                "1"
+              ]
             },
             "description": "El conductor dueño del viaje acepta o rechaza una solicitud. Al aceptar, descuenta 1 asiento atómicamente."
           },
@@ -577,8 +743,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/reservations/1/cancel",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reservations", "1", "cancel"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reservations",
+                "1",
+                "cancel"
+              ]
             },
             "description": "Cancela la reservación. Si estaba aceptada, devuelve 1 asiento al viaje."
           },
@@ -601,8 +774,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/notifications?noLeidas=false",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "notifications"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications"
+              ],
               "query": [
                 {
                   "key": "noLeidas",
@@ -639,8 +817,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/trips/1/rate-driver",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "trips", "1", "rate-driver"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "1",
+                "rate-driver"
+              ]
             },
             "description": "Permite a un pasajero con reservación aceptada calificar al conductor de un viaje finalizado."
           },
@@ -666,8 +851,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/ratings/driver",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ratings", "driver"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ratings",
+                "driver"
+              ]
             },
             "description": "Alias para calificar al conductor indicando viaje_id en el cuerpo."
           },
@@ -685,10 +876,395 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/ratings/user/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ratings", "user", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ratings",
+                "user",
+                "1"
+              ]
             },
             "description": "Obtiene la lista de calificaciones recibidas por el usuario y su promedio consolidado."
+          },
+          "response": []
+        },
+        {
+          "name": "Calificar a un Pasajero (por ID de Viaje)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Conductor"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pasajero_id\": 2,\n  \"puntuacion\": 5,\n  \"comentario\": \"Excelente pasajero, puntual y respetuoso.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/1/rate-passenger",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "1",
+                "rate-passenger"
+              ]
+            },
+            "description": "Permite al conductor calificar a un pasajero que reservó y completó el viaje."
+          },
+          "response": []
+        },
+        {
+          "name": "Calificar a un Pasajero (Módulo Ratings)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Conductor"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"viaje_id\": 1,\n  \"pasajero_id\": 2,\n  \"puntuacion\": 5,\n  \"comentario\": \"Puntual y respetuoso.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ratings/passenger",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ratings",
+                "passenger"
+              ]
+            },
+            "description": "Alias en el módulo /api/ratings para que el conductor califique a un pasajero."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Administración",
+      "item": [
+        {
+          "name": "Resumen Administrativo (Métricas)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Administrador"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "summary"
+              ]
+            },
+            "description": "Consulta las métricas globales del panel de administración (total de usuarios, viajes y reservaciones)."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Usuarios (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Administrador"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users?q=lopez&rol=Conductor&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "lopez",
+                  "description": "Búsqueda por nombre, apellido o correo"
+                },
+                {
+                  "key": "rol",
+                  "value": "Conductor",
+                  "description": "Filtro por rol"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Número de página (>= 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Límite de registros por página (1-50)"
+                }
+              ]
+            },
+            "description": "Lista los usuarios registrados para el panel de administración con soporte para búsqueda (q), filtro por rol (rol) y paginación (page, limit). Nunca expone datos sensibles (contraseñas ni teléfonos)."
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de Usuario (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Administrador"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "1"
+              ]
+            },
+            "description": "Consulta el detalle de un usuario específico con reputación, promedio de estrellas, desglose de calificaciones recibidas, viajes publicados y reservaciones realizadas."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Viajes (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Administrador"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/admin?estado=programado&fecha=2026-11-01&conductor=carlos&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "admin"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "programado",
+                  "description": "Filtro por estado (programado, en_curso, finalizado, cancelado, activos, historial)"
+                },
+                {
+                  "key": "fecha",
+                  "value": "2026-11-01",
+                  "description": "Filtro por fecha de salida (YYYY-MM-DD)"
+                },
+                {
+                  "key": "conductor",
+                  "value": "carlos",
+                  "description": "Filtro por nombre, apellido, correo o ID de conductor"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Página actual"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Registros por página (1-50)"
+                }
+              ]
+            },
+            "description": "Consulta el listado de viajes para administración con filtros por estado, fecha de salida, conductor y paginación de resultados."
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de Viaje con Reservaciones (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Administrador"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/admin/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "admin",
+                "1"
+              ]
+            },
+            "description": "Consulta el detalle completo de un viaje específico junto con todas sus reservaciones y el estado de cada pasajero."
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de Viaje - Alias (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Administrador"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "1"
+              ]
+            },
+            "description": "Alias para consultar el detalle de un viaje con reservaciones a través de la ruta estándar /api/trips/:id autenticado con rol Administrador."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancelar Viaje Administrativo",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Administrador"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Condiciones climáticas adversas en la zona del campus universitario.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/admin/1/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "admin",
+                "1",
+                "cancel"
+              ]
+            },
+            "description": "Cancela un viaje programado por acción administrativa obligando a especificar un motivo de cancelación (1-250 caracteres). Notifica exclusivamente a los pasajeros con reservación aceptada y registra la acción en el log de auditoría del servidor."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancelar Viaje Administrativo - Alias",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Active-Role",
+                "value": "Administrador"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Cancelación administrativa por suspensión de actividades presenciales.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/1/cancel-admin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trips",
+                "1",
+                "cancel-admin"
+              ]
+            },
+            "description": "Alias directo para la cancelación administrativa de un viaje programado."
           },
           "response": []
         }
