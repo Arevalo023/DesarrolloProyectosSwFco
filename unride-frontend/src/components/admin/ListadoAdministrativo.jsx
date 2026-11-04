@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState } from "react";
 import { apiRequest } from "@/services/api";
 import BarraBusquedaFiltros from "./BarraBusquedaFiltros";
@@ -47,9 +46,7 @@ const configuraciones = {
             Array.isArray(u.roles_detalle) &&
             u.roles_detalle.length
           ) {
-            return u.roles_detalle
-              .map((r) => r.nombre)
-              .join(", ");
+            return u.roles_detalle.map((r) => r.nombre).join(", ");
           }
 
           return (
@@ -110,6 +107,16 @@ const configuraciones = {
   },
 };
 
+const obtenerEstado = (viaje) =>
+  String(viaje?.estado ?? viaje?.status ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const esViajeProgramado = (viaje) =>
+  obtenerEstado(viaje) === "programado";
+
 export default function ListadoAdministrativo({ tipo }) {
   const config = configuraciones[tipo];
 
@@ -125,6 +132,11 @@ export default function ListadoAdministrativo({ tipo }) {
   const [reintento, setReintento] = useState(0);
 
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
+
+  // Estado para cancelar viajes desde la vista administrativa.
+  const [viajeCancelacion, setViajeCancelacion] = useState(null);
+  const [cancelandoViaje, setCancelandoViaje] = useState(false);
+  const [errorCancelacion, setErrorCancelacion] = useState("");
 
   useEffect(() => {
     let activo = true;
@@ -146,16 +158,20 @@ export default function ListadoAdministrativo({ tipo }) {
 
         if (!activo) return;
 
-        setDatos(Array.isArray(respuesta[config.key]) ? respuesta[config.key] : []);
+        setDatos(
+          Array.isArray(respuesta[config.key])
+            ? respuesta[config.key]
+            : []
+        );
 
-        setTotal(Number(respuesta.paginacion?.total ?? respuesta.total ?? 0));
+        setTotal(
+          Number(respuesta.paginacion?.total ?? respuesta.total ?? 0)
+        );
       } catch (e) {
         if (activo) {
           setDatos([]);
           setTotal(0);
-          setError(
-            e.message || "Error al consultar los datos."
-          );
+          setError(e.message || "Error al consultar los datos.");
         }
       } finally {
         if (activo) setCargando(false);
@@ -174,6 +190,84 @@ export default function ListadoAdministrativo({ tipo }) {
     setPagina(1);
   }, []);
 
+  const abrirCancelacion = (viaje) => {
+    setViajeCancelacion(viaje);
+    setErrorCancelacion("");
+  };
+
+  const cerrarCancelacion = () => {
+    if (cancelandoViaje) return;
+
+    setViajeCancelacion(null);
+    setErrorCancelacion("");
+  };
+
+  const cancelarViaje = async (motivo) => {
+    if (!viajeCancelacion || cancelandoViaje) return;
+
+    const idViaje = viajeCancelacion.id;
+
+    if (!idViaje) {
+      setErrorCancelacion(
+        "No se pudo identificar el viaje seleccionado."
+      );
+      return;
+    }
+
+    if (!esViajeProgramado(viajeCancelacion)) {
+      setErrorCancelacion(
+        "Solo se pueden cancelar viajes programados."
+      );
+      return;
+    }
+
+    setCancelandoViaje(true);
+    setErrorCancelacion("");
+
+    try {
+      const respuesta = await apiRequest(
+        `/api/trips/${idViaje}/cancel`,
+        {
+          method: "PATCH",
+          body: {
+            motivo_cancelacion: motivo,
+          },
+        }
+      );
+
+      const viajeActualizado = respuesta?.trip ?? {};
+
+      setDatos((datosActuales) =>
+        datosActuales.map((viaje) =>
+          String(viaje.id) === String(idViaje)
+            ? {
+                ...viaje,
+                ...viajeActualizado,
+                estado:
+                  viajeActualizado.estado ??
+                  viajeActualizado.status ??
+                  "Cancelado",
+                motivo_cancelacion:
+                  viajeActualizado.motivo_cancelacion ?? motivo,
+              }
+            : viaje
+        )
+      );
+
+      setAviso(`El viaje #${idViaje} fue cancelado correctamente.`);
+      setViajeCancelacion(null);
+    } catch (requestError) {
+      console.error("Error al cancelar viaje:", requestError);
+
+      setErrorCancelacion(
+        requestError?.message ||
+          "No se pudo cancelar el viaje. Inténtalo nuevamente."
+      );
+    } finally {
+      setCancelandoViaje(false);
+    }
+  };
+
   const columnas = [
     ...config.columnas,
     {
@@ -188,6 +282,16 @@ export default function ListadoAdministrativo({ tipo }) {
               onClick={() => setUsuarioDetalle(fila)}
             >
               Ver detalle
+            </button>
+          )}
+
+          {tipo === "viajes" && esViajeProgramado(fila) && (
+            <button
+              type="button"
+              className="text-red-700 underline"
+              onClick={() => abrirCancelacion(fila)}
+            >
+              Cancelar viaje
             </button>
           )}
 
@@ -233,9 +337,7 @@ export default function ListadoAdministrativo({ tipo }) {
         onPaginaChange={setPagina}
         cargando={cargando}
         error={error}
-        onReintentar={() =>
-          setReintento((n) => n + 1)
-        }
+        onReintentar={() => setReintento((n) => n + 1)}
         mensajeVacio={`No se encontraron ${tipo}.`}
       />
 
@@ -271,6 +373,21 @@ export default function ListadoAdministrativo({ tipo }) {
 
           setSeleccion(null);
         }}
+      />
+
+      <ModalConfirmacion
+        abierto={Boolean(viajeCancelacion)}
+        titulo="Cancelar viaje"
+        mensaje={
+          viajeCancelacion
+            ? `¿Confirmas la cancelación del viaje #${viajeCancelacion.id}? Esta acción actualizará su estado.`
+            : ""
+        }
+        requiereMotivo
+        onCerrar={cerrarCancelacion}
+        onConfirmar={cancelarViaje}
+        cargando={cancelandoViaje}
+        error={errorCancelacion}
       />
     </div>
   );
