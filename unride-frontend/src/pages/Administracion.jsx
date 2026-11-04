@@ -29,18 +29,30 @@ export default function Administracion({ onProfile, onLogout }) {
   const seccion = secciones.find((item) => item.id === seccionActiva) ?? secciones[0];
   const Icono = seccion.icono;
 
-  useEffect(() => {
+    useEffect(() => {
     let activo = true;
+
+    // Restablecer los estados al iniciar una consulta o reintento.
+    setCargandoResumen(true);
+    setErrorResumen("");
 
     apiRequest("/api/admin/summary")
       .then((respuesta) => {
-        if (activo) setResumen(respuesta.metricas ?? respuesta);
+        if (activo) {
+          setResumen(respuesta.metricas ?? respuesta);
+        }
       })
       .catch((error) => {
-        if (activo) setErrorResumen(error.message || "No se pudo cargar el resumen administrativo.");
+        if (activo) {
+          setErrorResumen(
+            error.message || "No se pudo cargar el resumen administrativo."
+          );
+        }
       })
       .finally(() => {
-        if (activo) setCargandoResumen(false);
+        if (activo) {
+          setCargandoResumen(false);
+        }
       });
 
     return () => {

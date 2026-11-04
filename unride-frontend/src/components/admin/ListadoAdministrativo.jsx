@@ -1,11 +1,35 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { apiRequest } from "@/services/api";
 import BarraBusquedaFiltros from "./BarraBusquedaFiltros";
 import TablaPaginada from "./TablaPaginada";
 import ModalConfirmacion from "./ModalConfirmacion";
 import VistaDetalleUsuario from "./VistaDetalleUsuario";
+import VistaDetalleViaje from "./VistaDetalleViaje";
 
 const LIMIT = 20;
+
+const mostrarEstado = (estado) => {
+  const normalizado = String(estado || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s-]+/g, "_");
+
+  const estados = {
+    pendiente: "Pendiente",
+    programado: "Programado",
+    en_curso: "En curso",
+    activo: "Activo",
+    completado: "Completado",
+    finalizado: "Finalizado",
+    cancelado: "Cancelado",
+    historial: "Historial",
+    activos: "Activos",
+  };
+
+  return estados[normalizado] || estado || "-";
+};
 
 const configuraciones = {
   usuarios: {
@@ -56,7 +80,7 @@ const configuraciones = {
               1: "Pasajero",
               2: "Conductor",
               3: "Administrador",
-            }[u.rol_id] ?? "—")
+            }[u.rol_id] ?? "-")
           );
         },
       },
@@ -67,26 +91,24 @@ const configuraciones = {
     ruta: "/api/trips/admin",
     key: "viajes",
     campoBusqueda: "conductor",
-    placeholder: "Nombre del conductor",
+    placeholder: "Nombre, correo o ID del conductor",
     etiquetaBusqueda: "Conductor",
     filtros: [
       {
         key: "estado",
         titulo: "Estado",
         opciones: [
-          "Pendiente",
-          "Programado",
-          "En curso",
-          "Completado",
-          "Cancelado",
-        ].map((valor) => ({
-          valor,
-          etiqueta: valor,
-        })),
+          { valor: "programado", etiqueta: "Programado" },
+          { valor: "en_curso", etiqueta: "En curso" },
+          { valor: "finalizado", etiqueta: "Finalizado" },
+          { valor: "cancelado", etiqueta: "Cancelado" },
+          { valor: "historial", etiqueta: "Historial" },
+          { valor: "activos", etiqueta: "Activos" },
+        ],
       },
       {
         key: "fecha",
-        titulo: "Fecha",
+        titulo: "Fecha de salida",
         tipo: "fecha",
       },
     ],
@@ -95,14 +117,36 @@ const configuraciones = {
       { key: "origen", titulo: "Origen" },
       { key: "destino", titulo: "Destino" },
       {
+        key: "conductor",
+        titulo: "Conductor",
+        render: (viaje) =>
+          viaje.conductor?.nombre_completo ||
+          viaje.conductor_nombre ||
+          viaje.nombre_conductor ||
+          "-",
+      },
+      {
         key: "fecha_salida",
         titulo: "Salida",
-        render: (v) =>
-          v.fecha_salida
-            ? new Date(v.fecha_salida).toLocaleString("es-MX")
-            : "—",
+        render: (viaje) =>
+          viaje.fecha_salida
+            ? new Date(viaje.fecha_salida).toLocaleString("es-MX")
+            : "-",
       },
-      { key: "estado", titulo: "Estado" },
+      {
+        key: "estado",
+        titulo: "Estado",
+        render: (viaje) => mostrarEstado(viaje.estado ?? viaje.status),
+      },
+      {
+        key: "total_reservaciones",
+        titulo: "Reservaciones",
+        render: (viaje) =>
+          viaje.total_reservaciones ??
+          viaje.reservaciones?.length ??
+          viaje.reservas?.length ??
+          0,
+      },
     ],
   },
 };
@@ -112,7 +156,8 @@ const obtenerEstado = (viaje) =>
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s-]+/g, "_");
 
 const esViajeProgramado = (viaje) =>
   obtenerEstado(viaje) === "programado";
@@ -132,6 +177,7 @@ export default function ListadoAdministrativo({ tipo }) {
   const [reintento, setReintento] = useState(0);
 
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
+  const [viajeDetalle, setViajeDetalle] = useState(null);
 
   // Estado para cancelar viajes desde la vista administrativa.
   const [viajeCancelacion, setViajeCancelacion] = useState(null);
@@ -261,7 +307,7 @@ export default function ListadoAdministrativo({ tipo }) {
 
       setErrorCancelacion(
         requestError?.message ||
-          "No se pudo cancelar el viaje. Inténtalo nuevamente."
+          "No se pudo cancelar el viaje. IntÃ©ntalo nuevamente."
       );
     } finally {
       setCancelandoViaje(false);
@@ -272,7 +318,7 @@ export default function ListadoAdministrativo({ tipo }) {
     ...config.columnas,
     {
       key: "accion",
-      titulo: "Acción",
+      titulo: "AcciÃ³n",
       render: (fila) => (
         <div className="flex flex-wrap gap-3">
           {tipo === "usuarios" && (
@@ -285,14 +331,26 @@ export default function ListadoAdministrativo({ tipo }) {
             </button>
           )}
 
-          {tipo === "viajes" && esViajeProgramado(fila) && (
-            <button
-              type="button"
-              className="text-red-700 underline"
-              onClick={() => abrirCancelacion(fila)}
-            >
-              Cancelar viaje
-            </button>
+          {tipo === "viajes" && (
+            <>
+              <button
+                type="button"
+                className="text-emerald-700 underline"
+                onClick={() => setViajeDetalle(fila)}
+              >
+                Ver detalle
+              </button>
+
+              {esViajeProgramado(fila) && (
+                <button
+                  type="button"
+                  className="text-red-700 underline"
+                  onClick={() => abrirCancelacion(fila)}
+                >
+                  Cancelar viaje
+                </button>
+              )}
+            </>
           )}
 
           <button
@@ -300,7 +358,7 @@ export default function ListadoAdministrativo({ tipo }) {
             className="text-emerald-700 underline"
             onClick={() => setSeleccion(fila)}
           >
-            Seleccionar para revisión
+            Seleccionar para revisiÃ³n
           </button>
         </div>
       ),
@@ -312,6 +370,15 @@ export default function ListadoAdministrativo({ tipo }) {
       <VistaDetalleUsuario
         usuario={usuarioDetalle}
         onVolver={() => setUsuarioDetalle(null)}
+      />
+    );
+  }
+
+  if (tipo === "viajes" && viajeDetalle) {
+    return (
+      <VistaDetalleViaje
+        viaje={viajeDetalle}
+        onVolver={() => setViajeDetalle(null)}
       />
     );
   }
@@ -342,8 +409,8 @@ export default function ListadoAdministrativo({ tipo }) {
       />
 
       <p className="text-xs text-slate-500">
-        La selección para revisión es local; no modifica
-        registros del servidor.
+        La selecciÃ³n para revisiÃ³n es local; no modifica registros del servidor.; no modifica registros del
+        servidor.
       </p>
 
       {aviso && (
@@ -354,8 +421,8 @@ export default function ListadoAdministrativo({ tipo }) {
 
       <ModalConfirmacion
         abierto={Boolean(seleccion)}
-        titulo="Seleccionar para revisión"
-        mensaje={`¿Agregar este registro de ${tipo} a la revisión local?`}
+        titulo="Seleccionar para revisiÃ³n"
+        mensaje={`Â¿Agregar este registro de ${tipo} a la revisiÃ³n local?`}
         requiereMotivo
         onCerrar={() => setSeleccion(null)}
         onConfirmar={(motivo) => {
@@ -368,7 +435,7 @@ export default function ListadoAdministrativo({ tipo }) {
           ]);
 
           setAviso(
-            `Registro #${seleccion.id} seleccionado para revisión local.`
+            `Registro #${seleccion.id} seleccionado para revisiÃ³n local.`
           );
 
           setSeleccion(null);
@@ -380,7 +447,7 @@ export default function ListadoAdministrativo({ tipo }) {
         titulo="Cancelar viaje"
         mensaje={
           viajeCancelacion
-            ? `¿Confirmas la cancelación del viaje #${viajeCancelacion.id}? Esta acción actualizará su estado.`
+            ? `Â¿Confirmas la cancelaciÃ³n del viaje #${viajeCancelacion.id}? Esta acciÃ³n actualizarÃ¡ su estado.`
             : ""
         }
         requiereMotivo
