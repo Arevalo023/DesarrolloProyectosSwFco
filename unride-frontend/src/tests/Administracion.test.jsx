@@ -10,10 +10,19 @@ vi.mock("@/services/api", () => ({
 }));
 
 describe("Estructura del módulo de administración", () => {
-  test("muestra el panel y permite navegar entre secciones", () => {
+  test("muestra el panel y permite navegar entre secciones", async () => {
     render(<Administracion onBack={vi.fn()} />);
     expect(screen.getByRole("heading", { name: "Administración" })).toBeTruthy();
     expect(screen.getByText("Vista general del panel administrativo.")).toBeTruthy();
+    expect(
+      await screen.findByRole("region", { name: "Gráfica comparativa de métricas" })
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("progressbar", { name: "Usuarios registrados" }).getAttribute("aria-valuenow")
+    ).toBe("3");
+    expect(
+      screen.getByRole("img", { name: "Distribución de 9 registros" })
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Usuarios" }));
     expect(screen.getByText("Consulta y búsqueda de usuarios registrados.")).toBeTruthy();
   });
