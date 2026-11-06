@@ -326,6 +326,16 @@ export default function ListadoAdministrativo({ tipo }) {
             </button>
           )}
 
+          {tipo === "viajes" && esViajeProgramado(fila) && (
+            <button
+              type="button"
+              className="text-emerald-700 underline"
+              onClick={() => abrirCancelacion(fila)}
+            >
+              Cancelar viaje
+            </button>
+          )}
+
           <button
             type="button"
             className="text-emerald-700 underline"
