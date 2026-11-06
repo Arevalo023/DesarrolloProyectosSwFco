@@ -102,7 +102,9 @@ npm run dev
 ```
 
 El backend queda disponible normalmente en `http://localhost:3000`. Puedes
-comprobar el estado del servidor en `http://localhost:3000/health`.
+comprobar el estado del servidor en `http://localhost:3000/health` y acceder a la
+documentación interactiva Swagger UI en `http://localhost:3000/api-docs` (especificación
+JSON disponible en `http://localhost:3000/api-docs.json`).
 
 ### 4. Configurar e iniciar el frontend
 

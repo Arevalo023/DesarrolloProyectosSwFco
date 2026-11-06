@@ -1,0 +1,1718 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "UniRide API - Documentación Oficial",
+    "version": "1.0.0",
+    "description": "Especificación interactiva Swagger / OpenAPI 3.0 de la API REST de UniRide (plataforma de Carpooling universitario para la Universidad Autónoma de Coahuila).\n\n### Autenticación y Seguridad\nLos endpoints protegidos requieren autenticación mediante JSON Web Tokens (JWT) en el encabezado `Authorization: Bearer <token>`.\n\nPara probar peticiones protegidas en esta interfaz interactiva:\n1. Utiliza `POST /users/login` con credenciales válidas (ej. `jorge.torres@uadec.edu.mx` / `Demo1234!`) para obtener un token JWT.\n2. Haz clic en el botón verde **Authorize** (arriba a la derecha) y pega el token en el campo `bearerAuth`.\n3. Opcionalmente, para cuentas con múltiples roles (ej. Pasajero y Conductor), puedes indicar el rol activo mediante el encabezado `X-Active-Role`.",
+    "contact": {
+      "name": "Equipo de Desarrollo UniRide - UAdeC",
+      "url": "https://github.com/Arevalo023/DesarrolloProyectosSwFco"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor local de desarrollo"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health Check",
+      "description": "Monitoreo del estado y disponibilidad del backend"
+    },
+    {
+      "name": "Usuarios y Autenticación",
+      "description": "Registro institucional, login JWT, consulta y actualización de perfiles y campus"
+    },
+    {
+      "name": "Vehículos",
+      "description": "Gestión de vehículos asociados a conductores (registro, consulta, edición y activación)"
+    },
+    {
+      "name": "Viajes",
+      "description": "Búsqueda de viajes disponibles, publicación, inicio, finalización y reservaciones"
+    },
+    {
+      "name": "Reservaciones y Solicitudes",
+      "description": "Aceptación y rechazo por parte del conductor y cancelación por pasajeros"
+    },
+    {
+      "name": "Notificaciones",
+      "description": "Consulta y lectura de notificaciones del sistema"
+    },
+    {
+      "name": "Calificaciones",
+      "description": "Sistema bilateral de reseñas y reputación para conductores y pasajeros"
+    },
+    {
+      "name": "Administración",
+      "description": "Panel administrativo: métricas globales, consulta y cancelación administrativa"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health Check"
+        ],
+        "summary": "Verificar Estado del Servidor",
+        "description": "Verifica que el servidor backend esté encendido y operativo.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          }
+        }
+      }
+    },
+    "/users/register": {
+      "post": {
+        "tags": [
+          "Usuarios y Autenticación"
+        ],
+        "summary": "Registro de Usuario",
+        "description": "Registra una nueva cuenta de usuario institucional.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Recurso creado exitosamente"
+          },
+          "400": {
+            "description": "Datos faltantes o formato de entrada inválido"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "name": "Carlos Mendoza",
+                  "email": "carlos.mendoza@uadec.edu.mx",
+                  "password": "Demo1234!",
+                  "telefono": "8441234567",
+                  "campus_id": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/login": {
+      "post": {
+        "tags": [
+          "Usuarios y Autenticación"
+        ],
+        "summary": "Inicio de Sesión (Login)",
+        "description": "Autentica al usuario y obtiene el JWT de sesión.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Recurso creado exitosamente"
+          },
+          "400": {
+            "description": "Datos faltantes o formato de entrada inválido"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "email": "luis.martinez@uadec.edu.mx",
+                  "password": "Demo1234!"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me": {
+      "get": {
+        "tags": [
+          "Usuarios y Autenticación"
+        ],
+        "summary": "Obtener Perfil Autenticado",
+        "description": "Devuelve la información del usuario autenticado a partir del JWT.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Usuarios y Autenticación"
+        ],
+        "summary": "Actualizar Perfil",
+        "description": "Modifica los datos editables del perfil del usuario.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Actualización aplicada exitosamente"
+          },
+          "400": {
+            "description": "Parámetros inválidos o regla de negocio rechazada"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "nombre": "Luis",
+                  "apellido": "Martínez",
+                  "telefono": "8441112233",
+                  "campus_id": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/campuses": {
+      "get": {
+        "tags": [
+          "Usuarios y Autenticación"
+        ],
+        "summary": "Catálogo de Campus",
+        "description": "Lista los campus disponibles registrados en la base de datos.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/vehicles": {
+      "post": {
+        "tags": [
+          "Vehículos"
+        ],
+        "summary": "Registrar Vehículo",
+        "description": "Registra un vehículo propio. Si el usuario no era Conductor, se le añade automáticamente el rol.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Recurso creado exitosamente"
+          },
+          "400": {
+            "description": "Datos faltantes o formato de entrada inválido"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "marca": "Nissan",
+                  "modelo": "Versa",
+                  "anio": 2022,
+                  "color": "Blanco",
+                  "placa": "SAL-999",
+                  "asientos_disponibles": 4
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vehicles/user": {
+      "get": {
+        "tags": [
+          "Vehículos"
+        ],
+        "summary": "Listar Mis Vehículos",
+        "description": "Obtiene la lista de vehículos pertenecientes al usuario autenticado.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/vehicles/{id}": {
+      "get": {
+        "tags": [
+          "Vehículos"
+        ],
+        "summary": "Obtener Vehículo por ID",
+        "description": "Obtiene la información de un vehículo específico por su ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Vehículos"
+        ],
+        "summary": "Actualizar Vehículo",
+        "description": "Modifica los datos de un vehículo propio.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actualización aplicada exitosamente"
+          },
+          "400": {
+            "description": "Parámetros inválidos o regla de negocio rechazada"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "marca": "Nissan",
+                  "modelo": "Versa",
+                  "anio": 2023,
+                  "color": "Gris",
+                  "placa": "SAL-999",
+                  "asientos_disponibles": 4
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vehicles/{id}/status": {
+      "patch": {
+        "tags": [
+          "Vehículos"
+        ],
+        "summary": "Cambiar Estado (Activo/Inactivo)",
+        "description": "Activa o desactiva un vehículo para ser usado en la publicación de viajes.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actualización aplicada exitosamente"
+          },
+          "400": {
+            "description": "Parámetros inválidos o regla de negocio rechazada"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "activo": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trips": {
+      "post": {
+        "tags": [
+          "Viajes"
+        ],
+        "summary": "Publicar Viaje (Conductor)",
+        "description": "Publica un nuevo viaje para otros estudiantes. Requiere rol Conductor.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Recurso creado exitosamente"
+          },
+          "400": {
+            "description": "Datos faltantes o formato de entrada inválido"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "vehiculo_id": 1,
+                  "origen": "Campus Arteaga",
+                  "destino": "Zona Centro Saltillo",
+                  "fecha_salida": "2026-10-15T08:00:00.000Z",
+                  "cupo_disponible": 3,
+                  "costo_por_pasajero": 25.0
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Viajes"
+        ],
+        "summary": "Buscar Viajes Disponibles",
+        "description": "Consulta viajes activos/programados con cupo > 0 y fecha futura.",
+        "parameters": [
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "Arteaga"
+            },
+            "description": ""
+          },
+          {
+            "name": "destino",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "Centro"
+            },
+            "description": ""
+          },
+          {
+            "name": "fecha",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "2026-10-15"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/driver": {
+      "get": {
+        "tags": [
+          "Viajes"
+        ],
+        "summary": "Listar Mis Viajes Publicados (Conductor)",
+        "description": "Devuelve los viajes publicados por el conductor autenticado (soporta ?classified=true y ?estado=...).",
+        "parameters": [
+          {
+            "name": "classified",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "true"
+            },
+            "description": "Si es true, devuelve agrupados en activos, cancelados y completados."
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "programado"
+            },
+            "description": "Filtra por estado puntual o categoría (activos, cancelados, completados)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/driver/requests": {
+      "get": {
+        "tags": [
+          "Viajes"
+        ],
+        "summary": "Consultar Solicitudes Recibidas (Conductor)",
+        "description": "Permite al conductor consultar todas las solicitudes de reservación recibidas para sus viajes.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/{id}/book": {
+      "post": {
+        "tags": [
+          "Viajes"
+        ],
+        "summary": "Reservar Asiento en Viaje (Pasajero)",
+        "description": "Crea una solicitud de reserva en estado pendiente sin descontar cupo anticipadamente.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Recurso creado exitosamente"
+          },
+          "400": {
+            "description": "Datos faltantes o formato de entrada inválido"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/reservations": {
+      "get": {
+        "tags": [
+          "Viajes"
+        ],
+        "summary": "Mis Reservaciones de Viaje",
+        "description": "Consulta todas las reservaciones solicitadas por el pasajero autenticado.",
+        "parameters": [
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "asc"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/{id}/cancel": {
+      "patch": {
+        "tags": [
+          "Viajes"
+        ],
+        "summary": "Cancelar Viaje Publicado (Conductor)",
+        "description": "Cancela un viaje activo/programado antes de su fecha de salida.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actualización aplicada exitosamente"
+          },
+          "400": {
+            "description": "Parámetros inválidos o regla de negocio rechazada"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "motivo_cancelacion": "Contratiempo personal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trips/{id}/start": {
+      "patch": {
+        "tags": [
+          "Viajes"
+        ],
+        "summary": "Iniciar Viaje (Conductor)",
+        "description": "Solo el conductor propietario puede cambiar el estado de programado a en_curso. Otros estados se rechazan.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actualización aplicada exitosamente"
+          },
+          "400": {
+            "description": "Parámetros inválidos o regla de negocio rechazada"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/{id}/finish": {
+      "patch": {
+        "tags": [
+          "Viajes"
+        ],
+        "summary": "Finalizar Viaje (Conductor)",
+        "description": "Solo el conductor propietario puede cambiar el estado de en_curso a finalizado. Otros estados se rechazan.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actualización aplicada exitosamente"
+          },
+          "400": {
+            "description": "Parámetros inválidos o regla de negocio rechazada"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/reservations": {
+      "get": {
+        "tags": [
+          "Reservaciones y Solicitudes"
+        ],
+        "summary": "Mis Reservaciones (Alias)",
+        "description": "Alias para consultar las reservaciones del pasajero autenticado.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/reservations/{id}": {
+      "patch": {
+        "tags": [
+          "Reservaciones y Solicitudes"
+        ],
+        "summary": "Aceptar o Rechazar Solicitud (Conductor)",
+        "description": "El conductor dueño del viaje acepta o rechaza una solicitud. Al aceptar, descuenta 1 asiento atómicamente.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actualización aplicada exitosamente"
+          },
+          "400": {
+            "description": "Parámetros inválidos o regla de negocio rechazada"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "estado": "aceptada"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reservations/{id}/cancel": {
+      "patch": {
+        "tags": [
+          "Reservaciones y Solicitudes"
+        ],
+        "summary": "Cancelar Reservación (Pasajero o Conductor)",
+        "description": "Cancela la reservación. Si estaba aceptada, devuelve 1 asiento al viaje.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actualización aplicada exitosamente"
+          },
+          "400": {
+            "description": "Parámetros inválidos o regla de negocio rechazada"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Listar Notificaciones del Usuario",
+        "description": "Consulta las notificaciones del usuario autenticado ordenadas de la más reciente a la más antigua.",
+        "parameters": [
+          {
+            "name": "noLeidas",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "false"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/{id}/rate-driver": {
+      "post": {
+        "tags": [
+          "Calificaciones"
+        ],
+        "summary": "Calificar al Conductor (por ID de Viaje)",
+        "description": "Permite a un pasajero con reservación aceptada calificar al conductor de un viaje finalizado.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Recurso creado exitosamente"
+          },
+          "400": {
+            "description": "Datos faltantes o formato de entrada inválido"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "puntuacion": 5,
+                  "comentario": "Excelente conductor, manejo seguro y puntual."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ratings/driver": {
+      "post": {
+        "tags": [
+          "Calificaciones"
+        ],
+        "summary": "Calificar al Conductor (Módulo Ratings)",
+        "description": "Alias para calificar al conductor indicando viaje_id en el cuerpo.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Recurso creado exitosamente"
+          },
+          "400": {
+            "description": "Datos faltantes o formato de entrada inválido"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "viaje_id": 1,
+                  "puntuacion": 5,
+                  "comentario": "Muy recomendado."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ratings/user/{id}": {
+      "get": {
+        "tags": [
+          "Calificaciones"
+        ],
+        "summary": "Consultar Calificaciones de Usuario",
+        "description": "Obtiene la lista de calificaciones recibidas por el usuario y su promedio consolidado.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/{id}/rate-passenger": {
+      "post": {
+        "tags": [
+          "Calificaciones"
+        ],
+        "summary": "Calificar a un Pasajero (por ID de Viaje)",
+        "description": "Permite al conductor calificar a un pasajero que reservó y completó el viaje.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Recurso creado exitosamente"
+          },
+          "400": {
+            "description": "Datos faltantes o formato de entrada inválido"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "pasajero_id": 2,
+                  "puntuacion": 5,
+                  "comentario": "Excelente pasajero, puntual y respetuoso."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ratings/passenger": {
+      "post": {
+        "tags": [
+          "Calificaciones"
+        ],
+        "summary": "Calificar a un Pasajero (Módulo Ratings)",
+        "description": "Alias en el módulo /api/ratings para que el conductor califique a un pasajero.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Recurso creado exitosamente"
+          },
+          "400": {
+            "description": "Datos faltantes o formato de entrada inválido"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "viaje_id": 1,
+                  "pasajero_id": 2,
+                  "puntuacion": 5,
+                  "comentario": "Puntual y respetuoso."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/summary": {
+      "get": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Resumen Administrativo (Métricas)",
+        "description": "Consulta las métricas globales del panel de administración (total de usuarios, viajes y reservaciones).",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Listar Usuarios (Admin)",
+        "description": "Lista los usuarios registrados para el panel de administración con soporte para búsqueda (q), filtro por rol (rol) y paginación (page, limit). Nunca expone datos sensibles (contraseñas ni teléfonos).",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "lopez"
+            },
+            "description": "Búsqueda por nombre, apellido o correo"
+          },
+          {
+            "name": "rol",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "Conductor"
+            },
+            "description": "Filtro por rol"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "description": "Número de página (>= 1)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "20"
+            },
+            "description": "Límite de registros por página (1-50)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Detalle de Usuario (Admin)",
+        "description": "Consulta el detalle de un usuario específico con reputación, promedio de estrellas, desglose de calificaciones recibidas, viajes publicados y reservaciones realizadas.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/admin": {
+      "get": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Listar Viajes (Admin)",
+        "description": "Consulta el listado de viajes para administración con filtros por estado, fecha de salida, conductor y paginación de resultados.",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "programado"
+            },
+            "description": "Filtro por estado (programado, en_curso, finalizado, cancelado, activos, historial)"
+          },
+          {
+            "name": "fecha",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "2026-11-01"
+            },
+            "description": "Filtro por fecha de salida (YYYY-MM-DD)"
+          },
+          {
+            "name": "conductor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "carlos"
+            },
+            "description": "Filtro por nombre, apellido, correo o ID de conductor"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "description": "Página actual"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "20"
+            },
+            "description": "Registros por página (1-50)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/admin/{id}": {
+      "get": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Detalle de Viaje con Reservaciones (Admin)",
+        "description": "Consulta el detalle completo de un viaje específico junto con todas sus reservaciones y el estado de cada pasajero.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/{id}": {
+      "get": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Detalle de Viaje - Alias (Admin)",
+        "description": "Alias para consultar el detalle de un viaje con reservaciones a través de la ruta estándar /api/trips/:id autenticado con rol Administrador.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/trips/admin/{id}/cancel": {
+      "patch": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Cancelar Viaje Administrativo",
+        "description": "Cancela un viaje programado por acción administrativa obligando a especificar un motivo de cancelación (1-250 caracteres). Notifica exclusivamente a los pasajeros con reservación aceptada y registra la acción en el log de auditoría del servidor.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actualización aplicada exitosamente"
+          },
+          "400": {
+            "description": "Parámetros inválidos o regla de negocio rechazada"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "motivo": "Condiciones climáticas adversas en la zona del campus universitario."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trips/{id}/cancel-admin": {
+      "patch": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Cancelar Viaje Administrativo - Alias",
+        "description": "Alias directo para la cancelación administrativa de un viaje programado.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Identificador numérico (id)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actualización aplicada exitosamente"
+          },
+          "400": {
+            "description": "Parámetros inválidos o regla de negocio rechazada"
+          },
+          "401": {
+            "description": "No autorizado: Token ausente, inválido o expirado"
+          },
+          "403": {
+            "description": "Acceso denegado: Permisos insuficientes o rol no activo"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "motivo": "Cancelación administrativa por suspensión de actividades presenciales."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT emitido al iniciar sesión en /users/login. Debe enviarse como Bearer <token>."
+      },
+      "activeRoleHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Active-Role",
+        "description": "Encabezado opcional para alternar el rol activo del usuario (Pasajero, Conductor, Administrador)."
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Descripción clara del error."
+          }
+        }
+      },
+      "RoleErrorResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Cambia a modo Conductor para realizar esta acción."
+          },
+          "code": {
+            "type": "string",
+            "example": "ROLE_NOT_ACTIVE"
+          },
+          "requiredRole": {
+            "type": "string",
+            "example": "Conductor"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "UP"
+          },
+          "message": {
+            "type": "string",
+            "example": "Server is healthy"
+          }
+        }
+      },
+      "AdminSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "metricas": {
+                "type": "object",
+                "properties": {
+                  "usuarios": {
+                    "type": "integer",
+                    "example": 12
+                  },
+                  "viajes": {
+                    "type": "integer",
+                    "example": 8
+                  },
+                  "reservaciones": {
+                    "type": "integer",
+                    "example": 21
+                  }
+                }
+              }
+            }
+          },
+          "metricas": {
+            "type": "object",
+            "properties": {
+              "usuarios": {
+                "type": "integer",
+                "example": 12
+              },
+              "viajes": {
+                "type": "integer",
+                "example": 8
+              },
+              "reservaciones": {
+                "type": "integer",
+                "example": 21
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
