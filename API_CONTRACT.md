@@ -4,6 +4,8 @@ Este documento define el **Contrato Oficial de Integración** entre el Backend (
 
 Colección de Postman disponible: [`UniRide.postman_collection.json`](file:///home/seb4stian53/Projects/DesarrolloProyectosSwFco/UniRide.postman_collection.json)
 
+Documentación interactiva Swagger UI: [`http://localhost:3000/api-docs`](http://localhost:3000/api-docs) *(Especificación OpenAPI JSON en [`/api-docs.json`](http://localhost:3000/api-docs.json))*
+
 ---
 
 ## 🌐 1. Información General

@@ -14,6 +14,8 @@ const reservationsRouter = require('./routes/reservationRoutes');
 const notificationsRouter = require('./routes/notificationRoutes');
 const ratingsRouter = require('./routes/ratingRoutes');
 const adminRouter = require('./routes/adminRoutes');
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./swagger.json');
 
 
 const app = express();
@@ -28,6 +30,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', message: 'Server is healthy' });
+});
+
+// Documentación interactiva Swagger / OpenAPI
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocument, {
+    customSiteTitle: 'UniRide API - Swagger UI',
+  })
+);
+app.get('/api-docs.json', (req, res) => {
+  res.status(200).json(swaggerDocument);
 });
 
 app.use('/', indexRouter);
