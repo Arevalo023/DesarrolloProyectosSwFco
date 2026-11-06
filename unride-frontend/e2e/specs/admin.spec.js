@@ -4,12 +4,17 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 
-const fixtures = JSON.parse(fs.readFileSync(
-  path.join(os.tmpdir(), `uniride-frontend-e2e-${process.env.E2E_RUN_ID}.json`),
-  "utf8"
-));
+function loadFixtures() {
+  const runId = process.env.E2E_RUN_ID;
+  if (!runId) {
+    throw new Error("Falta E2E_RUN_ID; ejecuta npm run test:e2e.");
+  }
 
-async function signInAsAdmin(page) {
+  const fixturePath = path.join(os.tmpdir(), `uniride-frontend-e2e-${runId}.json`);
+  return JSON.parse(fs.readFileSync(fixturePath, "utf8"));
+}
+
+async function signInAsAdmin(page, fixtures) {
   await page.goto("/");
   await page.getByLabel("CORREO INSTITUCIONAL").fill(fixtures.adminEmail);
   await page.locator("#password").fill(fixtures.adminPassword);
@@ -18,16 +23,18 @@ async function signInAsAdmin(page) {
 }
 
 test("inicia sesión y muestra el resumen administrativo obtenido del API", async ({ page }) => {
-  await signInAsAdmin(page);
+  const fixtures = loadFixtures();
+  await signInAsAdmin(page, fixtures);
 
-  await expect(page.getByText("Usuarios registrados")).toBeVisible();
-  await expect(page.getByText("Viajes registrados")).toBeVisible();
-  await expect(page.getByText("Reservaciones", { exact: true })).toBeVisible();
+  await expect(page.getByRole("progressbar", { name: "Usuarios registrados" })).toBeVisible();
+  await expect(page.getByRole("progressbar", { name: "Viajes registrados" })).toBeVisible();
+  await expect(page.getByRole("progressbar", { name: "Reservaciones" })).toBeVisible();
   await expect(page.getByText(/^\d+$/).first()).toBeVisible();
 });
 
 test("busca y abre el detalle de un usuario persistido", async ({ page }) => {
-  await signInAsAdmin(page);
+  const fixtures = loadFixtures();
+  await signInAsAdmin(page, fixtures);
   await page.locator("aside").getByRole("button", { name: "Usuarios" }).click();
   await expect(page.getByRole("heading", { name: "Usuarios" })).toBeVisible();
 
@@ -42,13 +49,15 @@ test("busca y abre el detalle de un usuario persistido", async ({ page }) => {
 });
 
 test("consulta en el panel el viaje persistido asociado al conductor de prueba", async ({ page }) => {
-  await signInAsAdmin(page);
+  const fixtures = loadFixtures();
+  await signInAsAdmin(page, fixtures);
   await page.locator("aside").getByRole("button", { name: "Viajes" }).click();
   await expect(page.getByRole("heading", { name: "Viajes" })).toBeVisible();
   await expect(page.getByRole("cell", { name: fixtures.tripOrigin })).toBeVisible();
 });
 
 test("presenta un error en pantalla cuando el login administrativo falla", async ({ page }) => {
+  const fixtures = loadFixtures();
   await page.goto("/");
   await page.getByLabel("CORREO INSTITUCIONAL").fill(fixtures.adminEmail);
   await page.locator("#password").fill("Contraseña incorrecta E2E");
