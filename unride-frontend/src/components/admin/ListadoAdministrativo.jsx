@@ -5,8 +5,23 @@ import BarraBusquedaFiltros from "./BarraBusquedaFiltros";
 import TablaPaginada from "./TablaPaginada";
 import ModalConfirmacion from "./ModalConfirmacion";
 import VistaDetalleUsuario from "./VistaDetalleUsuario";
+import VistaDetalleViaje from "./VistaDetalleViaje";
 
 const LIMIT = 20;
+
+const mostrarEstado = (estado) => {
+  const estados = {
+    pendiente: "Pendiente",
+    programado: "Programado",
+    en_curso: "En curso",
+    activo: "Activo",
+    completado: "Completado",
+    finalizado: "Finalizado",
+    cancelado: "Cancelado",
+  };
+
+  return estados[String(estado || "").toLowerCase()] || estado || "—";
+};
 
 const configuraciones = {
   usuarios: {
@@ -47,9 +62,7 @@ const configuraciones = {
             Array.isArray(u.roles_detalle) &&
             u.roles_detalle.length
           ) {
-            return u.roles_detalle
-              .map((r) => r.nombre)
-              .join(", ");
+            return u.roles_detalle.map((r) => r.nombre).join(", ");
           }
 
           return (
@@ -70,26 +83,24 @@ const configuraciones = {
     ruta: "/api/trips/admin",
     key: "viajes",
     campoBusqueda: "conductor",
-    placeholder: "Nombre del conductor",
+    placeholder: "Nombre, correo o ID del conductor",
     etiquetaBusqueda: "Conductor",
     filtros: [
       {
         key: "estado",
         titulo: "Estado",
         opciones: [
-          "Pendiente",
-          "Programado",
-          "En curso",
-          "Completado",
-          "Cancelado",
-        ].map((valor) => ({
-          valor,
-          etiqueta: valor,
-        })),
+          { valor: "programado", etiqueta: "Programado" },
+          { valor: "en_curso", etiqueta: "En curso" },
+          { valor: "finalizado", etiqueta: "Finalizado" },
+          { valor: "cancelado", etiqueta: "Cancelado" },
+          { valor: "historial", etiqueta: "Historial" },
+          { valor: "activos", etiqueta: "Activos" },
+        ],
       },
       {
         key: "fecha",
-        titulo: "Fecha",
+        titulo: "Fecha de salida",
         tipo: "fecha",
       },
     ],
@@ -98,14 +109,31 @@ const configuraciones = {
       { key: "origen", titulo: "Origen" },
       { key: "destino", titulo: "Destino" },
       {
+        key: "conductor",
+        titulo: "Conductor",
+        render: (viaje) =>
+          viaje.conductor?.nombre_completo ||
+          viaje.conductor_nombre ||
+          "—",
+      },
+      {
         key: "fecha_salida",
         titulo: "Salida",
-        render: (v) =>
-          v.fecha_salida
-            ? new Date(v.fecha_salida).toLocaleString("es-MX")
+        render: (viaje) =>
+          viaje.fecha_salida
+            ? new Date(viaje.fecha_salida).toLocaleString("es-MX")
             : "—",
       },
-      { key: "estado", titulo: "Estado" },
+      {
+        key: "estado",
+        titulo: "Estado",
+        render: (viaje) => mostrarEstado(viaje.estado),
+      },
+      {
+        key: "total_reservaciones",
+        titulo: "Reservaciones",
+        render: (viaje) => viaje.total_reservaciones ?? 0,
+      },
     ],
   },
 };
@@ -125,6 +153,7 @@ export default function ListadoAdministrativo({ tipo }) {
   const [reintento, setReintento] = useState(0);
 
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
+  const [viajeDetalle, setViajeDetalle] = useState(null);
 
   useEffect(() => {
     let activo = true;
@@ -146,16 +175,20 @@ export default function ListadoAdministrativo({ tipo }) {
 
         if (!activo) return;
 
-        setDatos(Array.isArray(respuesta[config.key]) ? respuesta[config.key] : []);
+        setDatos(
+          Array.isArray(respuesta[config.key])
+            ? respuesta[config.key]
+            : []
+        );
 
-        setTotal(Number(respuesta.paginacion?.total ?? respuesta.total ?? 0));
+        setTotal(
+          Number(respuesta.paginacion?.total ?? respuesta.total ?? 0)
+        );
       } catch (e) {
         if (activo) {
           setDatos([]);
           setTotal(0);
-          setError(
-            e.message || "Error al consultar los datos."
-          );
+          setError(e.message || "Error al consultar los datos.");
         }
       } finally {
         if (activo) setCargando(false);
@@ -191,6 +224,16 @@ export default function ListadoAdministrativo({ tipo }) {
             </button>
           )}
 
+          {tipo === "viajes" && (
+            <button
+              type="button"
+              className="text-emerald-700 underline"
+              onClick={() => setViajeDetalle(fila)}
+            >
+              Ver detalle
+            </button>
+          )}
+
           <button
             type="button"
             className="text-emerald-700 underline"
@@ -208,6 +251,15 @@ export default function ListadoAdministrativo({ tipo }) {
       <VistaDetalleUsuario
         usuario={usuarioDetalle}
         onVolver={() => setUsuarioDetalle(null)}
+      />
+    );
+  }
+
+  if (tipo === "viajes" && viajeDetalle) {
+    return (
+      <VistaDetalleViaje
+        viaje={viajeDetalle}
+        onVolver={() => setViajeDetalle(null)}
       />
     );
   }
@@ -233,15 +285,12 @@ export default function ListadoAdministrativo({ tipo }) {
         onPaginaChange={setPagina}
         cargando={cargando}
         error={error}
-        onReintentar={() =>
-          setReintento((n) => n + 1)
-        }
+        onReintentar={() => setReintento((n) => n + 1)}
         mensajeVacio={`No se encontraron ${tipo}.`}
       />
 
       <p className="text-xs text-slate-500">
-        La selección para revisión es local; no modifica
-        registros del servidor.
+        La selección para revisión es local; no modifica registros del servidor.
       </p>
 
       {aviso && (
