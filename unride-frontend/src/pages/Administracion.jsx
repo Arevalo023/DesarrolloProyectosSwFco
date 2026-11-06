@@ -14,10 +14,145 @@ const secciones = [
 ];
 
 const metricas = [
-  { key: "usuarios", label: "Usuarios registrados", icon: Users },
-  { key: "viajes", label: "Viajes registrados", icon: ClipboardList },
-  { key: "reservaciones", label: "Reservaciones", icon: BarChart3 },
+  { key: "usuarios", label: "Usuarios registrados", shortLabel: "Usuarios", icon: Users, color: "#047857" },
+  { key: "viajes", label: "Viajes registrados", shortLabel: "Viajes", icon: ClipboardList, color: "#2563eb" },
+  { key: "reservaciones", label: "Reservaciones", shortLabel: "Reservaciones", icon: BarChart3, color: "#d97706" },
 ];
+
+function GraficaComparativa({ datos }) {
+  const maximo = Math.max(1, ...datos.map(({ valor }) => valor));
+
+  return (
+    <section
+      aria-label="Gráfica comparativa de métricas"
+      className="rounded-xl border border-slate-200 p-5"
+    >
+      <h3 className="font-semibold text-slate-900">Volumen por categoría</h3>
+      <div className="mt-5 space-y-5">
+        {datos.map(({ key, label, valor, color }) => (
+          <div key={key}>
+            <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+              <span className="text-slate-600">{label}</span>
+              <span className="font-semibold tabular-nums text-slate-900">
+                {valor.toLocaleString("es-MX")}
+              </span>
+            </div>
+            <div
+              role="progressbar"
+              aria-label={label}
+              aria-valuemin={0}
+              aria-valuemax={maximo}
+              aria-valuenow={valor}
+              className="h-3 overflow-hidden rounded-full bg-slate-100"
+            >
+              <div
+                className="h-full rounded-full transition-[width]"
+                style={{
+                  width: `${(valor / maximo) * 100}%`,
+                  backgroundColor: color,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function GraficaDistribucion({ datos }) {
+  const total = datos.reduce((suma, { valor }) => suma + valor, 0);
+  const radio = 42;
+  const circunferencia = 2 * Math.PI * radio;
+  let desplazamiento = 0;
+
+  return (
+    <section
+      aria-label="Gráfica de distribución de métricas"
+      className="rounded-xl border border-slate-200 p-5"
+    >
+      <h3 className="font-semibold text-slate-900">Distribución del total</h3>
+      <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row sm:justify-center">
+        <svg
+          role="img"
+          aria-label={
+            total
+              ? `Distribución de ${total.toLocaleString("es-MX")} registros`
+              : "Sin registros para mostrar"
+          }
+          viewBox="0 0 100 100"
+          className="h-36 w-36 shrink-0"
+        >
+          <circle
+            cx="50"
+            cy="50"
+            r={radio}
+            fill="none"
+            stroke="#e2e8f0"
+            strokeWidth="12"
+          />
+          {total > 0 &&
+            datos.map(({ key, valor, color }) => {
+              const longitud = (valor / total) * circunferencia;
+              const segmento = (
+                <circle
+                  key={key}
+                  cx="50"
+                  cy="50"
+                  r={radio}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="12"
+                  strokeDasharray={`${longitud} ${circunferencia - longitud}`}
+                  strokeDashoffset={-desplazamiento}
+                  transform="rotate(-90 50 50)"
+                />
+              );
+              desplazamiento += longitud;
+              return segmento;
+            })}
+          <text
+            x="50"
+            y="48"
+            textAnchor="middle"
+            className="fill-slate-900 text-[13px] font-bold"
+          >
+            {total.toLocaleString("es-MX")}
+          </text>
+          <text
+            x="50"
+            y="61"
+            textAnchor="middle"
+            className="fill-slate-500 text-[7px]"
+          >
+            registros
+          </text>
+        </svg>
+        <ul className="w-full space-y-3 sm:max-w-52">
+          {datos.map(({ key, shortLabel, valor, color }) => (
+            <li key={key} className="flex items-center justify-between gap-3 text-sm">
+              <span className="flex items-center gap-2 text-slate-600">
+                <span
+                  aria-hidden="true"
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+                {shortLabel}
+              </span>
+              <span className="font-medium tabular-nums text-slate-900">
+                {total
+                  ? `${((valor / total) * 100).toLocaleString("es-MX", {
+                      maximumFractionDigits: 1,
+                    })}%`
+                  : "0%"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
 
 export default function Administracion({ onProfile, onLogout }) {
   const [seccionActiva, setSeccionActiva] = useState("resumen");
@@ -28,6 +163,10 @@ export default function Administracion({ onProfile, onLogout }) {
   const [reintento, setReintento] = useState(0);
   const seccion = secciones.find((item) => item.id === seccionActiva) ?? secciones[0];
   const Icono = seccion.icono;
+  const datosGrafica = metricas.map((metrica) => ({
+    ...metrica,
+    valor: Math.max(0, Number(resumen?.[metrica.key]) || 0),
+  }));
 
   useEffect(() => {
     let activo = true;
@@ -122,15 +261,21 @@ export default function Administracion({ onProfile, onLogout }) {
                     <button type="button" className="mt-3 underline" onClick={() => setReintento((valor) => valor + 1)}>Reintentar</button>
                   </div>
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    {metricas.map(({ key, label, icon: MetricIcon }) => (
-                      <button key={key} type="button" onClick={() => key === "usuarios" ? cambiarSeccion("usuarios") : key === "viajes" ? cambiarSeccion("viajes") : undefined} className="rounded-xl border border-slate-200 p-5 text-left transition hover:border-emerald-300 hover:bg-emerald-50">
-                        <MetricIcon className="text-emerald-700" size={24} />
-                        <p className="mt-4 text-sm text-slate-500">{label}</p>
-                        <p className="mt-1 text-3xl font-bold text-slate-900">{Number(resumen?.[key] ?? 0).toLocaleString("es-MX")}</p>
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      {metricas.map(({ key, label, icon: MetricIcon }) => (
+                        <button key={key} type="button" onClick={() => key === "usuarios" ? cambiarSeccion("usuarios") : key === "viajes" ? cambiarSeccion("viajes") : undefined} className="rounded-xl border border-slate-200 p-5 text-left transition hover:border-emerald-300 hover:bg-emerald-50">
+                          <MetricIcon className="text-emerald-700" size={24} />
+                          <p className="mt-4 text-sm text-slate-500">{label}</p>
+                          <p className="mt-1 text-3xl font-bold text-slate-900">{Number(resumen?.[key] ?? 0).toLocaleString("es-MX")}</p>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                      <GraficaComparativa datos={datosGrafica} />
+                      <GraficaDistribucion datos={datosGrafica} />
+                    </div>
+                  </>
                 )}
               </div>
             )}
