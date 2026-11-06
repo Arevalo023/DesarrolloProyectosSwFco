@@ -4,8 +4,23 @@ import BarraBusquedaFiltros from "./BarraBusquedaFiltros";
 import TablaPaginada from "./TablaPaginada";
 import ModalConfirmacion from "./ModalConfirmacion";
 import VistaDetalleUsuario from "./VistaDetalleUsuario";
+import VistaDetalleViaje from "./VistaDetalleViaje";
 
 const LIMIT = 20;
+
+const mostrarEstado = (estado) => {
+  const estados = {
+    pendiente: "Pendiente",
+    programado: "Programado",
+    en_curso: "En curso",
+    activo: "Activo",
+    completado: "Completado",
+    finalizado: "Finalizado",
+    cancelado: "Cancelado",
+  };
+
+  return estados[String(estado || "").toLowerCase()] || estado || "—";
+};
 
 const configuraciones = {
   usuarios: {
@@ -67,26 +82,24 @@ const configuraciones = {
     ruta: "/api/trips/admin",
     key: "viajes",
     campoBusqueda: "conductor",
-    placeholder: "Nombre del conductor",
+    placeholder: "Nombre, correo o ID del conductor",
     etiquetaBusqueda: "Conductor",
     filtros: [
       {
         key: "estado",
         titulo: "Estado",
         opciones: [
-          "Pendiente",
-          "Programado",
-          "En curso",
-          "Completado",
-          "Cancelado",
-        ].map((valor) => ({
-          valor,
-          etiqueta: valor,
-        })),
+          { valor: "programado", etiqueta: "Programado" },
+          { valor: "en_curso", etiqueta: "En curso" },
+          { valor: "finalizado", etiqueta: "Finalizado" },
+          { valor: "cancelado", etiqueta: "Cancelado" },
+          { valor: "historial", etiqueta: "Historial" },
+          { valor: "activos", etiqueta: "Activos" },
+        ],
       },
       {
         key: "fecha",
-        titulo: "Fecha",
+        titulo: "Fecha de salida",
         tipo: "fecha",
       },
     ],
@@ -95,14 +108,31 @@ const configuraciones = {
       { key: "origen", titulo: "Origen" },
       { key: "destino", titulo: "Destino" },
       {
+        key: "conductor",
+        titulo: "Conductor",
+        render: (viaje) =>
+          viaje.conductor?.nombre_completo ||
+          viaje.conductor_nombre ||
+          "—",
+      },
+      {
         key: "fecha_salida",
         titulo: "Salida",
-        render: (v) =>
-          v.fecha_salida
-            ? new Date(v.fecha_salida).toLocaleString("es-MX")
+        render: (viaje) =>
+          viaje.fecha_salida
+            ? new Date(viaje.fecha_salida).toLocaleString("es-MX")
             : "—",
       },
-      { key: "estado", titulo: "Estado" },
+      {
+        key: "estado",
+        titulo: "Estado",
+        render: (viaje) => mostrarEstado(viaje.estado),
+      },
+      {
+        key: "total_reservaciones",
+        titulo: "Reservaciones",
+        render: (viaje) => viaje.total_reservaciones ?? 0,
+      },
     ],
   },
 };
@@ -132,6 +162,7 @@ export default function ListadoAdministrativo({ tipo }) {
   const [reintento, setReintento] = useState(0);
 
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
+  const [viajeDetalle, setViajeDetalle] = useState(null);
 
   // Estado para cancelar viajes desde la vista administrativa.
   const [viajeCancelacion, setViajeCancelacion] = useState(null);
@@ -285,13 +316,13 @@ export default function ListadoAdministrativo({ tipo }) {
             </button>
           )}
 
-          {tipo === "viajes" && esViajeProgramado(fila) && (
+          {tipo === "viajes" && (
             <button
               type="button"
-              className="text-red-700 underline"
-              onClick={() => abrirCancelacion(fila)}
+              className="text-emerald-700 underline"
+              onClick={() => setViajeDetalle(fila)}
             >
-              Cancelar viaje
+              Ver detalle
             </button>
           )}
 
@@ -312,6 +343,15 @@ export default function ListadoAdministrativo({ tipo }) {
       <VistaDetalleUsuario
         usuario={usuarioDetalle}
         onVolver={() => setUsuarioDetalle(null)}
+      />
+    );
+  }
+
+  if (tipo === "viajes" && viajeDetalle) {
+    return (
+      <VistaDetalleViaje
+        viaje={viajeDetalle}
+        onVolver={() => setViajeDetalle(null)}
       />
     );
   }
@@ -342,8 +382,7 @@ export default function ListadoAdministrativo({ tipo }) {
       />
 
       <p className="text-xs text-slate-500">
-        La selección para revisión es local; no modifica
-        registros del servidor.
+        La selección para revisión es local; no modifica registros del servidor.
       </p>
 
       {aviso && (
